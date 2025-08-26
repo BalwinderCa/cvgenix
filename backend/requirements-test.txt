@@ -1,0 +1,34 @@
+# Django and REST Framework
+Django==5.0.2
+djangorestframework==3.14.0
+drf-nested-routers==0.93.4
+django-cors-headers==4.3.1
+django-filter==23.5
+
+# Authentication
+djangorestframework-simplejwt==5.3.0
+django-allauth==0.60.1
+
+# File handling and parsing
+python-docx==1.1.0
+PyPDF2==3.0.1
+pdfplumber==0.10.3
+Pillow==10.2.0
+
+# Async tasks
+celery==5.3.4
+redis==5.0.1
+
+# Security
+argon2-cffi==23.1.0
+cryptography==41.0.8
+
+# Development and testing
+pytest==7.4.4
+pytest-django==4.7.0
+factory-boy==3.3.0
+coverage==7.4.1
+
+# Utilities
+python-dateutil==2.8.2
+requests==2.31.0

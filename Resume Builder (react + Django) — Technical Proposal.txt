@@ -1,0 +1,166 @@
+Project: Resume Builder Platform
+1) Executive Summary
+Build a resume builder that ingests existing CVs, confirms and enriches data with the user, and outputs
+ATS‑optimized, company‑specific resumes using switchable, Canva‑like templates. Phase 1 focuses on core
+data ingestion, profile management, template rendering, company targeting, ATS scoring, and JD‑based
+suggestions. Stack: React (frontend) + Django/DRF (backend) + PostgreSQL + Object Storage
+(S3‑compatible).
+
+2) Goals and Scope
+Goals
+• Centralized user profile from uploaded CVs or manual entry.
+• Template gallery with live preview and one‑click re‑skin of resumes.
+• Company‑specific tailoring and JD‑based optimization with an ATS score.
+• Social login and secure storage of PII.
+Out of Scope (Phase 1)
+• AI cover letter generator.
+• In‑app job search aggregator.
+• Collaboration or recruiter portal.
+
+3) User Roles
+• Guest: Browse templates, read marketing pages.
+• Authenticated User: Upload CV, manage profile, create resumes, run ATS checks, tailor to JD, export
+PDF/Word.
+• Admin: Manage templates, company profiles, rules, feature flags, and system settings.
+
+4) Feature Set
+4.1 Data Ingestion and Profile Builder
+• Upload existing CV (PDF/DOCX).
+• Extract structured fields: About, Contact, Education, Experience, Projects, Skills, Certifications, Links
+(GitHub, LinkedIn).
+• Parsing pipeline: PDF/DOCX parsing, OCR fallback.
+• User confirmation flow to review parsed data.
+
+1
+
+• Profile versioning with rollback.
+
+4.2 Template System (Canva‑like)
+• Template gallery with filters.
+• JSON‑based layout definitions.
+• Editor for layout customization.
+• Dynamic sections (toggle, reorder, multi‑column).
+• Asset support (icons, avatar, brand badges).
+• Client preview and server PDF/DOCX export.
+• Prefill when switching templates.
+
+4.3 Company‑Specific Resume Builder
+• Company profiles for FAANG and popular firms.
+• Keyword clusters, section emphasis, file naming conventions.
+• Tailoring rules for skills, projects, and metrics.
+• One‑click company tailoring.
+
+4.4 JD‑Based Optimization
+• Input JD text or upload JD document.
+• Extract skills, tools, and responsibilities.
+• Gap analysis (missing/weak keywords).
+• Rewrite suggestions for experience bullets.
+
+4.5 ATS Score Checker
+• Score dimensions: structure completeness, keyword coverage, readability, bullet quality, hygiene,
+length, recency.
+• Output: 0–100 score + actionable checklist.
+
+4.6 Authentication and Account
+• Social login via Google, GitHub, LinkedIn.
+• JWT sessions.
+• PII export and delete controls.
+
+4.7 Exports and Sharing
+• PDF and DOCX export.
+• Shareable read‑only web preview links.
+
+4.8 Admin Features
+• Template management.
+• Company profile management.
+• Feature flagging.
+• System settings.
+
+2
+
+5) Non‑Functional Requirements
+• Performance: Resume preview in <4 seconds.
+• Scalability: Stateless API, async workers.
+• Security: Encryption, sanitization, OWASP compliance.
+• Availability: 99.5% uptime.
+• Observability: Logs, metrics, traces.
+
+6) System Architecture
+• Frontend: React 18, TypeScript, Redux, resume editor UI.
+• Backend: Django 5 + DRF, Celery + Redis, PostgreSQL, S3 storage, rendering service.
+• Deployment: Docker, CI/CD, blue‑green deploys.
+
+7) Data Model (Core Entities)
+• Users
+• Profiles (About, Contact, Skills, Experience, Education, Projects, Certifications, Links)
+• Resumes
+• Templates
+• Company profiles
+• Job descriptions
+• ATS reports
+• Uploads
+
+8) ATS Scoring Logic (Dimensions)
+• Structure
+• Keyword coverage
+• Readability
+• Bullet quality
+• Document hygiene
+• Length & recency
+• Semantic match (optional, future)
+
+9) Frontend UX Flows
+1. Onboarding: Social login → Upload CV → Parse → Confirm profile.
+2. Template selection: Browse → Preview → Prefill.
+
+3
+
+3. Targeting: Choose company or paste JD → Gap analysis.
+4. ATS scoring: Scorecard + checklist.
+5. Export: PDF/DOCX download or share.
+
+10) Security & Compliance
+• Password hashing (Argon2).
+• HTTPS, CSRF, HSTS.
+• Encrypted PII fields.
+• RBAC for Admin.
+• Signed URLs for files.
+• GDPR‑style controls.
+
+11) Testing Strategy
+• Unit tests for parsers and scorers.
+• Integration: upload → parse → ingest.
+• E2E tests with Playwright.
+• Accessibility tests.
+
+12) DevOps & Observability
+• CI/CD with lint, type checks, tests.
+• Error tracking (Sentry).
+• Metrics: latency, error rates, queue depth.
+
+13) Milestones & Deliverables
+• M1: Foundations (auth, uploads, Celery setup).
+• M2: Parsing + Profile wizard.
+• M3: Templates + Rendering.
+• M4: Company profiles + JD optimization.
+• M5: ATS scoring.
+• M6: Testing + polish.
+
+14) Acceptance Criteria
+• Successful CV parsing within 60s.
+• Switching templates preserves content.
+
+4
+
+• ATS score produced in <10s.
+• JD gap analysis detects ≥80% skills.
+• PDF export is ATS‑compatible.
+
+15) Future Extensions
+• AI cover letter generator.
+• Portfolio generation.
+• Recruiter portal.
+
+5
+
+
