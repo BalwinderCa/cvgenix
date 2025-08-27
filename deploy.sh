@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Resume4Me Deployment Script
-# This script syncs local changes to the production server
+# This script pulls latest code from GitHub and deploys on server
 
-echo "🚀 Starting deployment to resume4me.com..."
+echo "🚀 Starting GitHub-based deployment to resume4me.com..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -16,6 +16,7 @@ SERVER_IP="72.14.179.145"
 SERVER_USER="root"
 SERVER_PATH="/var/www/resume-builder"
 DOMAIN="resume4me.com"
+GITHUB_REPO="https://github.com/BalwinderCa/resume-builder-platform.git"
 
 # Function to print colored output
 print_status() {
@@ -36,32 +37,8 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-# Step 1: Build the frontend
-print_status "Building frontend..."
-cd frontend
-npm run build
-if [ $? -ne 0 ]; then
-    print_error "Frontend build failed!"
-    exit 1
-fi
-cd ..
-
-# Step 2: Create deployment package
-print_status "Creating deployment package..."
-DEPLOY_FILE="resume4me-deploy-$(date +%Y%m%d-%H%M%S).tar.gz"
-tar -czf $DEPLOY_FILE \
-    --exclude='node_modules' \
-    --exclude='.git' \
-    --exclude='frontend/build' \
-    --exclude='*.log' \
-    .
-
-# Step 3: Upload to server
-print_status "Uploading to server..."
-scp $DEPLOY_FILE $SERVER_USER@$SERVER_IP:/tmp/
-
-# Step 4: Deploy on server
-print_status "Deploying on server..."
+# Step 1: Deploy on server
+print_status "Pulling latest code from GitHub and deploying on server..."
 ssh $SERVER_USER@$SERVER_IP << EOF
     # Stop the current servers
     pkill -f "node index.js"
@@ -72,10 +49,10 @@ ssh $SERVER_USER@$SERVER_IP << EOF
         mv $SERVER_PATH ${SERVER_PATH}-backup-$(date +%Y%m%d-%H%M%S)
     fi
     
-    # Extract new version
+    # Clone fresh from GitHub
     mkdir -p $SERVER_PATH
     cd $SERVER_PATH
-    tar -xzf /tmp/$DEPLOY_FILE
+    git clone $GITHUB_REPO .
     
     # Install dependencies
     npm install
@@ -89,16 +66,10 @@ ssh $SERVER_USER@$SERVER_IP << EOF
     cd $SERVER_PATH/frontend
     nohup serve -s build -l 3000 > frontend.log 2>&1 &
     
-    # Clean up
-    rm /tmp/$DEPLOY_FILE
-    
     echo "Deployment completed!"
 EOF
 
-# Step 5: Clean up local file
-rm $DEPLOY_FILE
-
-# Step 6: Test deployment
+# Step 2: Test deployment
 print_status "Testing deployment..."
 sleep 5
 if curl -s https://$DOMAIN/api/health | grep -q "OK"; then
@@ -107,4 +78,4 @@ else
     print_warning "⚠️  Deployment might have issues. Please check server logs."
 fi
 
-echo "🎉 Deployment process completed!"
+echo "🎉 GitHub-based deployment process completed!"
