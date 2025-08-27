@@ -1,0 +1,38 @@
+{
+  "short_name": "R4M",
+  "name": "Resume4Me - Professional Resume Builder",
+  "description": "Create stunning professional resumes in minutes with our easy-to-use builder",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo-modern.svg",
+      "type": "image/svg+xml",
+      "sizes": "200x200",
+      "purpose": "any"
+    },
+    {
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "32x32",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#6366F1",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "business", "education"],
+  "lang": "en"
+}

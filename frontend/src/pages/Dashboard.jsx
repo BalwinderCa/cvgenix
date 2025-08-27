@@ -74,7 +74,7 @@ const Dashboard = () => {
             className="inline-flex items-center space-x-2 btn-primary"
           >
             <Plus className="w-5 h-5" />
-            <span>Create New Resume</span>
+            <span>Build New Resume</span>
           </Link>
         </div>
 
@@ -95,7 +95,7 @@ const Dashboard = () => {
               Create your first resume to get started on your job search journey.
             </p>
             <Link to="/builder" className="btn-primary">
-              Create Your First Resume
+              Build Your First Resume
             </Link>
           </motion.div>
         ) : (

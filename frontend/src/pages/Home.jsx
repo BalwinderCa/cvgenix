@@ -92,7 +92,7 @@ const Home = () => {
       <section className="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white">
         {/* Background Pattern */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-blue-800/20"></div>
           <div className="absolute top-0 left-0 w-full h-full">
             <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
@@ -146,7 +146,7 @@ const Home = () => {
                 to="/register" 
                 className="group bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-pink-500/25 transform hover:-translate-y-1 transition-all duration-200 flex items-center"
               >
-                Start Building Free
+                Create My Resume
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
               
@@ -154,8 +154,8 @@ const Home = () => {
                 to="/templates" 
                 className="group bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white px-8 py-4 rounded-2xl font-semibold text-lg border border-white/20 transition-all duration-200 flex items-center"
               >
-                <Play className="w-5 h-5 mr-2" />
-                Watch Demo
+                <FileText className="w-5 h-5 mr-2" />
+                Import Existing Resume
               </Link>
             </motion.div>
 
@@ -195,8 +195,8 @@ const Home = () => {
                 viewport={{ once: true }}
                 className="text-center group"
               >
-                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 group-hover:-translate-y-2">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-white">
+                <div className="bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 group-hover:-translate-y-2">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-xl flex items-center justify-center mx-auto mb-4 text-white">
                     {stat.icon}
                   </div>
                   <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{stat.number}</div>
@@ -307,7 +307,7 @@ const Home = () => {
                 <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold shadow-lg">
                   {item.step}
                 </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg">
                   {item.icon}
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">{item.title}</h3>
@@ -321,7 +321,7 @@ const Home = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-24 bg-gradient-to-br from-indigo-50 to-purple-50">
+              <section className="py-24 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
             className="text-center mb-20"
@@ -410,7 +410,7 @@ const Home = () => {
               to="/register" 
               className="group bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-12 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-pink-500/25 transform hover:-translate-y-1 transition-all duration-200 inline-flex items-center"
             >
-              Start Building Free
+              Create My Resume Now
               <Rocket className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
             </Link>
           </motion.div>

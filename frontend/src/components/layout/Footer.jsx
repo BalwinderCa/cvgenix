@@ -20,10 +20,26 @@ const Footer = () => {
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                <FileText className="w-6 h-6" />
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                  <defs>
+                    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{stopColor: '#A855F7', stopOpacity: 1}} />
+                      <stop offset="100%" style={{stopColor: '#6366F1', stopOpacity: 1}} />
+                    </linearGradient>
+                  </defs>
+                  <rect x="5" y="4" width="14" height="16" rx="1.5" fill="white" opacity="0.95"/>
+                  <rect x="7" y="6" width="10" height="1.5" fill="url(#textGradient)" rx="0.75"/>
+                  <rect x="7" y="9" width="8" height="0.75" fill="#64748B" rx="0.375"/>
+                  <rect x="7" y="10.5" width="7" height="0.75" fill="#94A3B8" rx="0.375"/>
+                  <rect x="7" y="12" width="8" height="0.75" fill="#94A3B8" rx="0.375"/>
+                  <rect x="7" y="13.5" width="6" height="0.75" fill="#94A3B8" rx="0.375"/>
+                  <rect x="7" y="15" width="7" height="0.75" fill="#94A3B8" rx="0.375"/>
+                  <path d="M 17 4 L 19 6 L 17 6 Z" fill="#F1F5F9"/>
+                  <text x="12" y="19" fontFamily="Arial, sans-serif" fontSize="4.5" fontWeight="bold" textAnchor="middle" fill="url(#textGradient)">R4M</text>
+                </svg>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+              <span className="text-2xl font-extrabold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent tracking-tight">
                 Resume4Me
               </span>
             </div>
@@ -49,7 +65,7 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-white">Quick Links</h3>
+            <h3 className="text-lg font-bold mb-6 text-white tracking-tight">Quick Links</h3>
             <ul className="space-y-3">
               <li>
                 <Link to="/templates" className="text-gray-300 hover:text-white transition-colors duration-200">
@@ -81,7 +97,7 @@ const Footer = () => {
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-white">Contact Info</h3>
+            <h3 className="text-lg font-bold mb-6 text-white tracking-tight">Contact Info</h3>
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
