@@ -1,84 +1,45 @@
-# Resume Builder Platform
+# Resume4Me - Professional Resume Creation Platform
 
-A comprehensive resume building platform built with Django (Backend) and React (Frontend) that allows users to create, manage, and optimize their resumes with professional templates and ATS-friendly formatting.
+A modern, full-stack resume builder application built with React.js and Node.js.
 
 ## 🚀 Features
 
-### Core Features
-- **User Authentication & Authorization** - Secure JWT-based authentication
-- **Profile Management** - Complete profile builder with education, experience, skills, projects, and certifications
-- **Resume Builder** - Drag-and-drop resume creation with real-time preview
-- **Template Gallery** - Professional resume templates with filtering and search
-- **File Upload & Processing** - Document upload with text extraction and processing
-- **ATS Optimization** - Resume scoring and optimization for Applicant Tracking Systems
-- **Export Options** - PDF and DOCX export capabilities
-- **File Sharing** - Secure file sharing with permission controls
-
-### Advanced Features
-- **Real-time Preview** - Live resume preview as you edit
-- **Bulk Operations** - Upload and process multiple files
-- **Analytics** - File usage and processing statistics
-- **Responsive Design** - Mobile-friendly interface
-- **Search & Filtering** - Advanced search and filter capabilities
-- **Favorites System** - Save and organize favorite templates
+- **Professional Templates**: 50+ ATS-optimized resume templates
+- **Real-time Preview**: See changes as you build your resume
+- **User Authentication**: Secure login and registration system
+- **Resume Management**: Create, edit, duplicate, and delete resumes
+- **Modern UI/UX**: Beautiful, responsive design with smooth animations
+- **PDF Export**: Download resumes in multiple formats
+- **Mobile Responsive**: Works perfectly on all devices
 
 ## 🛠️ Tech Stack
 
-### Backend
-- **Django 5.0** - Web framework
-- **Django REST Framework** - API framework
-- **PostgreSQL/SQLite** - Database
-- **JWT Authentication** - Token-based authentication
-- **Celery** - Background task processing
-- **Redis** - Caching and message broker
-
 ### Frontend
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Material-UI** - Component library
+- **React.js** - Modern UI framework
+- **Tailwind CSS** - Utility-first CSS framework
+- **Framer Motion** - Smooth animations
 - **React Router** - Client-side routing
-- **React Query** - Data fetching and caching
 - **Axios** - HTTP client
-- **Framer Motion** - Animations
+- **React Hook Form** - Form management
+- **Lucide React** - Beautiful icons
 
-## 📁 Project Structure
+### Backend
+- **Node.js** - JavaScript runtime
+- **Express.js** - Web framework
+- **MongoDB** - NoSQL database
+- **Mongoose** - MongoDB ODM
+- **JWT** - Authentication
+- **bcryptjs** - Password hashing
+- **Helmet** - Security middleware
 
-```
-resume-builder/
-├── backend/                 # Django backend
-│   ├── resume_builder/     # Main Django project
-│   ├── users/              # User management app
-│   ├── profiles/           # Profile management app
-│   ├── resumes/            # Resume builder app
-│   ├── templates/          # Template gallery app
-│   ├── uploads/            # File upload app
-│   ├── ats_scoring/        # ATS optimization app
-│   ├── companies/          # Company profiles app
-│   ├── requirements.txt    # Python dependencies
-│   └── manage.py          # Django management script
-├── frontend/               # React frontend
-│   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── contexts/       # React contexts
-│   │   ├── services/       # API services
-│   │   └── types/          # TypeScript types
-│   ├── public/             # Static files
-│   └── package.json        # Node.js dependencies
-├── docs/                   # Documentation
-├── tests/                  # Test files
-└── README.md              # Project documentation
-```
-
-## 🚀 Quick Start
+## 📦 Installation
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
+- Node.js (v16 or higher)
+- MongoDB (local or cloud)
 - npm or yarn
-- Git
 
-### Backend Setup
+### Setup Instructions
 
 1. **Clone the repository**
    ```bash
@@ -86,181 +47,150 @@ resume-builder/
    cd resume-builder
    ```
 
-2. **Set up Python virtual environment**
-   ```bash
-   cd backend
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up database**
-   ```bash
-   python manage.py makemigrations
-   python manage.py migrate
-   ```
-
-5. **Create superuser**
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-6. **Run the development server**
-   ```bash
-   python manage.py runserver
-   ```
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**
-   ```bash
-   cd frontend
-   ```
-
 2. **Install dependencies**
    ```bash
+   # Install root dependencies
    npm install
+   
+   # Install backend dependencies
+   cd server && npm install
+   
+   # Install frontend dependencies
+   cd ../frontend && npm install
    ```
 
-3. **Start development server**
+3. **Environment Configuration**
+   
+   Create a `.env` file in the `server` directory:
+   ```env
+   PORT=5000
+   MONGODB_URI=mongodb://localhost:27017/resume-builder
+   JWT_SECRET=your-super-secret-jwt-key
+   NODE_ENV=development
+   CLIENT_URL=http://localhost:3000
+   ```
+
+4. **Start the application**
    ```bash
-   npm start
+   # From the root directory
+   npm run dev
+   
+   # Or start separately:
+   # Terminal 1 - Backend
+   cd server && npm run dev
+   
+   # Terminal 2 - Frontend
+   cd frontend && npm start
    ```
 
-## 🔧 Configuration
+5. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
 
-### Environment Variables
+## 🏗️ Project Structure
 
-Create a `.env` file in the backend directory:
-
-```env
-# Django Settings
-SECRET_KEY=your-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Database
-DATABASE_URL=sqlite:///db.sqlite3
-
-# JWT Settings
-JWT_SECRET_KEY=your-jwt-secret
-JWT_ACCESS_TOKEN_LIFETIME=5
-JWT_REFRESH_TOKEN_LIFETIME=1
-
-# File Upload
-MAX_FILE_SIZE=10485760  # 10MB
-ALLOWED_FILE_TYPES=pdf,doc,docx,txt,jpg,jpeg,png
-
-# Email (optional)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
+```
+resume-builder/
+├── server/                 # Backend application
+│   ├── models/            # Database models
+│   ├── routes/            # API routes
+│   ├── middleware/        # Custom middleware
+│   └── index.js           # Server entry point
+├── frontend/              # React application
+│   ├── src/
+│   │   ├── components/    # Reusable components
+│   │   ├── contexts/      # React contexts
+│   │   ├── pages/         # Page components
+│   │   └── App.js         # Main app component
+│   └── public/            # Static assets
+├── package.json           # Root package.json
+└── README.md             # Project documentation
 ```
 
-### Frontend Configuration
+## 🔧 API Endpoints
 
-Create a `.env` file in the frontend directory:
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/profile` - Get user profile
+- `PUT /api/auth/profile` - Update user profile
+- `PUT /api/auth/change-password` - Change password
 
-```env
-REACT_APP_API_URL=http://localhost:8000/api
-REACT_APP_BASE_URL=http://localhost:3000
-```
+### Resumes
+- `GET /api/resumes` - Get user's resumes
+- `POST /api/resumes` - Create new resume
+- `GET /api/resumes/:id` - Get specific resume
+- `PUT /api/resumes/:id` - Update resume
+- `DELETE /api/resumes/:id` - Delete resume
+- `POST /api/resumes/:id/duplicate` - Duplicate resume
 
-## 📚 API Documentation
+### Templates
+- `GET /api/templates` - Get all templates
+- `GET /api/templates/:id` - Get specific template
+- `GET /api/templates/category/:category` - Get templates by category
 
-### Authentication Endpoints
-- `POST /api/auth/token/` - Get JWT tokens
-- `POST /api/auth/token/refresh/` - Refresh access token
-- `POST /api/auth/register/` - User registration
+## 🎨 Templates
 
-### Profile Endpoints
-- `GET /api/profiles/profiles/` - List user profiles
-- `POST /api/profiles/profiles/` - Create profile
-- `GET /api/profiles/profiles/{id}/` - Get profile details
-- `PATCH /api/profiles/profiles/{id}/` - Update profile
+The application includes 6 professional resume templates:
 
-### Resume Endpoints
-- `GET /api/resumes/resumes/` - List user resumes
-- `POST /api/resumes/resumes/` - Create resume
-- `GET /api/resumes/resumes/{id}/` - Get resume details
-- `PATCH /api/resumes/resumes/{id}/` - Update resume
+1. **Modern** - Clean and contemporary design
+2. **Classic** - Traditional and formal layout
+3. **Creative** - Eye-catching design for creative professionals
+4. **Minimal** - Simple and elegant design
+5. **Executive** - Sophisticated design for senior positions
+6. **Tech** - Modern design for technology professionals
 
-### Template Endpoints
-- `GET /api/templates/templates/` - List templates
-- `GET /api/templates/templates/{id}/` - Get template details
-- `POST /api/templates/templates/{id}/favorite/` - Add to favorites
+## 🔒 Security Features
 
-### Upload Endpoints
-- `POST /api/uploads/files/` - Upload file
-- `GET /api/uploads/files/` - List uploaded files
-- `POST /api/uploads/files/bulk_upload/` - Bulk upload
-- `POST /api/uploads/jobs/` - Create processing job
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-python manage.py test
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm test
-```
+- JWT-based authentication
+- Password hashing with bcrypt
+- CORS protection
+- Rate limiting
+- Helmet security headers
+- Input validation and sanitization
 
 ## 🚀 Deployment
 
-### Backend Deployment (Django)
-1. Set `DEBUG=False` in settings
-2. Configure production database
-3. Set up static file serving
-4. Configure environment variables
-5. Use Gunicorn or uWSGI
+### Backend Deployment (Heroku)
+1. Create a Heroku app
+2. Set environment variables
+3. Deploy using Git:
+   ```bash
+   heroku git:remote -a your-app-name
+   git push heroku main
+   ```
 
-### Frontend Deployment (React)
-1. Build the application: `npm run build`
-2. Serve static files with nginx or similar
-3. Configure API endpoint URLs
+### Frontend Deployment (Vercel/Netlify)
+1. Build the application:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+2. Deploy the `build` folder to your preferred platform
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push to branch: `git push origin feature-name`
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation
-
-## 🔄 Version History
-
-- **v1.0.0** - Initial release with core features
-- **v1.1.0** - Added ATS scoring and optimization
-- **v1.2.0** - Enhanced template gallery and file management
-
 ## 🙏 Acknowledgments
 
-- Django and React communities
-- Material-UI for the component library
-- Contributors and testers
+- Inspired by MyPerfectResume.com
+- Icons from Lucide React
+- UI components styled with Tailwind CSS
+- Animations powered by Framer Motion
+
+## 📞 Support
+
+For support and questions, please open an issue in the GitHub repository or contact the development team.
 
 ---
 
-**Built with ❤️ by the Resume Builder Team**
+**Happy Resume Building! 🎉**
