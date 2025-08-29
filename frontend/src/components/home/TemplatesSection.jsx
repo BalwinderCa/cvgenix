@@ -248,7 +248,7 @@ const TemplatesSection = () => {
         >
           <Link
             to="/templates"
-            className="inline-flex items-center btn-outline text-lg px-8 py-4 group"
+            className="inline-flex items-center btn-gradient text-lg px-8 py-4 group"
           >
             View All Templates
             <FiArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />

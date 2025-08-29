@@ -41,8 +41,8 @@ const StepsSection = () => {
 
   const colorClasses = {
     primary: 'from-orange-500 to-red-500',
-    accent: 'from-blue-500 to-purple-500',
-    success: 'from-green-500 to-emerald-500'
+    accent: 'from-orange-400 to-red-400',
+    success: 'from-orange-600 to-red-600'
   }
 
   const containerVariants = {
@@ -129,7 +129,7 @@ const StepsSection = () => {
         >
           <Link
             to="/templates"
-            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-red-600 transform hover:scale-105 transition-all duration-200 shadow-lg"
+            className="inline-flex items-center px-8 py-4 btn-gradient"
           >
             Start Building Now
             <FiArrowRight className="ml-2 w-5 h-5" />

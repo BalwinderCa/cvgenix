@@ -19,8 +19,6 @@ import StepsSection from '../components/home/StepsSection'
 import FeaturesSection from '../components/home/FeaturesSection'
 import TemplatesSection from '../components/home/TemplatesSection'
 import TestimonialsSection from '../components/home/TestimonialsSection'
-import NewsletterSection from '../components/home/NewsletterSection'
-
 const HomePage = () => {
   return (
     <>
@@ -45,9 +43,6 @@ const HomePage = () => {
 
         {/* Testimonials Section */}
         <TestimonialsSection />
-
-        {/* Newsletter Section */}
-        <NewsletterSection />
       </div>
     </>
   )
