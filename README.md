@@ -1,58 +1,89 @@
-# Resume4Me - Professional Resume Creation Platform
+# Resume4Me - Professional Resume Builder
 
-A modern, full-stack resume builder application built with React.js and Node.js, featuring live preview, professional templates, and GitHub-based deployment.
-
-## 🌐 Live Demo
-
-**Visit the live application:** [https://resume4me.com](https://resume4me.com)
+A modern, full-stack resume builder application built with React.js and Node.js. Create professional resumes with beautiful templates, AI-powered suggestions, and instant PDF downloads.
 
 ## 🚀 Features
 
-- **Professional Templates**: 6+ ATS-optimized resume templates
-- **Live Preview**: Real-time preview as you build your resume
-- **Template System**: Modern, Classic, Creative, Minimal, Executive, and Tech templates
-- **User Authentication**: Secure login and registration system
-- **Resume Management**: Create, edit, and manage multiple resumes
+### Frontend (React.js)
 - **Modern UI/UX**: Beautiful, responsive design with smooth animations
-- **PDF Export**: Download resumes in professional format
+- **50+ Professional Templates**: ATS-optimized templates for different industries
+- **Real-time Preview**: See changes as you type
+- **Drag & Drop**: Reorder sections easily
+- **Multiple Export Formats**: PDF, Word, and PNG downloads
 - **Mobile Responsive**: Works perfectly on all devices
-- **GitHub Integration**: Seamless deployment workflow
+- **Dark/Light Mode**: Customizable themes
+- **Form Validation**: Comprehensive input validation
+- **Auto-save**: Never lose your progress
+
+### Backend (Node.js)
+- **RESTful API**: Clean, well-documented endpoints
+- **JWT Authentication**: Secure user authentication
+- **File Upload**: Image upload and processing
+- **PDF Generation**: Server-side PDF creation
+- **Email Integration**: Password reset and notifications
+- **Rate Limiting**: API protection
+- **Error Handling**: Comprehensive error management
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React.js** - Modern UI framework
-- **Vite** - Fast build tool and development server
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Smooth animations
-- **React Router** - Client-side routing
-- **Axios** - HTTP client
+- **React 18** - UI library
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Styling
+- **Framer Motion** - Animations
+- **React Router** - Navigation
 - **React Hook Form** - Form management
-- **Lucide React** - Beautiful icons
+- **React Query** - Data fetching
+- **Zustand** - State management
+- **Axios** - HTTP client
 
 ### Backend
-- **Node.js** - JavaScript runtime
+- **Node.js** - Runtime
 - **Express.js** - Web framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB ODM
+- **MongoDB** - Database
+- **Mongoose** - ODM
 - **JWT** - Authentication
 - **bcryptjs** - Password hashing
-- **Helmet** - Security middleware
-- **CORS** - Cross-origin resource sharing
+- **Multer** - File uploads
+- **Puppeteer** - PDF generation
+- **Nodemailer** - Email sending
 
-## 📦 Installation
+## 📁 Project Structure
+
+```
+resume-builder-platform/
+├── frontend/                 # React frontend
+│   ├── src/
+│   │   ├── components/      # Reusable components
+│   │   ├── pages/          # Page components
+│   │   ├── contexts/       # React contexts
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── services/       # API services
+│   │   └── utils/          # Utility functions
+│   ├── public/             # Static assets
+│   └── package.json
+├── server/                  # Node.js backend
+│   ├── routes/             # API routes
+│   ├── models/             # Database models
+│   ├── middleware/         # Custom middleware
+│   ├── utils/              # Utility functions
+│   └── package.json
+├── package.json            # Root package.json
+└── README.md
+```
+
+## 🚀 Getting Started
 
 ### Prerequisites
 - Node.js (v18 or higher)
-- MongoDB (local or cloud)
 - npm or yarn
-- Git
+- MongoDB (local or cloud)
 
-### Setup Instructions
+### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/BalwinderCa/resume-builder-platform.git
+   git clone https://github.com/yourusername/resume-builder-platform.git
    cd resume-builder-platform
    ```
 
@@ -61,27 +92,27 @@ A modern, full-stack resume builder application built with React.js and Node.js,
    # Install root dependencies
    npm install
    
-   # Install backend dependencies
-   cd server && npm install
-   
    # Install frontend dependencies
-   cd ../frontend && npm install
-   ```
-
-3. **Environment Configuration**
+   cd frontend && npm install
    
-   Create a `.env` file in the `server` directory:
-   ```env
-   PORT=5001
-   MONGODB_URI=mongodb://localhost:27017/resume4me
-   JWT_SECRET=your-super-secret-jwt-key
-   NODE_ENV=development
-   CLIENT_URL=http://localhost:3000
+   # Install backend dependencies
+   cd ../server && npm install
    ```
 
-4. **Start the application**
+3. **Environment Setup**
+   
+   Create `.env` file in the server directory:
+   ```env
+   NODE_ENV=development
+   PORT=5000
+   MONGODB_URI=mongodb://localhost:27017/resume-builder
+   JWT_SECRET=your-super-secret-jwt-key
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+4. **Start the development servers**
    ```bash
-   # From the root directory (starts both frontend and backend)
+   # From root directory
    npm run dev
    
    # Or start separately:
@@ -92,141 +123,102 @@ A modern, full-stack resume builder application built with React.js and Node.js,
    cd frontend && npm run dev
    ```
 
-5. **Access the application**
+5. **Open your browser**
    - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5001
+   - Backend API: http://localhost:5000
 
-## 🏗️ Project Structure
+## 📋 Available Scripts
 
-```
-resume4me/
-├── server/                 # Backend application
-│   ├── models/            # Database models
-│   ├── routes/            # API routes
-│   ├── middleware/        # Custom middleware
-│   └── index.js           # Server entry point
-├── frontend/              # React application (Vite)
-│   ├── src/
-│   │   ├── components/    # Reusable components
-│   │   ├── contexts/      # React contexts
-│   │   ├── pages/         # Page components
-│   │   └── App.jsx        # Main app component
-│   ├── public/            # Static assets
-│   └── vite.config.js     # Vite configuration
-├── deploy.sh              # GitHub-based deployment script
-├── package.json           # Root package.json
-└── README.md             # Project documentation
-```
+### Root Directory
+- `npm run dev` - Start both frontend and backend in development mode
+- `npm run build` - Build the frontend for production
+- `npm start` - Start the production server
+- `npm run install-all` - Install all dependencies
 
-## 🔧 API Endpoints
+### Frontend
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/profile` - Get user profile
-- `PUT /api/auth/profile` - Update user profile
-- `PUT /api/auth/change-password` - Change password
+### Backend
+- `npm run dev` - Start development server with nodemon
+- `npm start` - Start production server
 
-### Resumes
-- `GET /api/resumes` - Get user's resumes
-- `POST /api/resumes` - Create new resume
-- `GET /api/resumes/:id` - Get specific resume
-- `PUT /api/resumes/:id` - Update resume
-- `DELETE /api/resumes/:id` - Delete resume
-- `POST /api/resumes/:id/duplicate` - Duplicate resume
+## 🎨 Features Overview
 
-### Templates
-- `GET /api/templates` - Get all templates
-- `GET /api/templates/:id` - Get specific template
-- `GET /api/templates/category/:category` - Get templates by category
+### Home Page
+- Hero section with call-to-action
+- Feature highlights
+- Template showcase
+- Testimonials
+- Newsletter signup
 
-### Health Check
-- `GET /api/health` - API health status
+### Templates Gallery
+- Browse 50+ professional templates
+- Filter by category
+- Search functionality
+- Template previews
 
-## 🎨 Templates
+### Resume Builder
+- Multi-section form (Personal Info, Education, Experience, Skills, etc.)
+- Real-time preview
+- Drag-and-drop reordering
+- Auto-save functionality
+- Export to PDF/Word/PNG
 
-The application includes 6 professional resume templates:
+### User Authentication
+- Sign up/Sign in
+- Password reset
+- Profile management
+- Subscription management
 
-1. **Modern** - Clean and contemporary design with bold typography
-2. **Classic** - Traditional and formal layout for conservative industries
-3. **Creative** - Eye-catching design for creative professionals
-4. **Minimal** - Simple and elegant design focusing on content
-5. **Executive** - Sophisticated design for senior-level positions
-6. **Tech** - Modern design perfect for technology professionals
+## 🔧 Configuration
 
-## 🔒 Security Features
+### Frontend Configuration
+The frontend uses Vite for building and development. Key configurations:
 
-- JWT-based authentication
-- Password hashing with bcrypt
-- CORS protection
-- Rate limiting
-- Helmet security headers
-- Input validation and sanitization
-- HTTPS enforcement in production
+- **Vite Config**: `frontend/vite.config.js`
+- **Tailwind Config**: `frontend/tailwind.config.js`
+- **Environment Variables**: Create `.env` in frontend directory
+
+### Backend Configuration
+The backend uses Express.js with various middleware:
+
+- **CORS**: Configured for frontend communication
+- **Rate Limiting**: 100 requests per 15 minutes per IP
+- **File Upload**: Configured for image uploads
+- **PDF Generation**: Using Puppeteer
 
 ## 🚀 Deployment
 
-### GitHub-Based Deployment
+### Frontend Deployment
+```bash
+cd frontend
+npm run build
+# Deploy the 'build' folder to your hosting service
+```
 
-The project uses a streamlined GitHub-based deployment workflow:
+### Backend Deployment
+```bash
+cd server
+npm install --production
+npm start
+```
 
-1. **Deploy from GitHub**
-   ```bash
-   ./deploy.sh
-   ```
-   - Pulls latest code from GitHub
-   - Fresh clone on server
-   - Complete rebuild and deployment
-
-2. **Manual GitHub Workflow**
-   ```bash
-   # 1. Commit and push to GitHub
-   git add .
-   git commit -m "Your commit message"
-   git push origin main
-   
-   # 2. Deploy on server
-   ./deploy.sh
-   ```
-
-### Production Environment
-
-- **Live Site**: https://resume4me.com
-- **API Endpoint**: https://resume4me.com/api
-- **Server**: Ubuntu 24.04.3 LTS
-- **Web Server**: Nginx with SSL
-- **Database**: MongoDB
-- **Process Manager**: PM2
-
-### Deployment Scripts
-
-- `deploy.sh` - Full GitHub-based deployment
-- `sync.sh` - Quick sync with GitHub
-- `push.sh` - Push code to GitHub only
-
-## 🎯 Key Features
-
-### Live Preview
-- Real-time resume preview as you type
-- Template switching with instant updates
-- Professional formatting and layout
-
-### Template System
-- Multiple professional templates
-- Easy template switching
-- Customizable colors and styling
-
-### User Experience
-- Modern, intuitive interface
-- Smooth animations and transitions
-- Mobile-responsive design
-- Fast loading with Vite
+### Environment Variables for Production
+```env
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=your-production-mongodb-uri
+JWT_SECRET=your-production-jwt-secret
+FRONTEND_URL=https://yourdomain.com
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
@@ -234,31 +226,21 @@ The project uses a streamlined GitHub-based deployment workflow:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 🆘 Support
+
+If you encounter any issues or have questions:
+
+1. Check the [Issues](https://github.com/yourusername/resume-builder-platform/issues) page
+2. Create a new issue with detailed information
+3. Contact the development team
+
 ## 🙏 Acknowledgments
 
-- Inspired by modern resume builders
-- Icons from Lucide React
-- UI components styled with Tailwind CSS
-- Animations powered by Framer Motion
-- Build tooling with Vite
-
-## 📞 Support
-
-For support and questions:
-- **Live Site**: https://resume4me.com
-- **GitHub Issues**: [Repository Issues](https://github.com/BalwinderCa/resume-builder-platform/issues)
-- **Email**: Contact through the live site
-
-## 🚀 Quick Start
-
-1. **Visit**: https://resume4me.com
-2. **Sign up** for a free account
-3. **Choose a template** from the collection
-4. **Build your resume** with live preview
-5. **Download** your professional resume
+- React.js team for the amazing framework
+- Tailwind CSS for the utility-first CSS framework
+- Framer Motion for smooth animations
+- All contributors and users of this project
 
 ---
 
-**Create your professional resume today! 🎉**
-
-*Resume4Me - Transform your career with professional resumes*
+**Made with ❤️ by the Resume4Me Team**

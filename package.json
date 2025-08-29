@@ -1,25 +1,25 @@
 {
-  "name": "resume4me",
+  "name": "resume-builder-platform",
   "version": "1.0.0",
-  "description": "Resume4Me - A modern resume builder application",
+  "description": "Modern resume builder platform with React frontend and Node.js backend",
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
-    "preview": "cd frontend && npm run preview",
-    "install-all": "npm install && cd server && npm install && cd ../frontend && npm install"
+    "start": "cd server && npm start",
+    "install-all": "npm install && cd server && npm install && cd ../frontend && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "resume",
-    "builder",
-    "react",
-    "nodejs"
-  ],
-  "author": "Your Name",
+  "keywords": ["resume", "builder", "react", "nodejs", "pdf"],
+  "author": "Resume4Me Team",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }

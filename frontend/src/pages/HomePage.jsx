@@ -1,0 +1,56 @@
+import React from 'react'
+import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Helmet } from 'react-helmet-async'
+import { 
+  FiArrowRight, 
+  FiStar, 
+  FiCheck, 
+  FiUsers, 
+  FiAward, 
+  FiTrendingUp,
+  FiFileText,
+  FiZap,
+  FiShield,
+  FiHeart
+} from 'react-icons/fi'
+import HeroSection from '../components/home/HeroSection'
+import StepsSection from '../components/home/StepsSection'
+import FeaturesSection from '../components/home/FeaturesSection'
+import TemplatesSection from '../components/home/TemplatesSection'
+import TestimonialsSection from '../components/home/TestimonialsSection'
+import NewsletterSection from '../components/home/NewsletterSection'
+
+const HomePage = () => {
+  return (
+    <>
+      <Helmet>
+        <title>Resume4Me - Professional Resume Builder | Create Standout Resumes</title>
+        <meta name="description" content="Create professional resumes that stand out from the crowd. Free templates, AI-powered suggestions, and instant PDF downloads. Start building your dream career today." />
+        <meta name="keywords" content="resume builder, CV maker, professional resume, free resume templates, PDF resume, job application" />
+      </Helmet>
+
+      <div className="pt-16 lg:pt-20">
+        {/* Hero Section */}
+        <HeroSection />
+
+        {/* How It Works Section */}
+        <StepsSection />
+
+        {/* Features Section */}
+        <FeaturesSection />
+
+        {/* Templates Section */}
+        <TemplatesSection />
+
+        {/* Testimonials Section */}
+        <TestimonialsSection />
+
+        {/* Newsletter Section */}
+        <NewsletterSection />
+      </div>
+    </>
+  )
+}
+
+export default HomePage

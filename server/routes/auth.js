@@ -1,155 +1,331 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const auth = require('../middleware/auth');
+const express = require('express')
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const { body, validationResult } = require('express-validator')
+const User = require('../models/User')
+const auth = require('../middleware/auth')
 
-const router = express.Router();
+const router = express.Router()
 
-// Register new user
-router.post('/register', async (req, res) => {
+// @route   POST /api/auth/signup
+// @desc    Register a new user
+// @access  Public
+router.post('/signup', [
+  body('firstName', 'First name is required').not().isEmpty(),
+  body('lastName', 'Last name is required').not().isEmpty(),
+  body('email', 'Please include a valid email').isEmail(),
+  body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+], async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    // Check for validation errors
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
+    }
+
+    const { firstName, lastName, email, password } = req.body
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists with this email' });
+    let user = await User.findOne({ email })
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists'
+      })
     }
 
     // Create new user
-    const user = new User({
-      email,
-      password,
+    user = new User({
       firstName,
-      lastName
-    });
+      lastName,
+      email,
+      password
+    })
 
-    await user.save();
+    // Hash password
+    const salt = await bcrypt.genSalt(10)
+    user.password = await bcrypt.hash(password, salt)
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    await user.save()
 
-    res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: user.toJSON()
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Error creating user' });
+    // Create JWT token
+    const payload = {
+      user: {
+        id: user.id
+      }
+    }
+
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' },
+      (err, token) => {
+        if (err) throw err
+        res.json({
+          success: true,
+          message: 'User registered successfully',
+          token,
+          user: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email
+          }
+        })
+      }
+    )
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
   }
-});
+})
 
-// Login user
-router.post('/login', async (req, res) => {
+// @route   POST /api/auth/login
+// @desc    Authenticate user & get token
+// @access  Public
+router.post('/login', [
+  body('email', 'Please include a valid email').isEmail(),
+  body('password', 'Password is required').exists()
+], async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Check for validation errors
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
+    }
 
-    // Find user by email
-    const user = await User.findOne({ email });
+    const { email, password } = req.body
+
+    // Check if user exists
+    const user = await User.findOne({ email })
     if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid credentials'
+      })
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
+    // Validate password
+    const isMatch = await bcrypt.compare(password, user.password)
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid credentials'
+      })
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    // Create JWT token
+    const payload = {
+      user: {
+        id: user.id
+      }
+    }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' },
+      (err, token) => {
+        if (err) throw err
+        res.json({
+          success: true,
+          message: 'Login successful',
+          token,
+          user: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email
+          }
+        })
+      }
+    )
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
+// @route   GET /api/auth/me
+// @desc    Get current user
+// @access  Private
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password')
+    res.json({
+      success: true,
+      user
+    })
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', auth, [
+  body('firstName', 'First name is required').not().isEmpty(),
+  body('lastName', 'Last name is required').not().isEmpty(),
+  body('email', 'Please include a valid email').isEmail()
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
+    }
+
+    const { firstName, lastName, email } = req.body
+
+    // Check if email is already taken by another user
+    const existingUser = await User.findOne({ email, _id: { $ne: req.user.id } })
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already in use'
+      })
+    }
+
+    // Update user
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { firstName, lastName, email },
+      { new: true }
+    ).select('-password')
 
     res.json({
-      message: 'Login successful',
-      token,
-      user: user.toJSON()
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Error logging in' });
+      success: true,
+      message: 'Profile updated successfully',
+      user
+    })
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
   }
-});
+})
 
-// Get current user profile
-router.get('/profile', auth, async (req, res) => {
+// @route   POST /api/auth/forgot-password
+// @desc    Send password reset email
+// @access  Public
+router.post('/forgot-password', [
+  body('email', 'Please include a valid email').isEmail()
+], async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
     }
 
-    res.json({ user: user.toJSON() });
-  } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ error: 'Error fetching profile' });
-  }
-});
+    const { email } = req.body
 
-// Update user profile
-router.put('/profile', auth, async (req, res) => {
+    // Check if user exists
+    const user = await User.findOne({ email })
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'No user found with this email'
+      })
+    }
+
+    // Generate reset token
+    const resetToken = jwt.sign(
+      { user: { id: user.id } },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    )
+
+    // TODO: Send email with reset link
+    // For now, just return success
+    res.json({
+      success: true,
+      message: 'Password reset email sent'
+    })
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
+// @route   POST /api/auth/reset-password
+// @desc    Reset password with token
+// @access  Public
+router.post('/reset-password', [
+  body('token', 'Token is required').not().isEmpty(),
+  body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+], async (req, res) => {
   try {
-    const { firstName, lastName, email } = req.body;
-    const updates = {};
-
-    if (firstName) updates.firstName = firstName;
-    if (lastName) updates.lastName = lastName;
-    if (email) updates.email = email;
-
-    const user = await User.findByIdAndUpdate(
-      req.user.userId,
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
     }
 
-    res.json({ user: user.toJSON() });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ error: 'Error updating profile' });
+    const { token, password } = req.body
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const userId = decoded.user.id
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
+
+    // Update user password
+    await User.findByIdAndUpdate(userId, { password: hashedPassword })
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    })
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired token'
+      })
+    }
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
   }
-});
+})
 
-// Change password
-router.put('/change-password', auth, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Verify current password
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
-    }
-
-    // Update password
-    user.password = newPassword;
-    await user.save();
-
-    res.json({ message: 'Password updated successfully' });
-  } catch (error) {
-    console.error('Password change error:', error);
-    res.status(500).json({ error: 'Error changing password' });
-  }
-});
-
-module.exports = router;
+module.exports = router

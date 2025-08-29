@@ -1,7 +1,16 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose')
 
-const userSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema({
+  firstName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  lastName: {
+    type: String,
+    required: true,
+    trim: true
+  },
   email: {
     type: String,
     required: true,
@@ -14,63 +23,63 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
-  firstName: {
+  avatar: {
     type: String,
-    required: true,
-    trim: true
-  },
-  lastName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  isPremium: {
-    type: Boolean,
-    default: false
+    default: null
   },
   subscription: {
     plan: {
       type: String,
-      enum: ['free', 'basic', 'premium'],
+      enum: ['free', 'standard', 'pro'],
       default: 'free'
     },
-    expiresAt: Date
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'cancelled'],
+      default: 'active'
+    },
+    startDate: {
+      type: Date,
+      default: Date.now
+    },
+    endDate: {
+      type: Date
+    }
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  preferences: {
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    marketingEmails: {
+      type: Boolean,
+      default: false
+    }
   },
   lastLogin: {
     type: Date,
     default: Date.now
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true
-});
+})
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+// Virtual for full name
+UserSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`
+})
+
+// Ensure virtual fields are serialized
+UserSchema.set('toJSON', {
+  virtuals: true,
+  transform: function(doc, ret) {
+    delete ret.password
+    return ret
   }
-});
+})
 
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
-
-// Method to get user profile without password
-userSchema.methods.toJSON = function() {
-  const user = this.toObject();
-  delete user.password;
-  return user;
-};
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', UserSchema)
