@@ -19,6 +19,7 @@ const resumeRoutes = require('./routes/resumes')
 const templateRoutes = require('./routes/templates')
 const userRoutes = require('./routes/users')
 const adminRoutes = require('./routes/admin')
+const atsRoutes = require('./routes/ats')
 
 // Security middleware
 app.use(helmet({
@@ -77,6 +78,7 @@ app.use('/api/resumes', resumeRoutes)
 app.use('/api/templates', templateRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/ats', atsRoutes)
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {
