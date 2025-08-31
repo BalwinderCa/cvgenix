@@ -102,6 +102,23 @@ check_prerequisites() {
     print_success "Prerequisites check passed"
 }
 
+# Function to ensure Apache proxy modules are enabled
+ensure_apache_proxy_modules() {
+    print_status "Ensuring Apache proxy modules are enabled..."
+    ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
+        # Enable proxy modules if not already enabled
+        a2enmod proxy proxy_http 2>/dev/null || true
+        
+        # Check if modules are enabled
+        if apache2ctl -M | grep -q proxy_module; then
+            echo "Apache proxy modules are enabled"
+        else
+            echo "Warning: Apache proxy modules may not be properly enabled"
+        fi
+EOF
+    print_success "Apache proxy modules check completed"
+}
+
 # Function to deploy on server with retry mechanism
 deploy_on_server() {
     local retry_count=0
@@ -211,6 +228,29 @@ deploy_on_server() {
             nohup serve -s build -l 3000 > frontend.log 2>&1 &
             FRONTEND_PID=$!
             
+            # Update Apache configuration to proxy to Node.js servers
+            echo "Updating Apache configuration..."
+            APACHE_CONF="/etc/apache2/sites-available/resume4me.com.conf"
+            if [[ -f "$APACHE_CONF" ]]; then
+                # Backup current config
+                cp "$APACHE_CONF" "${APACHE_CONF}.backup.$(date +%Y%m%d-%H%M%S)"
+                
+                # Add proxy configuration if not already present
+                if ! grep -q "ProxyPass / http://localhost:3000/" "$APACHE_CONF"; then
+                    # Add proxy rules after the existing ProxyPass /api line
+                    sed -i '/ProxyPass \/api http:\/\/localhost:3001\/api/a\    ProxyPass / http://localhost:3000/\n    ProxyPassReverse / http://localhost:3000/' "$APACHE_CONF"
+                    echo "Added frontend proxy configuration to Apache"
+                else
+                    echo "Frontend proxy configuration already exists"
+                fi
+                
+                # Reload Apache to apply changes
+                systemctl reload apache2
+                echo "Apache configuration reloaded"
+            else
+                echo "Warning: Apache configuration file not found at $APACHE_CONF"
+            fi
+            
             # Wait a moment for servers to start
             sleep 5
             
@@ -303,6 +343,7 @@ main() {
     check_prerequisites
     check_internet
     check_ssh_connection
+    ensure_apache_proxy_modules
     
     log "Starting server deployment"
     if deploy_on_server; then

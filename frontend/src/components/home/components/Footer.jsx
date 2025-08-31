@@ -68,6 +68,43 @@ export default function Footer() {
                 <li><a className="text-gray-300 hover:text-white transition-colors" href="/cookies">Cookie Policy</a></li>
               </ul>
             </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-6">Support Us</h3>
+              <div className="space-y-4">
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <svg stroke="currentColor" fill="none" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-orange-400" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                    <span className="text-white font-medium">Buy Me a Coffee</span>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-3">
+                    Support our development and get additional credits!
+                  </p>
+                  <div className="flex items-center space-x-3">
+                    <img 
+                      src="/qr-code.png" 
+                      alt="Buy Me a Coffee QR Code" 
+                      className="w-16 h-16 rounded-lg border-2 border-gray-700"
+                    />
+                    <div className="flex-1">
+                      <a 
+                        href="https://www.buymeacoffee.com/resume4me" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        <svg stroke="currentColor" fill="none" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 mr-2" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        Support Now
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
