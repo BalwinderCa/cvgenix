@@ -79,7 +79,7 @@ const Header = () => {
           <div className="hidden md:flex items-center space-x-3">
             {/* Buy Me a Coffee Link */}
             <a
-              href="https://www.buymeacoffee.com/resume4me"
+              href="https://buymeacoffee.com/resume4me"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center space-x-2 px-3 py-1.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
@@ -139,7 +139,7 @@ const Header = () => {
               <div className="pt-4 border-t-2 border-border space-y-3">
                 {/* Buy Me a Coffee Link - Mobile */}
                 <a
-                  href="https://www.buymeacoffee.com/resume4me"
+                  href="https://buymeacoffee.com/resume4me"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center space-x-2 px-4 py-2 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 w-full"
