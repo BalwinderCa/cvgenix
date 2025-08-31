@@ -5,7 +5,7 @@ import { FiArrowRight, FiUpload, FiCheck, FiStar, FiDownload, FiZap } from 'reac
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50 overflow-hidden">
+    <section className="relative min-h-screen bg-gradient-to-br from-slate-200 via-slate-100 to-orange-200 overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-0 left-0 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
@@ -14,7 +14,7 @@ const HeroSection = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 container mx-auto px-4 py-4">
+      <div className="relative z-10 container mx-auto px-4 py-4 pt-20 lg:pt-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
           
           {/* Left Side - Content */}
@@ -114,7 +114,7 @@ const HeroSection = () => {
               
               <Link
                 to="/templates"
-                className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                className="inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
               >
                 <FiUpload className="mr-2 w-5 h-5" />
                 Import Existing Resume
@@ -148,124 +148,119 @@ const HeroSection = () => {
             </motion.div>
           </motion.div>
 
-          {/* Right Side - Resume Preview */}
+                    {/* Right Side - Elegant Resume Preview */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             className="relative"
           >
-                         {/* Main Resume Card */}
-             <div className="relative bg-white rounded-2xl shadow-2xl p-6 pb-8 transform rotate-2 hover:rotate-0 transition-transform duration-300 w-[90%] mx-auto">
-               {/* Resume Header */}
-                                <div className="border-b-2 border-gray-200 pb-4 mb-4">
-                 <div className="flex items-start justify-between">
-                   <div className="flex-1">
-                                           <h2 className="text-3xl font-bold text-gray-900 mb-2">Alex Rodriguez</h2>
-                      <p className="text-xl text-orange-600 font-semibold mb-3">Full Stack Software Engineer</p>
-                     <div className="grid grid-cols-1 gap-1 text-sm text-gray-600">
-                       <span className="flex items-center">
-                         <span className="w-4 h-4 mr-2">📧</span>
-                         alex.rodriguez@tech.com
-                       </span>
-                       <span className="flex items-center">
-                         <span className="w-4 h-4 mr-2">📱</span>
-                         (555) 987-6543
-                       </span>
-                       <span className="flex items-center">
-                         <span className="w-4 h-4 mr-2">🌐</span>
-                         linkedin.com/in/alexrodriguez
-                       </span>
-                     </div>
-                   </div>
-                                       <div className="ml-6">
-                      <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                        AR
-                      </div>
+            {/* Main Resume Card with Elegant Design */}
+            <div className="relative bg-white rounded-2xl shadow-2xl transform rotate-1 hover:rotate-0 transition-all duration-500 w-[70%] mx-auto overflow-hidden">
+              {/* Elegant Header with Gradient */}
+              <div className="bg-gradient-to-r from-slate-50 to-orange-50 p-4 border-b border-gray-100">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Sarah Chen</h2>
+                    <p className="text-lg text-orange-600 font-semibold mb-2">Senior Product Manager</p>
+                    <div className="grid grid-cols-1 gap-1 text-xs text-gray-600">
+                      <span className="flex items-center">
+                        <span className="w-3 h-3 mr-2 text-orange-500">📧</span>
+                        sarah.chen@tech.com
+                      </span>
+                      <span className="flex items-center">
+                        <span className="w-3 h-3 mr-2 text-orange-500">📱</span>
+                        (555) 123-4567
+                      </span>
+                      <span className="flex items-center">
+                        <span className="w-3 h-3 mr-2 text-orange-500">🌐</span>
+                        linkedin.com/in/sarahchen
+                      </span>
                     </div>
-                 </div>
-               </div>
-               
-               {/* Resume Content */}
-               <div className="space-y-4">
-                                    <div>
-                     <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                       <div className="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
-                       Professional Experience
-                     </h3>
-                                        <div className="space-y-4">
-                       <div className="border-l-4 border-orange-500 pl-4">
-                         <p className="font-semibold text-gray-800 text-lg">Senior Software Engineer - Google</p>
-                         <p className="text-gray-600 mb-1">2021 - Present</p>
-                         <p className="text-gray-700 text-sm">Developed scalable microservices architecture serving 10M+ users daily</p>
-                       </div>
-                       <div className="border-l-4 border-gray-300 pl-4">
-                         <p className="font-semibold text-gray-800 text-lg">Software Engineer - Microsoft</p>
-                         <p className="text-gray-600 mb-1">2019 - 2021</p>
-                         <p className="text-gray-700 text-sm">Built cloud infrastructure solutions reducing deployment time by 60%</p>
-                       </div>
-                     </div>
-                 </div>
-                 
-                                    <div>
-                     <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                       <div className="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
-                       Skills
-                     </h3>
-                     <div className="flex flex-wrap gap-2">
-                       <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full font-medium">JavaScript</span>
-                       <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full font-medium">Python</span>
-                       <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full font-medium">React</span>
-                       <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full font-medium">Node.js</span>
-                       <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">AWS</span>
-                       <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">Docker</span>
-                     </div>
-                   </div>
-                 
-                                    <div>
-                     <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                       <div className="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
-                       Education
-                     </h3>
-                     <div className="border-l-4 border-orange-500 pl-4">
-                       <p className="font-semibold text-gray-800">BS Computer Science - Stanford University</p>
-                       <p className="text-gray-600">2019</p>
-                     </div>
-                   </div>
-               </div>
-             </div>
-
-            {/* Floating Elements */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              className="absolute -top-4 -right-4 bg-green-500 text-white p-4 rounded-full shadow-lg"
-            >
-              <FiCheck className="w-6 h-6" />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1 }}
-              className="absolute -bottom-4 -left-4 bg-blue-500 text-white p-4 rounded-full shadow-lg"
-            >
-              <FiDownload className="w-6 h-6" />
-            </motion.div>
-
-            {/* Success Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 1.2 }}
-              className="absolute -bottom-8 right-8 bg-white rounded-xl p-4 shadow-lg border border-gray-200"
-            >
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">95%</div>
-                <div className="text-sm text-gray-600">Success Rate</div>
+                  </div>
+                  <div className="ml-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                      SC
+                    </div>
+                  </div>
+                </div>
               </div>
-            </motion.div>
+              
+              {/* Resume Content with Better Spacing */}
+              <div className="p-4 space-y-3">
+                {/* Professional Summary */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                    <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mr-2"></div>
+                    Professional Summary
+                  </h3>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    Results-driven Product Manager with 8+ years of experience leading cross-functional teams 
+                    and delivering innovative products that drive business growth and user engagement.
+                  </p>
+                </div>
+
+                {/* Professional Experience */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                    <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mr-2"></div>
+                    Professional Experience
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="border-l-2 border-gradient-to-b from-orange-500 to-red-500 pl-3">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-bold text-gray-900 text-sm">Senior Product Manager - Google</p>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">2021 - Present</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        Led product strategy for Google Cloud Platform, resulting in 40% increase in enterprise adoption 
+                        and $50M+ in additional revenue.
+                      </p>
+                    </div>
+                    <div className="border-l-2 border-gray-200 pl-3">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-bold text-gray-900 text-sm">Product Manager - Microsoft</p>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">2019 - 2021</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        Managed Azure DevOps product line, improving user satisfaction by 35% and reducing 
+                        deployment time by 60%.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Skills */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                    <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mr-2"></div>
+                    Core Skills
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="px-2 py-1 bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 text-xs rounded-full font-semibold border border-orange-200">Product Strategy</span>
+                    <span className="px-2 py-1 bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 text-xs rounded-full font-semibold border border-orange-200">User Research</span>
+                    <span className="px-2 py-1 bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 text-xs rounded-full font-semibold border border-orange-200">Data Analysis</span>
+                    <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 text-xs rounded-full font-semibold border border-blue-200">Agile/Scrum</span>
+                    <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 text-xs rounded-full font-semibold border border-blue-200">A/B Testing</span>
+                    <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 text-xs rounded-full font-semibold border border-blue-200">SQL</span>
+                  </div>
+                </div>
+                
+                {/* Education */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                    <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mr-2"></div>
+                    Education
+                  </h3>
+                  <div className="border-l-2 border-gradient-to-b from-orange-500 to-red-500 pl-3">
+                    <p className="font-bold text-gray-900 text-sm">MBA, Business Administration - Harvard Business School</p>
+                    <p className="text-xs text-gray-600">2019</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
           </motion.div>
         </div>
       </div>

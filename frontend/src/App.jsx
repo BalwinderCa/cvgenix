@@ -7,7 +7,7 @@ import { ResumeProvider } from './contexts/ResumeContext'
 
 // Layout Components
 import Header from './components/layout/Header'
-import Footer from './components/layout/Footer'
+import Footer from './components/home/components/Footer'
 import ScrollToTop from './components/common/ScrollToTop'
 import LoadingSpinner from './components/common/LoadingSpinner'
 

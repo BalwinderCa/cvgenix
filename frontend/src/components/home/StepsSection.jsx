@@ -17,99 +17,84 @@ const StepsSection = () => {
 
   const steps = [
     {
-      number: '01',
+      id: 0,
       icon: FiSearch,
-      title: 'Choose Template',
-      description: 'Browse our collection of 50+ professional templates designed for different industries and experience levels.',
-      color: 'primary'
+      title: 'Choose Your Template',
+      description: 'Browse our collection of 50+ professional templates designed for different industries and experience levels.'
     },
     {
-      number: '02',
+      id: 1,
       icon: FiEdit3,
-      title: 'Fill Your Details',
-      description: 'Enter your personal information, work experience, education, and skills using our intuitive form.',
-      color: 'accent'
+      title: 'Fill in Your Details',
+      description: 'Enter your personal information, work experience, education, and skills using our intuitive form.'
     },
     {
-      number: '03',
+      id: 2,
       icon: FiDownload,
       title: 'Download & Apply',
-      description: 'Download your professional resume in PDF format and start applying to your dream jobs.',
-      color: 'success'
+      description: 'Download your professional resume in PDF format and start applying to your dream jobs.'
     }
   ]
-
-  const colorClasses = {
-    primary: 'from-orange-500 to-red-500',
-    accent: 'from-orange-400 to-red-400',
-    success: 'from-orange-600 to-red-600'
-  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
+        staggerChildren: 0.3,
       },
     },
   }
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 50 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.8,
+        ease: "easeOut"
       },
     },
   }
 
   return (
-    <section className="py-20 bg-white">
-      <div className="container mx-auto px-4">
+    <section className="py-24 bg-gradient-to-br from-gray-50 via-white to-orange-50">
+      <div className="container mx-auto px-4 max-w-7xl">
         {/* Header */}
         <motion.div
           ref={ref}
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
-          className="text-center mb-16"
+          className="text-center mb-20"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            How It{' '}
-            <span className="text-orange-600">Works</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            Create a Standout Resume in Minutes –{' '}
+            <span className="gradient-text">3 Easy Steps</span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Create your professional resume in just 3 simple steps. 
-            Our streamlined process makes resume building quick and easy.
-          </p>
         </motion.div>
 
-        {/* Steps Grid */}
+        {/* Simple Steps */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate={inView ? "visible" : "hidden"}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 relative"
+          className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16"
         >
-          {/* Connecting Lines */}
-          <div className="hidden md:block absolute top-1/2 left-1/4 right-1/4 h-0.5 bg-gray-200 transform -translate-y-1/2 z-0"></div>
-          
           {steps.map((step, index) => (
             <motion.div
-              key={index}
+              key={step.id}
               variants={itemVariants}
-              className="relative z-10 text-center"
+              className="text-center"
             >
               {/* Step Number */}
-              <div className={`w-16 h-16 bg-gradient-to-r ${colorClasses[step.color]} rounded-full flex items-center justify-center mx-auto mb-6 text-white font-bold text-xl shadow-lg`}>
-                {step.number}
+              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-white font-bold text-xl shadow-lg">
+                {step.id + 1}
               </div>
 
               {/* Icon */}
-              <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-gray-100">
+              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <step.icon className="w-10 h-10 text-gray-700" />
               </div>
 
@@ -125,15 +110,21 @@ const StepsSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="text-center mt-16"
+          className="text-center"
         >
-          <Link
-            to="/templates"
-            className="inline-flex items-center px-8 py-4 btn-gradient"
-          >
-            Start Building Now
-            <FiArrowRight className="ml-2 w-5 h-5" />
-          </Link>
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-8 text-white">
+            <h3 className="text-3xl font-bold mb-4">Ready to Create Your Resume?</h3>
+            <p className="text-xl mb-8 opacity-90">
+              Join thousands of professionals who&apos;ve landed their dream jobs with our resumes.
+            </p>
+            <Link
+              to="/templates"
+              className="inline-flex items-center px-8 py-4 bg-white text-orange-600 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              Start Building Now
+              <FiArrowRight className="ml-2 w-5 h-5" />
+            </Link>
+          </div>
         </motion.div>
       </div>
     </section>

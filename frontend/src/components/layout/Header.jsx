@@ -68,8 +68,8 @@ const Header = () => {
                   to={item.path}
                   className={`text-sm font-medium transition-colors duration-200 ${
                     location.pathname === item.path
-                      ? 'text-primary-600'
-                      : 'text-gray-700 hover:text-primary-600'
+                      ? 'text-orange-600'
+                      : isScrolled ? 'text-gray-700 hover:text-orange-600' : 'text-gray-900 hover:text-orange-600'
                   }`}
                 >
                   {item.name}
@@ -88,7 +88,9 @@ const Header = () => {
                     Create Resume
                   </Link>
                   <div className="relative group">
-                    <button className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition-colors">
+                    <button className={`flex items-center space-x-2 transition-colors ${
+                      isScrolled ? 'text-gray-700 hover:text-orange-600' : 'text-gray-900 hover:text-orange-600'
+                    }`}>
                       <FiUser className="w-5 h-5" />
                       <span className="text-sm font-medium">
                         {user?.firstName || 'User'}
@@ -123,7 +125,9 @@ const Header = () => {
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => setShowLoginModal(true)}
-                    className="text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
+                    className={`text-sm font-medium transition-colors ${
+                      isScrolled ? 'text-gray-700 hover:text-orange-600' : 'text-gray-900 hover:text-orange-600'
+                    }`}
                   >
                     Login
                   </button>
@@ -140,7 +144,9 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="lg:hidden p-2 text-gray-700 hover:text-primary-600 transition-colors"
+              className={`lg:hidden p-2 transition-colors ${
+                isScrolled ? 'text-gray-700 hover:text-orange-600' : 'text-gray-900 hover:text-orange-600'
+              }`}
             >
               {isOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
             </button>
@@ -164,8 +170,8 @@ const Header = () => {
                       to={item.path}
                       className={`text-base font-medium transition-colors duration-200 ${
                         location.pathname === item.path
-                          ? 'text-primary-600'
-                          : 'text-gray-700 hover:text-primary-600'
+                          ? 'text-orange-600'
+                          : 'text-gray-700 hover:text-orange-600'
                       }`}
                     >
                       {item.name}
