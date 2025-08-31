@@ -256,7 +256,7 @@ const TemplatesSection = () => {
         </motion.div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .templates-swiper {
           padding: 0 60px;
         }

@@ -120,7 +120,7 @@ const MissionSection = () => {
                     <Icon name="Check" size={14} color="var(--color-accent)" />
                   </div>
                   <p className="text-muted-foreground">
-                    Affordable pricing with free tier access to core optimization features
+                    Affordable services with free tier access to core optimization features
                   </p>
                 </div>
               </div>

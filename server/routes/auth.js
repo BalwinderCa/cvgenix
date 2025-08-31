@@ -279,6 +279,88 @@ router.post('/forgot-password', [
   }
 })
 
+// @route   POST /api/auth/admin/login
+// @desc    Admin login
+// @access  Public
+router.post('/admin/login', [
+  body('email', 'Please include a valid email').isEmail(),
+  body('password', 'Password is required').exists()
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
+    }
+
+    const { email, password } = req.body
+
+    // Check if user exists
+    const user = await User.findOne({ email })
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid credentials'
+      })
+    }
+
+    // Check if user is admin
+    if (!['admin', 'super_admin'].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.'
+      })
+    }
+
+    // Validate password
+    const isMatch = await bcrypt.compare(password, user.password)
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid credentials'
+      })
+    }
+
+    // Create JWT token
+    const payload = {
+      user: {
+        id: user.id
+      }
+    }
+
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' },
+      (err, token) => {
+        if (err) throw err
+        res.json({
+          success: true,
+          message: 'Admin login successful',
+          token,
+          user: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role
+          }
+        })
+      }
+    )
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
 // @route   POST /api/auth/reset-password
 // @desc    Reset password with token
 // @access  Public
@@ -320,6 +402,87 @@ router.post('/reset-password', [
         message: 'Invalid or expired token'
       })
     }
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
+// @route   PUT /api/auth/credits
+// @desc    Update user credits
+// @access  Private
+router.put('/credits', auth, [
+  body('credits', 'Credits must be a number').isNumeric()
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      })
+    }
+
+    const { credits } = req.body
+
+    // Update user credits
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { credits: Math.max(0, credits) }, // Ensure credits don't go below 0
+      { new: true }
+    ).select('-password')
+
+    res.json({
+      success: true,
+      message: 'Credits updated successfully',
+      user
+    })
+  } catch (err) {
+    console.error(err.message)
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
+
+// @route   POST /api/auth/deduct-credit
+// @desc    Deduct one credit from user
+// @access  Private
+router.post('/deduct-credit', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    if (user.credits <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No credits available'
+      })
+    }
+
+    // Deduct one credit
+    user.credits = Math.max(0, user.credits - 1)
+    await user.save()
+
+    const updatedUser = await User.findById(req.user.id).select('-password')
+
+    res.json({
+      success: true,
+      message: 'Credit deducted successfully',
+      user: updatedUser
+    })
+  } catch (err) {
     console.error(err.message)
     res.status(500).json({
       success: false,

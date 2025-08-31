@@ -7,6 +7,14 @@ import { HelmetProvider } from 'react-helmet-async'
 import App from './App.jsx'
 import './index.css'
 
+// React Router future flags to suppress warnings
+const router = {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true
+  }
+}
+
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,7 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <BrowserRouter {...router}>
           <App />
           <Toaster
             position="top-right"

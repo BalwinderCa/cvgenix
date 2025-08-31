@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Button from './Button';
 import Icon from '../AppIcon';
+import { useAuth } from '../../hooks/useAuth';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showStatusBanner, setShowStatusBanner] = useState(true);
+  const { isAuthenticated, user, openLoginModal } = useAuth();
 
   useEffect(() => {
     const bannerDismissed = sessionStorage.getItem('statusBannerDismissed');
@@ -19,11 +22,10 @@ const Header = () => {
   };
 
   const navigationItems = [
-    { name: 'Home', sectionId: 'hero', icon: 'Home' },
-    { name: 'Features', sectionId: 'features', icon: 'Star' },
-    { name: "Templates", sectionId: 'templates', icon: 'FileText'},
-    { name: 'Pricing', sectionId: 'pricing', icon: 'CreditCard' },
-    { name: 'About', sectionId: 'about', icon: 'Info' },
+    { name: 'Homepage', sectionId: 'home', icon: 'Home' },
+    { name: 'Resume Templates', sectionId: 'templates', icon: 'FileText' },
+    { name: 'Cover Letter', sectionId: 'cover-letter', icon: 'FileText' },
+    { name: 'ATS Score', sectionId: 'ats-score', icon: 'Target' },
   ];
 
   const scrollToSection = (sectionId) => {
@@ -52,7 +54,7 @@ const Header = () => {
             onClick={() => scrollToSection('hero')}
             className="flex items-center space-x-4 group cursor-pointer"
           >
-            <img src="/logo.png" className="h-20 w-auto" alt="Resume4me" />
+            <img src="/logo.png" className="h-16 w-auto" alt="Resume4me" />
             <div className="flex flex-col">
               <span className="text-2xl font-bold text-gradient">Resume4me</span>
               <span className="text-sm text-muted-foreground">Executive Career Services</span>
@@ -60,12 +62,12 @@ const Header = () => {
           </button>
 
           {/* Traditional Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-2">
+          <nav className="hidden md:flex items-center space-x-1">
             {navigationItems?.map((item) => (
               <button
                 key={item?.sectionId}
                 onClick={() => scrollToSection(item?.sectionId)}
-                className="flex items-center space-x-2 px-6 py-3 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors"
               >
                 <Icon name={item?.icon} size={16} />
                 <span>{item?.name}</span>
@@ -74,21 +76,45 @@ const Header = () => {
           </nav>
 
           {/* Traditional Desktop CTA */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="font-semibold">
-              <Icon name="LogIn" size={16} className="mr-2" />
-              Client Login
-            </Button>
+          <div className="hidden md:flex items-center space-x-3">
+            {/* Buy Me a Coffee Link */}
+            <a
+              href="https://www.buymeacoffee.com/resume4me"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-3 py-1.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+            >
+              <Icon name="Heart" size={16} />
+              <span>Buy Me a Coffee</span>
+            </a>
+            {isAuthenticated ? (
+              <Link to="/dashboard">
+                <Button variant="ghost" size="sm" className="font-semibold">
+                  <Icon name="User" size={16} className="mr-2" />
+                  My Account
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="font-semibold"
+                onClick={openLoginModal}
+              >
+                <Icon name="LogIn" size={16} className="mr-2" />
+                Sign/Login
+              </Button>
+            )}
             <Button variant="default" size="sm" className="font-semibold classic-border">
               <Icon name="FileText" size={16} className="mr-2" />
-              Begin Consultation
+              Build My Resume
             </Button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={toggleMobileMenu}
-            className="md:hidden p-3 classic-border hover:bg-surface"
+            className="md:hidden p-2 classic-border hover:bg-surface"
             aria-label="Toggle mobile menu"
           >
             <Icon name={isMobileMenuOpen ? "X" : "Menu"} size={24} />
@@ -98,26 +124,51 @@ const Header = () => {
         {/* Traditional Mobile Navigation */}
         {isMobileMenuOpen && (
           <div className="md:hidden border-t-2 border-border bg-background">
-            <div className="px-8 py-6 space-y-4">
+            <div className="px-6 py-4 space-y-3">
               {navigationItems?.map((item) => (
                 <button
                   key={item?.sectionId}
                   onClick={() => scrollToSection(item?.sectionId)}
-                  className="flex items-center space-x-3 px-6 py-4 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors w-full text-left"
+                  className="flex items-center space-x-3 px-4 py-3 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors w-full text-left"
                 >
                   <Icon name={item?.icon} size={18} />
                   <span>{item?.name}</span>
                 </button>
               ))}
 
-              <div className="pt-6 border-t-2 border-border space-y-4">
-                <Button variant="ghost" size="sm" fullWidth className="font-semibold">
-                  <Icon name="LogIn" size={16} className="mr-2" />
-                  Client Login
-                </Button>
+              <div className="pt-4 border-t-2 border-border space-y-3">
+                {/* Buy Me a Coffee Link - Mobile */}
+                <a
+                  href="https://www.buymeacoffee.com/resume4me"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center space-x-2 px-4 py-2 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 w-full"
+                >
+                  <Icon name="Heart" size={16} />
+                  <span>Buy Me a Coffee</span>
+                </a>
+                {isAuthenticated ? (
+                  <Link to="/dashboard">
+                    <Button variant="ghost" size="sm" fullWidth className="font-semibold">
+                      <Icon name="User" size={16} className="mr-2" />
+                      My Account
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    fullWidth 
+                    className="font-semibold"
+                    onClick={openLoginModal}
+                  >
+                    <Icon name="LogIn" size={16} className="mr-2" />
+                    Sign/Login
+                  </Button>
+                )}
                 <Button variant="default" size="sm" fullWidth className="font-semibold classic-border">
                   <Icon name="FileText" size={16} className="mr-2" />
-                  Begin Consultation
+                  Build My Resume
                 </Button>
               </div>
             </div>

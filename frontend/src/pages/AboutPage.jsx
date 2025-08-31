@@ -77,7 +77,7 @@ const AboutPage = () => {
     {
       icon: FiEye,
       title: 'Transparency',
-      description: 'We believe in being open and honest about our processes and pricing.'
+      description: 'We believe in being open and honest about our processes and services.'
     },
     {
       icon: FiZap,

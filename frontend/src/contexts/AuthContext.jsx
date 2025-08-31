@@ -155,6 +155,30 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateCredits = async (newCredits) => {
+    try {
+      const response = await api.put('/api/auth/credits', { credits: newCredits })
+      dispatch({ type: 'UPDATE_USER', payload: response.data.user })
+      return { success: true }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update credits'
+      toast.error(message)
+      return { success: false, error: message }
+    }
+  }
+
+  const deductCredit = async () => {
+    try {
+      const response = await api.post('/api/auth/deduct-credit')
+      dispatch({ type: 'UPDATE_USER', payload: response.data.user })
+      return { success: true }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to deduct credit'
+      toast.error(message)
+      return { success: false, error: message }
+    }
+  }
+
   const forgotPassword = async (email) => {
     try {
       await api.post('/api/auth/forgot-password', { email })
@@ -179,10 +203,69 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const loginWithGoogle = async (idToken) => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true })
+      const response = await api.post('/api/auth/google', { idToken })
+      
+      const { user, token } = response.data
+      localStorage.setItem('token', token)
+      
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user, token },
+      })
+      
+      setShowLoginModal(false)
+      toast.success('Welcome back!')
+      return { success: true }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Google login failed'
+      toast.error(message)
+      dispatch({ type: 'LOGIN_FAIL' })
+      return { success: false, error: message }
+    }
+  }
+
+  const signupWithGoogle = async (idToken) => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true })
+      const response = await api.post('/api/auth/google/signup', { idToken })
+      
+      const { user, token } = response.data
+      localStorage.setItem('token', token)
+      
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user, token },
+      })
+      
+      setShowSignupModal(false)
+      toast.success('Account created successfully!')
+      return { success: true }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Google signup failed'
+      toast.error(message)
+      dispatch({ type: 'LOGIN_FAIL' })
+      return { success: false, error: message }
+    }
+  }
+
   const openLoginModal = () => setShowLoginModal(true)
   const closeLoginModal = () => setShowLoginModal(false)
   const openSignupModal = () => setShowSignupModal(true)
   const closeSignupModal = () => setShowSignupModal(false)
+  
+  // Switch functions that close one modal and open the other
+  const switchToSignup = () => {
+    setShowLoginModal(false)
+    setShowSignupModal(true)
+  }
+  
+  const switchToLogin = () => {
+    setShowSignupModal(false)
+    setShowLoginModal(true)
+  }
 
   const value = {
     user: state.user,
@@ -195,10 +278,16 @@ export const AuthProvider = ({ children }) => {
     closeLoginModal,
     openSignupModal,
     closeSignupModal,
+    switchToSignup,
+    switchToLogin,
     login,
     signup,
+    loginWithGoogle,
+    signupWithGoogle,
     logout,
     updateProfile,
+    updateCredits,
+    deductCredit,
     forgotPassword,
     resetPassword,
   }

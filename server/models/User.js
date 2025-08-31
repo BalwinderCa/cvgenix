@@ -23,28 +23,19 @@ const UserSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin', 'super_admin'],
+    default: 'user'
+  },
   avatar: {
     type: String,
     default: null
   },
-  subscription: {
-    plan: {
-      type: String,
-      enum: ['free', 'standard', 'pro'],
-      default: 'free'
-    },
-    status: {
-      type: String,
-      enum: ['active', 'inactive', 'cancelled'],
-      default: 'active'
-    },
-    startDate: {
-      type: Date,
-      default: Date.now
-    },
-    endDate: {
-      type: Date
-    }
+  credits: {
+    type: Number,
+    default: 3,
+    min: 0
   },
   preferences: {
     emailNotifications: {

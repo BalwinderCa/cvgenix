@@ -178,7 +178,7 @@ const CVTemplatesSection = () => {
       </div>
 
       {/* Custom CSS for Swiper styling */}
-      <style jsx>{`
+      <style>{`
         .swiper-pagination-bullet-active {
           background-color: var(--color-primary) !important;
           transform: scale(1.2);

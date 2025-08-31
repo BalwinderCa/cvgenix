@@ -110,8 +110,7 @@ const AboutResumeAIPro = () => {
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-white/80">
                 <li><a href="/homepage" className="hover:text-white transition-colors">Resume Builder</a></li>
-                <li><a href="/pricing-plans" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Templates</a></li>
+                <li><a href="/templates" className="hover:text-white transition-colors">Templates</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Success Stories</a></li>
               </ul>
             </div>

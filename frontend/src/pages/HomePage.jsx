@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import Header from '../components/ui/Header';
 import HeroSection from '../components/home/components/HeroSection';
@@ -8,15 +8,6 @@ import InteractiveDemoWidget from '../components/home/components/InteractiveDemo
 import SuccessStoriesCarousel from '../components/home/components/SuccessStoriesCarousel';
 import TemplatePreviewSection from '../components/home/components/TemplatePreviewSection';
 
-// Import Pricing Components
-import PricingHero from '../pages/pricing-plans/components/PricingHero';
-import PricingToggle from '../pages/pricing-plans/components/PricingToggle';
-import PricingCard from '../pages/pricing-plans/components/PricingCard';
-import ComparisonTable from '../pages/pricing-plans/components/ComparisonTable';
-import EnterpriseSection from '../pages/pricing-plans/components/EnterpriseSection';
-import FAQSection from '../pages/pricing-plans/components/FAQSection';
-import TrustSignals from '../pages/pricing-plans/components/TrustSignals';
-
 // Import About Components
 import MissionSection from '../pages/about-resume-ai-pro/components/MissionSection';
 import TeamSection from '../pages/about-resume-ai-pro/components/TeamSection';
@@ -24,101 +15,6 @@ import TechnologySection from '../pages/about-resume-ai-pro/components/Technolog
 import CVTemplatesSection from '../components/home/components/CVTemplatesSection';
 
 const Homepage = () => {
-  const [isAnnual, setIsAnnual] = useState(false);
-
-  const plans = [
-    {
-      name: "Free",
-      description: "Perfect for trying out our platform",
-      price: 0,
-      icon: "Zap",
-      cta: "Get Started Free",
-      note: "No credit card required",
-      features: [
-        {
-          name: "1 Resume Template",
-          description: "Access to our most popular professional template"
-        },
-        {
-          name: "Basic Resume Builder",
-          description: "Drag-and-drop interface with essential sections"
-        },
-        {
-          name: "PDF Export",
-          description: "Download your resume as a high-quality PDF"
-        },
-        {
-          name: "Community Support",
-          description: "Access to our user community and knowledge base"
-        }
-      ]
-    },
-    {
-      name: "Professional",
-      description: "For active job seekers who want results",
-      price: 29,
-      icon: "Target",
-      cta: "Start Professional",
-      roi: "Professional users see 340% more responses",
-      features: [
-        {
-          name: "20+ Premium Templates",
-          description: "Industry-specific templates designed by recruiters"
-        },
-        {
-          name: "AI-Powered Optimization",
-          description: "Smart suggestions for improving your resume content"
-        },
-        {
-          name: "ATS Compatibility Check",
-          description: "Ensure your resume passes applicant tracking systems"
-        },
-        {
-          name: "Custom Branding",
-          description: "Add your personal colors and styling touches"
-        },
-        {
-          name: "Priority Support",
-          description: "Get help within 2 hours during business days"
-        }
-      ]
-    },
-    {
-      name: "Executive",
-      description: "For senior professionals and executives",
-      price: 79,
-      icon: "Crown",
-      cta: "Go Executive",
-      roi: "Executive users land interviews 450% faster",
-      features: [
-        {
-          name: "Executive Templates",
-          description: "C-suite and senior management focused designs"
-        },
-        {
-          name: "Personal Career Consultant",
-          description: "1-on-1 sessions with certified career advisors"
-        },
-        {
-          name: "LinkedIn Optimization",
-          description: "Complete LinkedIn profile makeover included"
-        },
-        {
-          name: "Cover Letter Generator",
-          description: "AI-powered cover letters for each application"
-        },
-        {
-          name: "Unlimited Revisions",
-          description: "Perfect your resume with unlimited edits"
-        },
-        {
-          name: "White-Glove Service",
-          description: "Dedicated account manager and priority support"
-        }
-      ]
-    }
-  ];
-
   return (
     <>
       <Helmet>
@@ -155,30 +51,6 @@ const Homepage = () => {
             <InteractiveDemoWidget />
             <SuccessStoriesCarousel />
             <CVTemplatesSection />
-          </section>
-
-          {/* Pricing Section */}
-          <section id="pricing">
-            <PricingHero />
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 md:pb-16">
-              <div className="text-center mb-8 md:mb-12">
-                <PricingToggle isAnnual={isAnnual} setIsAnnual={setIsAnnual} />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-16 items-stretch">
-                {plans.map((plan, index) => (
-                  <PricingCard
-                    key={plan.name}
-                    plan={plan}
-                    isAnnual={isAnnual}
-                    isPopular={index === 1} // Make the Professional plan (index 1) popular
-                  />
-                ))}
-              </div>
-
-              <TrustSignals />
-              <FAQSection />
-            </div>
           </section>
 
           {/* About Section */}

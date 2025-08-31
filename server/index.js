@@ -7,6 +7,9 @@ const rateLimit = require('express-rate-limit')
 const path = require('path')
 require('dotenv').config()
 
+// Import database configuration
+const { initializeDatabases } = require('./config/database')
+
 const app = express()
 const PORT = process.env.PORT || 3001
 
@@ -15,6 +18,7 @@ const authRoutes = require('./routes/auth')
 const resumeRoutes = require('./routes/resumes')
 const templateRoutes = require('./routes/templates')
 const userRoutes = require('./routes/users')
+const adminRoutes = require('./routes/admin')
 
 // Security middleware
 app.use(helmet({
@@ -72,6 +76,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/resumes', resumeRoutes)
 app.use('/api/templates', templateRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/admin', adminRoutes)
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {
@@ -79,6 +84,15 @@ if (process.env.NODE_ENV === 'production') {
 
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'))
+  })
+} else {
+  // In development, handle React Router routes (but not API routes)
+  app.get('/admin', (req, res) => {
+    res.redirect('http://localhost:3000/admin')
+  })
+  
+  app.get('/admin/login', (req, res) => {
+    res.redirect('http://localhost:3000/admin/login')
   })
 }
 
@@ -114,10 +128,16 @@ app.use('*', (req, res) => {
 })
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`)
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
-})
+const startServer = async () => {
+  await initializeDatabases()
+  
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`)
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
+  })
+}
+
+startServer()
 
 module.exports = app

@@ -273,7 +273,7 @@ const HeroSection = () => {
       </div>
 
       {/* Custom CSS for 3D effects */}
-      <style jsx>{`
+      <style>{`
         .perspective-1000 {
           perspective: 1000px;
         }

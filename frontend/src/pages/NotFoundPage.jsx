@@ -65,9 +65,8 @@ const NotFoundPage = () => {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { name: 'Templates', path: '/templates', description: 'Browse resume templates' },
-                    { name: 'Pricing', path: '/pricing', description: 'View our plans' },
-                    { name: 'About Us', path: '/about-us', description: 'Learn about Resume4Me' },
+                    { name: 'Templates', path: '/templates', description: 'Browse our templates' },
+                    { name: 'About', path: '/about-us', description: 'Learn about us' },
                     { name: 'Contact', path: '/contact-us', description: 'Get in touch' }
                   ].map((page, index) => (
                     <motion.div

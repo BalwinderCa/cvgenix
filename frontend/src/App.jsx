@@ -6,8 +6,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ResumeProvider } from './contexts/ResumeContext'
 
 // Layout Components
-import Header from './components/layout/Header'
-import Footer from './components/home/components/Footer'
+import MainLayout from './components/layout/MainLayout'
 import ScrollToTop from './components/common/ScrollToTop'
 import LoadingSpinner from './components/common/LoadingSpinner'
 
@@ -16,6 +15,9 @@ import HomePage from './pages/HomePage'
 import AboutPage from './pages/AboutPage'
 import TemplatesPage from './pages/TemplatesPage'
 import ResumeBuilderPage from './pages/ResumeBuilderPage'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminLoginPage from './pages/AdminLoginPage'
+import UserDashboard from './pages/UserDashboard'
 
 import ContactPage from './pages/ContactPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -34,7 +36,9 @@ function AppContent() {
     openLoginModal, 
     openSignupModal, 
     closeLoginModal, 
-    closeSignupModal 
+    closeSignupModal,
+    switchToSignup,
+    switchToLogin
   } = useAuth()
 
   if (loading) {
@@ -73,33 +77,33 @@ function AppContent() {
       </Helmet>
 
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Routes>
+          {/* Admin routes - no header/footer */}
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          
+          {/* Regular routes - with header/footer */}
+          <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
+          <Route path="/about-us" element={<MainLayout><AboutPage /></MainLayout>} />
+          <Route path="/templates" element={<MainLayout><TemplatesPage /></MainLayout>} />
+          <Route path="/template-edit/:id" element={<MainLayout><ResumeBuilderPage /></MainLayout>} />
+          <Route path="/dashboard" element={<MainLayout><UserDashboard /></MainLayout>} />
+          <Route path="/contact-us" element={<MainLayout><ContactPage /></MainLayout>} />
+          <Route path="*" element={<MainLayout><NotFoundPage /></MainLayout>} />
+        </Routes>
         
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/about-us" element={<AboutPage />} />
-            <Route path="/templates" element={<TemplatesPage />} />
-            <Route path="/template-edit/:id" element={<ResumeBuilderPage />} />
-
-            <Route path="/contact-us" element={<ContactPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </main>
-
-        <Footer />
         <ScrollToTop />
 
         {/* Auth Modals */}
         <LoginModal 
           isOpen={showLoginModal} 
           onClose={closeLoginModal} 
-          onSwitchToSignup={openSignupModal} 
+          onSwitchToSignup={switchToSignup} 
         />
         <SignupModal 
           isOpen={showSignupModal} 
           onClose={closeSignupModal} 
-          onSwitchToLogin={openLoginModal} 
+          onSwitchToLogin={switchToLogin} 
         />
       </div>
     </>
