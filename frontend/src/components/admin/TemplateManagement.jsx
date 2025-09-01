@@ -239,7 +239,7 @@ const TemplateManagement = () => {
                       {template.isPopular && (
                         <span className="text-orange-600 text-xs">🔥 Popular</span>
                       )}
-                      {template.isNew && (
+                      {template.isNewTemplate && (
                         <span className="text-green-600 text-xs">🆕 New</span>
                       )}
                     </div>
@@ -303,7 +303,7 @@ const TemplateManagement = () => {
                 isPremium: formData.get('isPremium') === 'true',
                 isActive: formData.get('isActive') === 'true',
                 isPopular: formData.get('isPopular') === 'true',
-                isNew: formData.get('isNew') === 'true',
+                isNewTemplate: formData.get('isNewTemplate') === 'true',
                 config: {
                   sections: [
                     { name: 'Personal Info', required: true, order: 1 },
@@ -451,9 +451,9 @@ const TemplateManagement = () => {
                     <label className="flex items-center">
                       <input
                         type="checkbox"
-                        name="isNew"
+                        name="isNewTemplate"
                         value="true"
-                        defaultChecked={selectedTemplate?.isNew || false}
+                        defaultChecked={selectedTemplate?.isNewTemplate || false}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">New</span>

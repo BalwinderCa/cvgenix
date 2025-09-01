@@ -11,7 +11,7 @@ router.get('/', [
   query('category').optional().isIn(['Professional', 'Creative', 'Minimalist', 'Modern', 'Classic', 'Executive']),
   query('isPremium').optional().isBoolean(),
   query('isPopular').optional().isBoolean(),
-  query('isNew').optional().isBoolean(),
+  query('isNewTemplate').optional().isBoolean(),
   query('search').optional().isString(),
   query('limit').optional().isInt({ min: 1, max: 100 }),
   query('page').optional().isInt({ min: 1 })
@@ -26,7 +26,7 @@ router.get('/', [
       category,
       isPremium,
       isPopular,
-      isNew,
+      isNewTemplate,
       search,
       limit = 20,
       page = 1
@@ -38,7 +38,7 @@ router.get('/', [
     if (category) filter.category = category
     if (isPremium !== undefined) filter.isPremium = isPremium === 'true'
     if (isPopular !== undefined) filter.isPopular = isPopular === 'true'
-    if (isNew !== undefined) filter.isNew = isNew === 'true'
+    if (isNewTemplate !== undefined) filter.isNewTemplate = isNewTemplate === 'true'
 
     // Search functionality
     if (search) {
@@ -54,8 +54,8 @@ router.get('/', [
 
     // Execute query
     const templates = await Template.find(filter)
-      .select('name description category thumbnail tags isPremium isPopular isNew usageCount rating')
-      .sort({ isPopular: -1, isNew: -1, usageCount: -1, createdAt: -1 })
+      .select('name description category thumbnail tags isPremium isPopular isNewTemplate usageCount rating')
+      .sort({ isPopular: -1, isNewTemplate: -1, usageCount: -1, createdAt: -1 })
       .limit(parseInt(limit))
       .skip(skip)
 
@@ -156,7 +156,7 @@ router.get('/new', async (req, res) => {
 
     const templates = await Template.find({ 
       isActive: true,
-      isNew: true 
+      isNewTemplate: true 
     })
       .select('name description category thumbnail tags isPremium usageCount rating')
       .sort({ createdAt: -1 })

@@ -97,7 +97,7 @@ const setupSampleData = async () => {
         isPremium: false,
         isActive: true,
         isPopular: true,
-        isNew: false,
+        isNewTemplate: false,
         usageCount: 150,
         rating: { average: 4.5, count: 25 }
       },
@@ -113,7 +113,7 @@ const setupSampleData = async () => {
         isPremium: true,
         isActive: true,
         isPopular: true,
-        isNew: true,
+        isNewTemplate: true,
         usageCount: 89,
         rating: { average: 4.8, count: 18 }
       },
@@ -129,7 +129,7 @@ const setupSampleData = async () => {
         isPremium: false,
         isActive: true,
         isPopular: false,
-        isNew: false,
+        isNewTemplate: false,
         usageCount: 67,
         rating: { average: 4.2, count: 12 }
       },
@@ -145,7 +145,7 @@ const setupSampleData = async () => {
         isPremium: true,
         isActive: true,
         isPopular: false,
-        isNew: false,
+        isNewTemplate: false,
         usageCount: 34,
         rating: { average: 4.9, count: 8 }
       }

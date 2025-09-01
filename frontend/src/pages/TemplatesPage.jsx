@@ -33,7 +33,7 @@ const TemplatesPage = () => {
       description: 'Clean and professional template perfect for corporate roles',
       image: '/templates/modern-cv.jpg',
       isPopular: true,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Professional', 'Corporate', 'Clean']
     },
     {
@@ -43,7 +43,7 @@ const TemplatesPage = () => {
       description: 'Bold and creative design for creative professionals',
       image: '/templates/creative.jpg',
       isPopular: false,
-      isNew: true,
+      isNewTemplate: true,
       tags: ['Creative', 'Design', 'Bold']
     },
     {
@@ -53,7 +53,7 @@ const TemplatesPage = () => {
       description: 'Simple and elegant template focusing on content',
       image: '/templates/minimalist.jpg',
       isPopular: false,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Minimalist', 'Simple', 'Elegant']
     },
     {
@@ -63,7 +63,7 @@ const TemplatesPage = () => {
       description: 'Sophisticated template for senior professionals',
       image: '/templates/executive.jpg',
       isPopular: true,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Executive', 'Senior', 'Sophisticated']
     },
     {
@@ -73,7 +73,7 @@ const TemplatesPage = () => {
       description: 'Modern template perfect for tech and startup roles',
       image: '/templates/startup.jpg',
       isPopular: false,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Startup', 'Tech', 'Modern']
     },
     {
@@ -83,7 +83,7 @@ const TemplatesPage = () => {
       description: 'Traditional template that never goes out of style',
       image: '/templates/classic.jpg',
       isPopular: false,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Classic', 'Traditional', 'Timeless']
     },
     {
@@ -93,7 +93,7 @@ const TemplatesPage = () => {
       description: 'Contemporary design with clean lines and modern typography',
       image: '/templates/modern-minimal.jpg',
       isPopular: false,
-      isNew: true,
+      isNewTemplate: true,
       tags: ['Modern', 'Minimal', 'Contemporary']
     },
     {
@@ -103,7 +103,7 @@ const TemplatesPage = () => {
       description: 'Strong and confident template for ambitious professionals',
       image: '/templates/professional-bold.jpg',
       isPopular: false,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Professional', 'Bold', 'Confident']
     },
     {
@@ -113,7 +113,7 @@ const TemplatesPage = () => {
       description: 'Innovative design combining creativity with professionalism',
       image: '/templates/creative-modern.jpg',
       isPopular: false,
-      isNew: false,
+      isNewTemplate: false,
       tags: ['Creative', 'Modern', 'Innovative']
     }
   ]
@@ -269,7 +269,7 @@ const TemplatesPage = () => {
                             Most Popular
                           </div>
                         )}
-                        {template.isNew && (
+                        {template.isNewTemplate && (
                           <div className="absolute top-4 right-4 bg-success-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
                             New
                           </div>

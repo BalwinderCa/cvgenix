@@ -94,7 +94,7 @@ const TemplateSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  isNew: {
+  isNewTemplate: {
     type: Boolean,
     default: false
   },
@@ -143,13 +143,14 @@ const TemplateSchema = new mongoose.Schema({
     }
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  suppressReservedKeysWarning: true
 })
 
 // Index for faster queries
 TemplateSchema.index({ category: 1, isActive: 1 })
 TemplateSchema.index({ isPopular: 1, isActive: 1 })
-TemplateSchema.index({ isNew: 1, isActive: 1 })
+TemplateSchema.index({ isNewTemplate: 1, isActive: 1 })
 TemplateSchema.index({ tags: 1, isActive: 1 })
 
 // Virtual for full template name

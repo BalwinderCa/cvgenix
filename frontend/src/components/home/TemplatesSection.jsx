@@ -21,7 +21,7 @@ const TemplatesSection = () => {
       category: 'Professional',
       image: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=500&fit=crop&crop=center',
       isPopular: true,
-      isNew: false
+      isNewTemplate: false
     },
     {
       id: 'creative',
@@ -29,7 +29,7 @@ const TemplatesSection = () => {
       category: 'Design',
       image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: true
+      isNewTemplate: true
     },
     {
       id: 'minimalist',
@@ -37,7 +37,7 @@ const TemplatesSection = () => {
       category: 'Clean',
       image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: false
+      isNewTemplate: false
     },
     {
       id: 'executive',
@@ -45,7 +45,7 @@ const TemplatesSection = () => {
       category: 'Senior',
       image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400&h=500&fit=crop&crop=center',
       isPopular: true,
-      isNew: false
+      isNewTemplate: false
     },
     {
       id: 'startup',
@@ -53,7 +53,7 @@ const TemplatesSection = () => {
       category: 'Tech',
       image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: false
+      isNewTemplate: false
     },
     {
       id: 'classic',
@@ -61,7 +61,7 @@ const TemplatesSection = () => {
       category: 'Traditional',
       image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: false
+      isNewTemplate: false
     },
     {
       id: 'elegant',
@@ -69,7 +69,7 @@ const TemplatesSection = () => {
       category: 'Premium',
       image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: false
+      isNewTemplate: false
     },
     {
       id: 'bold',
@@ -77,7 +77,7 @@ const TemplatesSection = () => {
       category: 'Creative',
       image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: true
+      isNewTemplate: true
     },
     {
       id: 'simple',
@@ -85,7 +85,7 @@ const TemplatesSection = () => {
       category: 'Clean',
       image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=500&fit=crop&crop=center',
       isPopular: false,
-      isNew: false
+      isNewTemplate: false
     }
   ]
 
@@ -209,7 +209,7 @@ const TemplatesSection = () => {
                           P
                         </div>
                       )}
-                      {template.isNew && (
+                      {template.isNewTemplate && (
                         <div className="absolute top-1 right-1 bg-green-500 text-white text-xs font-semibold px-1 py-0.5 rounded-full">
                           N
                         </div>
