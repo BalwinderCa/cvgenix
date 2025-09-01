@@ -15,6 +15,7 @@ import HomePage from './pages/HomePage'
 import AboutPage from './pages/AboutPage'
 import TemplatesPage from './pages/TemplatesPage'
 import ResumeBuilderPage from './pages/ResumeBuilderPage'
+import ATSScorePage from './pages/ATSScorePage'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminLoginPage from './pages/AdminLoginPage'
 import UserDashboard from './pages/UserDashboard'
@@ -87,6 +88,7 @@ function AppContent() {
           <Route path="/about-us" element={<MainLayout><AboutPage /></MainLayout>} />
           <Route path="/templates" element={<MainLayout><TemplatesPage /></MainLayout>} />
           <Route path="/template-edit/:id" element={<MainLayout><ResumeBuilderPage /></MainLayout>} />
+          <Route path="/ats-score" element={<MainLayout><ATSScorePage /></MainLayout>} />
           <Route path="/dashboard" element={<MainLayout><UserDashboard /></MainLayout>} />
           <Route path="/contact-us" element={<MainLayout><ContactPage /></MainLayout>} />
           <Route path="*" element={<MainLayout><NotFoundPage /></MainLayout>} />

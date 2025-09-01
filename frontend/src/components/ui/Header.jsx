@@ -22,10 +22,10 @@ const Header = () => {
   };
 
   const navigationItems = [
-    { name: 'Homepage', sectionId: 'home', icon: 'Home' },
-    { name: 'Resume Templates', sectionId: 'templates', icon: 'FileText' },
-    { name: 'Cover Letter', sectionId: 'cover-letter', icon: 'FileText' },
-    { name: 'ATS Score', sectionId: 'ats-score', icon: 'Target' },
+    { name: 'Homepage', sectionId: 'home', icon: 'Home', isLink: false },
+    { name: 'Resume Templates', sectionId: 'templates', icon: 'FileText', isLink: false },
+    { name: 'Cover Letter', sectionId: 'cover-letter', icon: 'FileText', isLink: false },
+    { name: 'ATS Score', sectionId: '/ats-score', icon: 'Target', isLink: true },
   ];
 
   const scrollToSection = (sectionId) => {
@@ -64,14 +64,25 @@ const Header = () => {
           {/* Traditional Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
             {navigationItems?.map((item) => (
-              <button
-                key={item?.sectionId}
-                onClick={() => scrollToSection(item?.sectionId)}
-                className="flex items-center space-x-2 px-4 py-2 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors"
-              >
-                <Icon name={item?.icon} size={16} />
-                <span>{item?.name}</span>
-              </button>
+              item?.isLink ? (
+                <Link
+                  key={item?.sectionId}
+                  to={item?.sectionId}
+                  className="flex items-center space-x-2 px-4 py-2 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors"
+                >
+                  <Icon name={item?.icon} size={16} />
+                  <span>{item?.name}</span>
+                </Link>
+              ) : (
+                <button
+                  key={item?.sectionId}
+                  onClick={() => scrollToSection(item?.sectionId)}
+                  className="flex items-center space-x-2 px-4 py-2 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors"
+                >
+                  <Icon name={item?.icon} size={16} />
+                  <span>{item?.name}</span>
+                </button>
+              )
             ))}
           </nav>
 
@@ -126,14 +137,26 @@ const Header = () => {
           <div className="md:hidden border-t-2 border-border bg-background">
             <div className="px-6 py-4 space-y-3">
               {navigationItems?.map((item) => (
-                <button
-                  key={item?.sectionId}
-                  onClick={() => scrollToSection(item?.sectionId)}
-                  className="flex items-center space-x-3 px-4 py-3 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors w-full text-left"
-                >
-                  <Icon name={item?.icon} size={18} />
-                  <span>{item?.name}</span>
-                </button>
+                item?.isLink ? (
+                  <Link
+                    key={item?.sectionId}
+                    to={item?.sectionId}
+                    className="flex items-center space-x-3 px-4 py-3 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors w-full text-left"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Icon name={item?.icon} size={18} />
+                    <span>{item?.name}</span>
+                  </Link>
+                ) : (
+                  <button
+                    key={item?.sectionId}
+                    onClick={() => scrollToSection(item?.sectionId)}
+                    className="flex items-center space-x-3 px-4 py-3 classic-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-surface border-transparent transition-colors w-full text-left"
+                  >
+                    <Icon name={item?.icon} size={18} />
+                    <span>{item?.name}</span>
+                  </button>
+                )
               ))}
 
               <div className="pt-4 border-t-2 border-border space-y-3">
