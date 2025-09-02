@@ -722,8 +722,8 @@ class ATSScoreCalculator {
               relevance: contextScore * keywordMatches.length
             });
             
-            // More generous scoring: base 3 points + context bonus
-            score += keywordMatches.length * (3 + contextScore * 2);
+            // Balanced scoring: base 2 points + context bonus
+            score += keywordMatches.length * (2 + contextScore * 1.5);
           }
         }
       });
@@ -731,20 +731,30 @@ class ATSScoreCalculator {
 
     analysis.keywordMatches = matches;
     analysis.keywordContext = keywordContext;
-    // More realistic keyword scoring with clean rounding
-    analysis.keywordScore = Math.round(Math.min(score * 0.8, 100));
 
-    // More realistic feedback thresholds
+    // More challenging feedback thresholds
     const totalMatches = Object.values(matches).flat().length;
-    if (totalMatches >= 12) {
+    if (totalMatches >= 18) {
       analysis.strengths.push('Excellent keyword optimization with strong contextual relevance');
-    } else if (totalMatches >= 8) {
+    } else if (totalMatches >= 12) {
       analysis.strengths.push('Good keyword coverage across multiple categories');
-    } else if (totalMatches >= 5) {
+    } else if (totalMatches >= 8) {
       analysis.strengths.push('Decent keyword usage with room for improvement');
-    } else if (totalMatches < 5) {
+    } else if (totalMatches < 8) {
       analysis.improvements.push('Increase keyword density with industry-relevant terms');
     }
+
+    // Additional keyword quality checks
+    const categoryBalance = Object.values(matches).filter(arr => arr.length > 0).length;
+    if (categoryBalance < 3) {
+      analysis.improvements.push('Include keywords from more diverse categories (technical, soft skills, action verbs)');
+      score *= 0.9; // 10% penalty for poor category balance
+    } else if (categoryBalance >= 4) {
+      score *= 1.05; // 5% bonus for good category balance
+    }
+
+    // More challenging keyword scoring with category balance
+    analysis.keywordScore = Math.round(Math.min(score * 0.6, 95)); // Cap at 95
 
     return analysis.keywordScore;
   }
@@ -783,7 +793,7 @@ class ATSScoreCalculator {
 
   // Enhanced formatting analysis
   analyzeFormattingAdvanced(text, analysis, textContext) {
-    let score = 100;
+    let score = 85; // Start with more realistic base score
     const issues = [];
     const strengths = [];
 
@@ -841,11 +851,36 @@ class ATSScoreCalculator {
     if (inconsistentFormatting.issues > 3) {
       issues.push('Potential formatting inconsistencies detected');
       score -= 10;
+    } else if (inconsistentFormatting.issues === 0) {
+      strengths.push('Consistent formatting throughout document');
+      score += 5;
     }
 
-    analysis.formattingScore = Math.round(Math.max(score, 0));
+    // Additional formatting quality checks
+    const lines = text.split('\n');
+    const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+    
+    // Check for proper use of whitespace
+    const emptyLineRatio = (lines.length - nonEmptyLines.length) / lines.length;
+    if (emptyLineRatio < 0.1) {
+      issues.push('Consider adding more whitespace for better readability');
+      score -= 8;
+    } else if (emptyLineRatio > 0.3) {
+      issues.push('Too much whitespace - consider condensing content');
+      score -= 5;
+    } else {
+      score += 3; // Bonus for good whitespace usage
+    }
+
+    // Check for professional formatting elements
+    const hasProperCapitalization = /^[A-Z][A-Z\s]*$/m.test(text);
+    if (hasProperCapitalization) {
+      score += 5; // Bonus for proper section headers
+    }
+
+    analysis.formattingScore = Math.round(Math.max(Math.min(score, 95), 0)); // Cap at 95
     analysis.strengths.push(...strengths);
-      analysis.improvements.push(...issues);
+    analysis.improvements.push(...issues);
 
     return analysis.formattingScore;
   }
@@ -888,7 +923,7 @@ class ATSScoreCalculator {
 
   // Advanced structure analysis
   analyzeStructureAdvanced(text, analysis, textContext) {
-    let score = 100;
+    let score = 85; // Start with more realistic base score
     const sections = textContext.sections;
     const missingSections = [];
 
@@ -924,12 +959,24 @@ class ATSScoreCalculator {
     }
 
     analysis.missingSections = missingSections;
-    analysis.structureScore = Math.round(Math.max(score, 0));
 
     if (missingSections.length === 0) {
       analysis.strengths.push('Complete resume structure with all essential sections');
+      score += 10; // Bonus for complete structure
+    } else if (missingSections.length === 1) {
+      analysis.strengths.push('Well-structured resume with most essential sections');
+      score += 5;
     }
 
+    // Bonus for additional valuable sections
+    const bonusSections = ['projects', 'certifications', 'awards'];
+    const foundBonusSections = bonusSections.filter(section => sections[section]);
+    if (foundBonusSections.length >= 2) {
+      analysis.strengths.push('Includes additional valuable sections beyond the basics');
+      score += 5;
+    }
+
+    analysis.structureScore = Math.round(Math.max(Math.min(score, 95), 0)); // Cap at 95
     return analysis.structureScore;
   }
 
@@ -983,7 +1030,7 @@ class ATSScoreCalculator {
 
   // Advanced content quality analysis
   analyzeContentAdvanced(text, analysis, textContext) {
-    let score = 100;
+    let score = 80; // Start with lower base score
 
     // Enhanced action verb analysis
     const actionVerbs = this.keywordCategories.actionVerbs;
@@ -991,14 +1038,19 @@ class ATSScoreCalculator {
       text.toLowerCase().includes(verb)
     );
 
-    // More realistic action verb expectations
+    // More challenging action verb expectations
     if (foundActionVerbs.length < 3) {
       analysis.improvements.push('Use more diverse action verbs to describe achievements');
-      score -= 10;  // Reduced from 20
+      score -= 15;
     } else if (foundActionVerbs.length >= 5) {
       analysis.strengths.push('Good use of action verbs');
+      score += 5;
     } else if (foundActionVerbs.length >= 8) {
       analysis.strengths.push('Excellent use of strong action verbs');
+      score += 10;
+    } else if (foundActionVerbs.length >= 12) {
+      analysis.strengths.push('Outstanding variety of action verbs');
+      score += 15;
     }
 
     // Enhanced quantifiable achievements analysis
@@ -1018,11 +1070,16 @@ class ATSScoreCalculator {
 
     if (quantifiableCount < 1) {
       analysis.improvements.push('Add quantifiable achievements with specific metrics');
-      score -= 15;  // Reduced from 25
+      score -= 20;
     } else if (quantifiableCount >= 2) {
       analysis.strengths.push('Good use of quantifiable achievements');
+      score += 5;
     } else if (quantifiableCount >= 4) {
       analysis.strengths.push('Strong quantifiable achievements demonstrate impact');
+      score += 10;
+    } else if (quantifiableCount >= 6) {
+      analysis.strengths.push('Exceptional quantifiable achievements');
+      score += 15;
     }
 
     // Professional language assessment
@@ -1044,9 +1101,42 @@ class ATSScoreCalculator {
     const industryTerms = this.analyzeIndustryTerminology(text);
     if (industryTerms.score > 70) {
       analysis.strengths.push('Good use of industry-specific terminology');
+      score += 5;
+    } else if (industryTerms.score < 30) {
+      analysis.improvements.push('Include more industry-specific terminology');
+      score -= 10;
     }
 
-    analysis.contentScore = Math.round(Math.max(score, 0));
+    // Additional content quality checks for more realistic scoring
+    const wordCount = textContext.wordCount;
+    if (wordCount < 200) {
+      analysis.improvements.push('Resume content is too brief - add more details');
+      score -= 15;
+    } else if (wordCount > 800) {
+      analysis.improvements.push('Resume is too lengthy - consider condensing');
+      score -= 10;
+    } else if (wordCount >= 300 && wordCount <= 600) {
+      score += 5; // Bonus for optimal length
+    }
+
+    // Check for variety in experience descriptions
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const uniqueStartWords = new Set();
+    sentences.forEach(sentence => {
+      const firstWord = sentence.trim().split(' ')[0].toLowerCase();
+      if (actionVerbs.includes(firstWord)) {
+        uniqueStartWords.add(firstWord);
+      }
+    });
+
+    if (uniqueStartWords.size < 3) {
+      analysis.improvements.push('Use more varied sentence structures and action verbs');
+      score -= 10;
+    } else if (uniqueStartWords.size >= 6) {
+      score += 5; // Bonus for variety
+    }
+
+    analysis.contentScore = Math.round(Math.max(Math.min(score, 95), 0)); // Cap at 95
     return analysis.contentScore;
   }
 
