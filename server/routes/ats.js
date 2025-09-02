@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const { body, validationResult } = require('express-validator');
+
 const router = express.Router();
 
 // Import middleware
@@ -47,25 +47,35 @@ const upload = multer({
   }
 });
 
-// ATS Score calculation logic
+// Enhanced ATS Score calculation logic with advanced features
 class ATSScoreCalculator {
   constructor() {
     this.keywordCategories = {
       technical: [
         'javascript', 'python', 'java', 'react', 'node.js', 'sql', 'mongodb', 'aws', 'docker', 'kubernetes',
         'machine learning', 'ai', 'data analysis', 'agile', 'scrum', 'git', 'rest api', 'microservices',
-        'cloud computing', 'devops', 'ci/cd', 'testing', 'automation', 'frontend', 'backend', 'full stack'
+        'cloud computing', 'devops', 'ci/cd', 'testing', 'automation', 'frontend', 'backend', 'full stack',
+        'typescript', 'angular', 'vue', 'graphql', 'redis', 'elasticsearch', 'terraform', 'jenkins',
+        'blockchain', 'cybersecurity', 'data science', 'deep learning', 'neural networks', 'nlp'
       ],
       softSkills: [
         'leadership', 'communication', 'teamwork', 'problem solving', 'critical thinking', 'time management',
         'project management', 'collaboration', 'mentoring', 'presentation', 'negotiation', 'customer service',
-        'analytical skills', 'creativity', 'adaptability', 'initiative', 'attention to detail'
+        'analytical skills', 'creativity', 'adaptability', 'initiative', 'attention to detail',
+        'strategic planning', 'decision making', 'conflict resolution', 'emotional intelligence', 'innovation'
       ],
       actionVerbs: [
         'developed', 'implemented', 'managed', 'led', 'created', 'designed', 'built', 'maintained',
         'improved', 'optimized', 'increased', 'decreased', 'achieved', 'delivered', 'coordinated',
-        'analyzed', 'researched', 'planned', 'executed', 'monitored', 'evaluated', 'trained'
-      ]
+        'analyzed', 'researched', 'planned', 'executed', 'monitored', 'evaluated', 'trained',
+        'architected', 'spearheaded', 'pioneered', 'transformed', 'streamlined', 'accelerated'
+      ],
+      industrySpecific: {
+        technology: ['api', 'sdk', 'framework', 'architecture', 'scalability', 'performance', 'security'],
+        marketing: ['seo', 'sem', 'conversion', 'engagement', 'roi', 'analytics', 'campaigns'],
+        finance: ['financial modeling', 'risk management', 'compliance', 'audit', 'forecasting'],
+        healthcare: ['hipaa', 'clinical', 'patient care', 'medical records', 'healthcare analytics']
+      }
     };
 
     this.sectionKeywords = {
@@ -112,14 +122,124 @@ class ATSScoreCalculator {
     }
   }
 
-  // Clean and normalize extracted text
+  // Enhanced text cleaning and normalization
   cleanExtractedText(text) {
     return text
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .replace(/\t/g, ' ')
       .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\n\-\@\.\(\)\+]/g, ' ') // Remove special chars except common resume chars
+      .replace(/\b\d{4}\b/g, ' $& ') // Add spaces around years
       .trim();
+  }
+
+  // Advanced text analysis with keyword context
+  analyzeTextContext(text) {
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const sections = this.identifySections(text);
+    const keywordDensity = this.calculateKeywordDensity(text);
+    const readabilityScore = this.calculateReadabilityScore(text);
+    
+    return {
+      sentences,
+      sections,
+      keywordDensity,
+      readabilityScore,
+      wordCount: text.split(/\s+/).length,
+      characterCount: text.length
+    };
+  }
+
+  // Identify resume sections with better accuracy
+  identifySections(text) {
+    const sectionPatterns = {
+      contact: /(?:contact|personal\s+info|details)/i,
+      summary: /(?:summary|objective|profile|about|overview)/i,
+      experience: /(?:experience|work\s+history|employment|professional\s+experience)/i,
+      education: /(?:education|academic|qualifications|degrees?)/i,
+      skills: /(?:skills|competencies|technologies|technical\s+skills)/i,
+      projects: /(?:projects|portfolio|achievements)/i,
+      certifications: /(?:certifications?|licenses?|credentials)/i,
+      awards: /(?:awards?|honors?|recognition)/i
+    };
+
+    const foundSections = {};
+    const lines = text.split('\n');
+    
+    lines.forEach((line, index) => {
+      Object.entries(sectionPatterns).forEach(([section, pattern]) => {
+        if (pattern.test(line) && line.trim().length < 50) {
+          foundSections[section] = {
+            line: index,
+            text: line.trim(),
+            confidence: this.calculateSectionConfidence(line, pattern)
+          };
+        }
+      });
+    });
+
+    return foundSections;
+  }
+
+  // Calculate keyword density for better analysis
+  calculateKeywordDensity(text) {
+    const words = text.toLowerCase().split(/\s+/);
+    const totalWords = words.length;
+    const density = {};
+
+    Object.entries(this.keywordCategories).forEach(([category, keywords]) => {
+      let categoryMatches = 0;
+      
+      // Ensure keywords is an array
+      const keywordArray = Array.isArray(keywords) ? keywords : 
+                          typeof keywords === 'object' ? Object.values(keywords).flat() : [];
+      
+      keywordArray.forEach(keyword => {
+        if (typeof keyword === 'string') {
+          const matches = (text.toLowerCase().match(new RegExp(keyword.toLowerCase(), 'g')) || []).length;
+          categoryMatches += matches;
+        }
+      });
+      
+      density[category] = totalWords > 0 ? Math.round(categoryMatches / totalWords * 100 * 10) / 10 : 0;
+    });
+
+    return density;
+  }
+
+  // Calculate readability score
+  calculateReadabilityScore(text) {
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    const syllables = words.reduce((count, word) => count + this.countSyllables(word), 0);
+
+    if (sentences.length === 0 || words.length === 0) return 0;
+
+    const avgWordsPerSentence = words.length / sentences.length;
+    const avgSyllablesPerWord = syllables / words.length;
+
+    // Flesch Reading Ease Score
+    const score = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  // Helper method to count syllables
+  countSyllables(word) {
+    word = word.toLowerCase();
+    if (word.length <= 3) return 1;
+    word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
+    word = word.replace(/^y/, '');
+    const matches = word.match(/[aeiouy]{1,2}/g);
+    return matches ? matches.length : 1;
+  }
+
+  // Calculate section confidence
+  calculateSectionConfidence(line, pattern) {
+    const words = line.trim().split(/\s+/).length;
+    if (words <= 3) return 0.9;
+    if (words <= 5) return 0.7;
+    return 0.5;
   }
 
   // Fallback method for DOC files
@@ -155,226 +275,814 @@ class ATSScoreCalculator {
     `;
   }
 
-  // Calculate ATS score based on various factors
+  // Enhanced ATS score calculation with advanced analytics
   calculateATSScore(text) {
     const lowerText = text.toLowerCase();
+    const textContext = this.analyzeTextContext(text);
     let totalScore = 0;
+    
     const analysis = {
       keywordScore: 0,
       formattingScore: 0,
       structureScore: 0,
       contentScore: 0,
+      readabilityScore: 0,
       strengths: [],
       improvements: [],
       suggestions: [],
       keywordMatches: {},
-      missingSections: []
+      missingSections: [],
+      analytics: {
+        wordCount: textContext.wordCount,
+        keywordDensity: textContext.keywordDensity,
+        readabilityScore: textContext.readabilityScore,
+        sectionsFound: Object.keys(textContext.sections),
+        industryBenchmark: this.calculateIndustryBenchmark(text),
+        successPrediction: 0,
+        keywordTrends: this.analyzeKeywordTrends(text, this.calculateIndustryBenchmark(text).industry),
+        competitiveAnalysis: this.generateCompetitiveInsights(text)
+      },
+      interactiveData: {
+        sectionBreakdown: {},
+        keywordHeatmap: {},
+        improvementPriority: [],
+        clickableInsights: []
+      }
     };
 
-    // 1. Keyword Analysis (30% of total score)
-    const keywordScore = this.analyzeKeywords(lowerText, analysis);
-    totalScore += keywordScore * 0.3;
+    // More balanced scoring with realistic weights
+    // 1. Keyword Analysis (30% of total score) - Most important for ATS
+    const keywordScore = this.analyzeKeywordsAdvanced(lowerText, analysis, textContext);
+    totalScore += keywordScore * 0.30;
 
-    // 2. Formatting Analysis (25% of total score)
-    const formattingScore = this.analyzeFormatting(text, analysis);
-    totalScore += formattingScore * 0.25;
+    // 2. Content Quality Analysis (25% of total score) - Critical for impact
+    const contentScore = this.analyzeContentAdvanced(text, analysis, textContext);
+    totalScore += contentScore * 0.25;
 
-    // 3. Structure Analysis (25% of total score)
-    const structureScore = this.analyzeStructure(text, analysis);
-    totalScore += structureScore * 0.25;
+    // 3. Structure Analysis (20% of total score) - Important but not critical
+    const structureScore = this.analyzeStructureAdvanced(text, analysis, textContext);
+    totalScore += structureScore * 0.20;
 
-    // 4. Content Quality Analysis (20% of total score)
-    const contentScore = this.analyzeContent(text, analysis);
-    totalScore += contentScore * 0.2;
+    // 4. Formatting Analysis (15% of total score) - Less critical
+    const formattingScore = this.analyzeFormattingAdvanced(text, analysis, textContext);
+    totalScore += formattingScore * 0.15;
+
+    // 5. Readability & Professional Language (10% of total score) - Bonus points
+    const readabilityScore = this.analyzeReadability(text, analysis, textContext);
+    totalScore += readabilityScore * 0.10;
+
+    // Calculate final score
+    const finalScore = Math.round(totalScore);
+    
+    // Calculate success prediction
+    analysis.analytics.successPrediction = this.predictSuccessRate(totalScore, analysis);
+
+    // Generate interactive data for enhanced reporting
+    this.generateInteractiveData(analysis, text, textContext, finalScore);
+
+    // Round all detailed scores to clean integers
+    analysis.keywordScore = Math.round(analysis.keywordScore);
+    analysis.formattingScore = Math.round(analysis.formattingScore);
+    analysis.structureScore = Math.round(analysis.structureScore);
+    analysis.contentScore = Math.round(analysis.contentScore);
+    analysis.readabilityScore = Math.round(analysis.readabilityScore);
 
     return {
-      score: Math.round(totalScore),
+      score: finalScore,
       analysis: analysis
     };
   }
 
-  // Analyze keywords and their relevance
-  analyzeKeywords(text, analysis) {
+  // Calculate industry benchmark comparison
+  calculateIndustryBenchmark(text) {
+    const benchmarks = {
+      technology: { avgScore: 78, keywordDensity: 2.5, commonSkills: ['javascript', 'python', 'react'] },
+      marketing: { avgScore: 72, keywordDensity: 2.1, commonSkills: ['seo', 'analytics', 'campaigns'] },
+      finance: { avgScore: 75, keywordDensity: 1.8, commonSkills: ['excel', 'modeling', 'analysis'] },
+      healthcare: { avgScore: 70, keywordDensity: 1.9, commonSkills: ['patient care', 'clinical', 'hipaa'] }
+    };
+
+    // Simple industry detection based on keywords
+    let detectedIndustry = 'general';
+    let maxMatches = 0;
+
+    Object.entries(benchmarks).forEach(([industry, data]) => {
+      const matches = data.commonSkills.filter(skill => 
+        text.toLowerCase().includes(skill)
+      ).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        detectedIndustry = industry;
+      }
+    });
+
+    return {
+      industry: detectedIndustry,
+      benchmark: benchmarks[detectedIndustry] || benchmarks.technology,
+      confidence: maxMatches / 3
+    };
+  }
+
+  // Analyze keyword trends based on detected industry
+  analyzeKeywordTrends(text, detectedIndustry = 'general') {
+    // Industry-specific trending keywords (more realistic and current)
+    const industryTrendingKeywords = {
+      technology: {
+        trending: ['cloud computing', 'devops', 'microservices', 'react', 'node.js', 'python', 'aws', 'docker'],
+        emerging: ['ai', 'machine learning', 'kubernetes', 'typescript', 'serverless'],
+        declining: ['jquery', 'flash', 'silverlight', 'angular.js']
+      },
+      marketing: {
+        trending: ['digital marketing', 'seo', 'content marketing', 'social media', 'analytics', 'conversion optimization'],
+        emerging: ['influencer marketing', 'video marketing', 'marketing automation', 'personalization'],
+        declining: ['print advertising', 'cold calling', 'mass email']
+      },
+      finance: {
+        trending: ['financial modeling', 'risk management', 'compliance', 'data analysis', 'excel', 'sql'],
+        emerging: ['fintech', 'blockchain', 'cryptocurrency', 'robo-advisory', 'regtech'],
+        declining: ['manual reporting', 'paper-based processes']
+      },
+      healthcare: {
+        trending: ['patient care', 'electronic health records', 'telemedicine', 'healthcare analytics', 'hipaa compliance'],
+        emerging: ['ai diagnostics', 'digital health', 'remote monitoring', 'precision medicine'],
+        declining: ['paper records', 'fax communication']
+      },
+      general: {
+        trending: ['project management', 'teamwork', 'communication', 'problem solving', 'leadership'],
+        emerging: ['remote work', 'digital transformation', 'data analysis', 'automation'],
+        declining: ['fax', 'manual processes']
+      }
+    };
+
+    // Auto-detect industry from text if not provided
+    if (detectedIndustry === 'general') {
+      detectedIndustry = this.detectIndustryFromText(text);
+    }
+
+    const keywords = industryTrendingKeywords[detectedIndustry] || industryTrendingKeywords.general;
+    const foundTrending = [];
+    const foundEmerging = [];
+    const foundDeclining = [];
+
+    keywords.trending.forEach(keyword => {
+      if (text.toLowerCase().includes(keyword.toLowerCase())) {
+        foundTrending.push(keyword);
+      }
+    });
+
+    keywords.emerging.forEach(keyword => {
+      if (text.toLowerCase().includes(keyword.toLowerCase())) {
+        foundEmerging.push(keyword);
+      }
+    });
+
+    keywords.declining.forEach(keyword => {
+      if (text.toLowerCase().includes(keyword.toLowerCase())) {
+        foundDeclining.push(keyword);
+      }
+    });
+
+    return {
+      trending: foundTrending,
+      emerging: foundEmerging,
+      declining: foundDeclining,
+      industry: detectedIndustry,
+      trendScore: (foundTrending.length * 2 + foundEmerging.length) - foundDeclining.length
+    };
+  }
+
+  // Detect industry from resume text
+  detectIndustryFromText(text) {
+    const lowerText = text.toLowerCase();
+    const industryKeywords = {
+      technology: ['software', 'developer', 'programming', 'javascript', 'python', 'react', 'api', 'database'],
+      marketing: ['marketing', 'seo', 'campaigns', 'social media', 'branding', 'advertising', 'content'],
+      finance: ['financial', 'accounting', 'investment', 'banking', 'audit', 'budget', 'revenue'],
+      healthcare: ['healthcare', 'medical', 'patient', 'clinical', 'nursing', 'hospital', 'treatment']
+    };
+
+    let maxMatches = 0;
+    let detectedIndustry = 'general';
+
+    Object.entries(industryKeywords).forEach(([industry, keywords]) => {
+      const matches = keywords.filter(keyword => lowerText.includes(keyword)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        detectedIndustry = industry;
+      }
+    });
+
+    return detectedIndustry;
+  }
+
+  // Generate competitive insights
+  generateCompetitiveInsights(text) {
+    const insights = [];
+    const wordCount = text.split(/\s+/).length;
+    
+    if (wordCount < 300) {
+      insights.push({ type: 'warning', message: 'Resume is shorter than 85% of competitive candidates' });
+    } else if (wordCount > 800) {
+      insights.push({ type: 'info', message: 'Resume is longer than average - consider condensing' });
+    }
+
+    const quantifiableAchievements = (text.match(/\d+%|\$\d+|\d+\s*(users|customers|projects|years)/gi) || []).length;
+    if (quantifiableAchievements < 3) {
+      insights.push({ type: 'improvement', message: 'Add more quantifiable achievements to stand out' });
+    }
+
+    return insights;
+  }
+
+  // Predict success rate based on analysis
+  predictSuccessRate(score, analysis) {
+    let prediction = score;
+    
+    // Adjust based on keyword trends
+    prediction += analysis.analytics.keywordTrends.trendScore * 2;
+    
+    // Adjust based on industry benchmark
+    const benchmark = analysis.analytics.industryBenchmark;
+    if (score > benchmark.benchmark.avgScore) {
+      prediction += 5;
+    }
+    
+    // Adjust based on readability
+    if (analysis.analytics.readabilityScore > 60) {
+      prediction += 3;
+    }
+    
+    return Math.min(95, Math.max(10, Math.round(prediction)));
+  }
+
+  // Generate interactive data for enhanced reporting
+  generateInteractiveData(analysis, text, textContext, currentScore) {
+    // Section-by-section breakdown
+    analysis.interactiveData.sectionBreakdown = this.analyzeSectionsBySection(text, textContext);
+    
+    // Keyword heatmap data
+    analysis.interactiveData.keywordHeatmap = this.generateKeywordHeatmap(text);
+    
+    // Improvement priority ranking
+    analysis.interactiveData.improvementPriority = this.rankImprovements(analysis);
+    
+    // Clickable insights for interactive reports
+    analysis.interactiveData.clickableInsights = this.generateClickableInsights(analysis, text, currentScore);
+  }
+
+  // Analyze sections by section for interactive reporting
+  analyzeSectionsBySection(text, textContext) {
+    const breakdown = {};
+    
+    Object.entries(textContext.sections).forEach(([section, data]) => {
+      breakdown[section] = {
+        found: true,
+        confidence: data.confidence,
+        line: data.line,
+        score: this.scoreSectionQuality(text, section),
+        suggestions: this.getSectionSuggestions(section)
+      };
+    });
+    
+    return breakdown;
+  }
+
+  // Score individual section quality
+  scoreSectionQuality(text, section) {
+    const sectionPatterns = {
+      contact: /email|phone|linkedin/i,
+      summary: /years|experience|skilled/i,
+      experience: /\d{4}|company|position/i,
+      education: /degree|university|college/i,
+      skills: /javascript|python|management/i
+    };
+    
+    const pattern = sectionPatterns[section];
+    if (!pattern) return 70;
+    
+    const matches = (text.match(pattern) || []).length;
+    return Math.min(100, 50 + (matches * 10));
+  }
+
+  // Get section-specific suggestions
+  getSectionSuggestions(section) {
+    const suggestions = {
+      contact: ['Include LinkedIn profile URL', 'Add professional email address'],
+      summary: ['Include years of experience', 'Highlight key achievements'],
+      experience: ['Use action verbs', 'Add quantifiable results'],
+      education: ['Include graduation year', 'Add relevant coursework'],
+      skills: ['Organize by category', 'Include proficiency levels']
+    };
+    
+    return suggestions[section] || ['Optimize content for ATS scanning'];
+  }
+
+  // Generate keyword heatmap data
+  generateKeywordHeatmap(text) {
+    const heatmap = {};
+    const sentences = text.split(/[.!?]+/);
+    
+    sentences.forEach((sentence, index) => {
+      let sentenceScore = 0;
+      
+      Object.entries(this.keywordCategories).forEach(([category, keywords]) => {
+        // Handle different keyword category structures
+        let keywordArray = [];
+        
+        if (Array.isArray(keywords)) {
+          keywordArray = keywords;
+        } else if (typeof keywords === 'object' && keywords !== null) {
+          keywordArray = Object.values(keywords).flat();
+        }
+        
+        keywordArray.forEach(keyword => {
+          if (typeof keyword === 'string' && sentence.toLowerCase().includes(keyword.toLowerCase())) {
+            sentenceScore += 1;
+          }
+        });
+      });
+      
+      if (sentenceScore > 0) {
+        heatmap[index] = {
+          sentence: sentence.trim(),
+          score: sentenceScore,
+          intensity: Math.min(sentenceScore / 3, 1)
+        };
+      }
+    });
+    
+    return heatmap;
+  }
+
+  // Rank improvements by priority
+  rankImprovements(analysis) {
+    const improvements = [];
+    
+    if (analysis.keywordScore < 60) {
+      improvements.push({ priority: 'high', category: 'keywords', message: 'Increase relevant keyword usage' });
+    }
+    
+    if (analysis.formattingScore < 70) {
+      improvements.push({ priority: 'high', category: 'formatting', message: 'Improve document formatting' });
+    }
+    
+    if (analysis.structureScore < 80) {
+      improvements.push({ priority: 'medium', category: 'structure', message: 'Add missing resume sections' });
+    }
+    
+    if (analysis.contentScore < 70) {
+      improvements.push({ priority: 'medium', category: 'content', message: 'Add quantifiable achievements' });
+    }
+    
+    if (analysis.readabilityScore < 50) {
+      improvements.push({ priority: 'low', category: 'readability', message: 'Improve text readability' });
+    }
+    
+    return improvements.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+  }
+
+  // Generate clickable insights for interactive reports
+  generateClickableInsights(analysis, text, currentScore) {
+    const insights = [];
+    
+    // Industry benchmark insight (only show if meaningful)
+    const benchmark = analysis.analytics.industryBenchmark;
+    if (benchmark && benchmark.industry !== 'general') {
+      insights.push({
+        type: 'benchmark',
+        title: `${benchmark.industry.charAt(0).toUpperCase() + benchmark.industry.slice(1)} Industry`,
+        description: `Your score: ${currentScore || 0} | Industry average: ${benchmark.benchmark.avgScore}`,
+        clickable: true,
+        action: 'showBenchmarkDetails'
+      });
+    }
+    
+    // Success prediction insight
+    insights.push({
+      type: 'prediction',
+      title: `Success Rate: ${analysis.analytics.successPrediction}%`,
+      description: 'Estimated interview callback probability',
+      clickable: true,
+      action: 'showPredictionDetails'
+    });
+    
+    // Keyword trends insight
+    const trends = analysis.analytics.keywordTrends;
+    if (trends.trending.length > 0) {
+      insights.push({
+        type: 'trends',
+        title: `${trends.trending.length} Trending Keywords`,
+        description: 'You\'re using current industry keywords',
+        clickable: true,
+        action: 'showTrendingKeywords'
+      });
+    }
+    
+    return insights;
+  }
+
+  // Advanced keyword analysis with contextual relevance
+  analyzeKeywordsAdvanced(text, analysis, textContext) {
     let score = 0;
     const matches = {};
+    const keywordContext = {};
 
-    // Check each category
+    // Analyze each category with context
     Object.entries(this.keywordCategories).forEach(([category, keywords]) => {
       matches[category] = [];
-      keywords.forEach(keyword => {
-        if (text.includes(keyword.toLowerCase())) {
+      keywordContext[category] = [];
+      
+      // Handle different keyword category structures
+      let keywordArray = [];
+      
+      if (Array.isArray(keywords)) {
+        keywordArray = keywords;
+      } else if (typeof keywords === 'object' && keywords !== null) {
+        // Handle nested objects like industrySpecific
+        keywordArray = Object.values(keywords).flat();
+      }
+      
+      keywordArray.forEach(keyword => {
+        if (typeof keyword === 'string') {
+          const regex = new RegExp(`\\b${keyword.toLowerCase()}\\b`, 'gi');
+          const keywordMatches = text.match(regex);
+          
+          if (keywordMatches) {
           matches[category].push(keyword);
-          score += 2; // 2 points per keyword match
+            
+            // Calculate contextual relevance
+            const contextScore = this.calculateKeywordContext(text, keyword);
+            keywordContext[category].push({
+              keyword,
+              count: keywordMatches.length,
+              context: contextScore,
+              relevance: contextScore * keywordMatches.length
+            });
+            
+            // More generous scoring: base 3 points + context bonus
+            score += keywordMatches.length * (3 + contextScore * 2);
+          }
         }
       });
     });
 
     analysis.keywordMatches = matches;
-    analysis.keywordScore = Math.min(score, 100);
+    analysis.keywordContext = keywordContext;
+    // More realistic keyword scoring with clean rounding
+    analysis.keywordScore = Math.round(Math.min(score * 0.8, 100));
 
-    // Add strengths and improvements based on keyword analysis
+    // More realistic feedback thresholds
     const totalMatches = Object.values(matches).flat().length;
-    if (totalMatches >= 15) {
-      analysis.strengths.push('Strong keyword optimization for ATS systems');
-    } else if (totalMatches < 8) {
-      analysis.improvements.push('Include more industry-specific keywords');
+    if (totalMatches >= 12) {
+      analysis.strengths.push('Excellent keyword optimization with strong contextual relevance');
+    } else if (totalMatches >= 8) {
+      analysis.strengths.push('Good keyword coverage across multiple categories');
+    } else if (totalMatches >= 5) {
+      analysis.strengths.push('Decent keyword usage with room for improvement');
+    } else if (totalMatches < 5) {
+      analysis.improvements.push('Increase keyword density with industry-relevant terms');
     }
 
     return analysis.keywordScore;
   }
 
-  // Analyze formatting and layout
-  analyzeFormatting(text, analysis) {
-    let score = 100;
-
-    // Check for common formatting issues
-    const issues = [];
-
-    // Check for consistent formatting
-    if (!text.includes('\n\n')) {
-      issues.push('Poor paragraph spacing');
-      score -= 15;
-    }
-
-    // Check for bullet points
-    if (!text.includes('•') && !text.includes('-') && !text.includes('*')) {
-      issues.push('No bullet points found');
-      score -= 10;
-    }
-
-    // Check for proper section headers
-    const sectionHeaders = ['SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS'];
-    const foundHeaders = sectionHeaders.filter(header => 
-      text.toUpperCase().includes(header)
-    );
+  // Calculate keyword contextual relevance
+  calculateKeywordContext(text, keyword) {
+    const sentences = text.split(/[.!?]+/);
+    let contextScore = 0;
     
-    if (foundHeaders.length < 3) {
-      issues.push('Missing important section headers');
-      score -= 20;
+    sentences.forEach(sentence => {
+      if (sentence.toLowerCase().includes(keyword.toLowerCase())) {
+        // Higher score if keyword appears with action verbs or quantifiable results
+        const hasActionVerb = this.keywordCategories.actionVerbs.some(verb => 
+          sentence.toLowerCase().includes(verb)
+        );
+        const hasQuantifiable = /\d+%|\$\d+|\d+\s*(years|users|projects)/.test(sentence);
+        
+        contextScore += 0.3;
+        if (hasActionVerb) contextScore += 0.4;
+        if (hasQuantifiable) contextScore += 0.3;
+      }
+    });
+    
+    return Math.min(contextScore, 1.0);
+  }
+
+  // Legacy method for backwards compatibility
+  analyzeKeywords(text, analysis) {
+    return this.analyzeKeywordsAdvanced(text, analysis, this.analyzeTextContext(text));
+  }
+
+  // Enhanced formatting analysis (legacy method)
+  analyzeFormatting(text, analysis) {
+    return this.analyzeFormattingAdvanced(text, analysis, this.analyzeTextContext(text));
+  }
+
+  // Enhanced formatting analysis
+  analyzeFormattingAdvanced(text, analysis, textContext) {
+    let score = 100;
+    const issues = [];
+    const strengths = [];
+
+    // More lenient formatting checks
+    if (!text.includes('\n\n')) {
+      issues.push('Consider adding more paragraph spacing for better readability');
+      score -= 8;  // Reduced from 15
+    } else {
+      strengths.push('Good paragraph spacing structure');
     }
 
-    // Check for contact information
+    // Enhanced bullet point analysis
+    const bulletPatterns = ['•', '-', '*', '◦', '▪'];
+    const hasBullets = bulletPatterns.some(bullet => text.includes(bullet));
+    
+    if (!hasBullets) {
+      issues.push('Consider using bullet points to improve ATS readability');
+      score -= 8;  // Reduced from 15
+    } else {
+      strengths.push('Uses bullet points for better readability');
+    }
+
+    // Advanced section header detection (more lenient)
+    const headerPatterns = /^[A-Z\s]{3,30}$/gm;
+    const headers = text.match(headerPatterns) || [];
+    
+    if (headers.length < 2) {
+      issues.push('Add more clear section headers for better ATS parsing');
+      score -= 10;  // Reduced from 20
+    } else if (headers.length >= 4) {
+      strengths.push('Well-organized with clear section headers');
+    } else {
+      strengths.push('Good section organization');
+    }
+
+    // Contact information validation
     const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
     const phoneRegex = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
+    const linkedinRegex = /linkedin\.com\/in\/[\w-]+/i;
     
-    if (!emailRegex.test(text)) {
-      issues.push('Missing email address');
-      score -= 10;
+    let contactScore = 0;
+    if (emailRegex.test(text)) contactScore += 40;  // More weight for email
+    if (phoneRegex.test(text)) contactScore += 30;  // More weight for phone
+    if (linkedinRegex.test(text)) contactScore += 30; // More weight for LinkedIn
+    
+    if (contactScore < 40) {  // More lenient threshold
+      issues.push('Consider adding more contact information (email, phone, LinkedIn)');
+      score -= (40 - contactScore) / 3;  // Reduced penalty
+    } else if (contactScore >= 70) {
+      strengths.push('Complete contact information provided');
     }
-    
-    if (!phoneRegex.test(text)) {
-      issues.push('Missing phone number');
+
+    // Font and formatting consistency (basic check)
+    const inconsistentFormatting = this.checkFormattingConsistency(text);
+    if (inconsistentFormatting.issues > 3) {
+      issues.push('Potential formatting inconsistencies detected');
       score -= 10;
     }
 
-    analysis.formattingScore = Math.max(score, 0);
-    
-    if (issues.length === 0) {
-      analysis.strengths.push('Professional formatting and layout');
-    } else {
+    analysis.formattingScore = Math.round(Math.max(score, 0));
+    analysis.strengths.push(...strengths);
       analysis.improvements.push(...issues);
-    }
 
     return analysis.formattingScore;
   }
 
-  // Analyze document structure
-  analyzeStructure(text, analysis) {
-    let score = 100;
-    const sections = [];
+  // Check formatting consistency
+  checkFormattingConsistency(text) {
+    const lines = text.split('\n');
+    let issues = 0;
+    
+    // Check for mixed bullet styles
+    const bulletTypes = [];
+    lines.forEach(line => {
+      if (line.trim().match(/^[•\-\*◦▪]/)) {
+        const bullet = line.trim().charAt(0);
+        if (!bulletTypes.includes(bullet)) {
+          bulletTypes.push(bullet);
+        }
+      }
+    });
+    
+    if (bulletTypes.length > 2) issues++;
+    
+    // Check for inconsistent date formats
+    const dateFormats = text.match(/\b\d{4}|\b\d{1,2}\/\d{4}|\b\w+\s+\d{4}/g) || [];
+    const uniqueFormats = [...new Set(dateFormats.map(date => {
+      if (date.match(/^\d{4}$/)) return 'year';
+      if (date.match(/^\d{1,2}\/\d{4}$/)) return 'month/year';
+      return 'text';
+    }))];
+    
+    if (uniqueFormats.length > 2) issues++;
+    
+    return { issues, bulletTypes: bulletTypes.length, dateFormats: uniqueFormats.length };
+  }
 
-    // Check for required sections
-    const requiredSections = ['contact', 'summary', 'experience', 'education', 'skills'];
+  // Legacy structure analysis method
+  analyzeStructure(text, analysis) {
+    return this.analyzeStructureAdvanced(text, analysis, this.analyzeTextContext(text));
+  }
+
+  // Advanced structure analysis
+  analyzeStructureAdvanced(text, analysis, textContext) {
+    let score = 100;
+    const sections = textContext.sections;
     const missingSections = [];
 
-    requiredSections.forEach(section => {
-      const keywords = this.sectionKeywords[section];
-      const hasSection = keywords.some(keyword => 
-        text.toLowerCase().includes(keyword)
-      );
-      
-      if (hasSection) {
-        sections.push(section);
-      } else {
+    // More realistic section weights (less harsh penalties)
+    const sectionWeights = {
+      contact: 10,     // Reduced from 20
+      summary: 8,      // Reduced from 15  
+      experience: 15,  // Reduced from 25
+      education: 8,    // Reduced from 15
+      skills: 12,      // Reduced from 20
+      projects: 3      // Reduced from 5
+    };
+
+    Object.entries(sectionWeights).forEach(([section, weight]) => {
+      if (!sections[section]) {
         missingSections.push(section);
-        score -= 15;
+        score -= weight;
       }
     });
 
-    analysis.missingSections = missingSections;
-    analysis.structureScore = Math.max(score, 0);
-
-    // Check for proper content distribution
-    const lines = text.split('\n').filter(line => line.trim().length > 0);
-    const experienceLines = lines.filter(line => 
-      line.toLowerCase().includes('experience') || 
-      line.toLowerCase().includes('work') ||
-      line.toLowerCase().includes('job')
-    ).length;
-
-    if (experienceLines < 3) {
-      analysis.improvements.push('Add more detailed work experience');
+    // Check section order and logic
+    const sectionOrder = this.analyzeSectionOrder(text, sections);
+    if (!sectionOrder.isLogical) {
+      analysis.improvements.push('Consider reordering sections for better flow');
       score -= 10;
     }
 
-    if (sections.length >= 4) {
-      analysis.strengths.push('Well-structured resume with all key sections');
-    } else {
-      analysis.improvements.push('Include missing resume sections');
+    // Analyze content distribution
+    const contentDistribution = this.analyzeContentDistribution(text, sections);
+    if (contentDistribution.imbalanced) {
+      analysis.improvements.push('Improve content balance between sections');
+      score -= 5;
+    }
+
+    analysis.missingSections = missingSections;
+    analysis.structureScore = Math.round(Math.max(score, 0));
+
+    if (missingSections.length === 0) {
+      analysis.strengths.push('Complete resume structure with all essential sections');
     }
 
     return analysis.structureScore;
   }
 
-  // Analyze content quality
+  // Analyze section order logic
+  analyzeSectionOrder(text, sections) {
+    const idealOrder = ['contact', 'summary', 'experience', 'education', 'skills', 'projects'];
+    const foundSections = Object.keys(sections).sort((a, b) => 
+      (sections[a].line || 0) - (sections[b].line || 0)
+    );
+    
+    let logicalScore = 0;
+    let expectedIndex = 0;
+    
+    foundSections.forEach(section => {
+      const idealIndex = idealOrder.indexOf(section);
+      if (idealIndex >= expectedIndex) {
+        logicalScore++;
+        expectedIndex = idealIndex;
+      }
+    });
+    
+    return {
+      isLogical: logicalScore >= foundSections.length * 0.7,
+      score: logicalScore / foundSections.length
+    };
+  }
+
+  // Analyze content distribution
+  analyzeContentDistribution(text, sections) {
+    const lines = text.split('\n');
+    const sectionLines = {};
+    
+    Object.entries(sections).forEach(([section, data]) => {
+      sectionLines[section] = 0;
+    });
+    
+    // Simple content distribution analysis
+    const totalLines = lines.length;
+    const avgLinesPerSection = totalLines / Object.keys(sections).length;
+    
+    return {
+      imbalanced: false, // Simplified for now
+      distribution: sectionLines
+    };
+  }
+
+  // Legacy content analysis method
   analyzeContent(text, analysis) {
+    return this.analyzeContentAdvanced(text, analysis, this.analyzeTextContext(text));
+  }
+
+  // Advanced content quality analysis
+  analyzeContentAdvanced(text, analysis, textContext) {
     let score = 100;
 
-    // Check for action verbs
+    // Enhanced action verb analysis
     const actionVerbs = this.keywordCategories.actionVerbs;
     const foundActionVerbs = actionVerbs.filter(verb => 
       text.toLowerCase().includes(verb)
     );
 
-    if (foundActionVerbs.length < 5) {
-      analysis.improvements.push('Use more action verbs to describe achievements');
-      score -= 15;
-    } else {
+    // More realistic action verb expectations
+    if (foundActionVerbs.length < 3) {
+      analysis.improvements.push('Use more diverse action verbs to describe achievements');
+      score -= 10;  // Reduced from 20
+    } else if (foundActionVerbs.length >= 5) {
       analysis.strengths.push('Good use of action verbs');
+    } else if (foundActionVerbs.length >= 8) {
+      analysis.strengths.push('Excellent use of strong action verbs');
     }
 
-    // Check for quantifiable achievements
+    // Enhanced quantifiable achievements analysis
     const quantifiablePatterns = [
-      /\d+%/,
-      /\d+\s*(increase|decrease|improvement)/,
-      /\$\d+/,
-      /\d+\s*(users|customers|projects)/
+      /\d+%/g,
+      /\d+\s*(increase|decrease|improvement|growth)/gi,
+      /\$[\d,]+/g,
+      /\d+\s*(users|customers|projects|team members|reports)/gi,
+      /\d+\s*(years?|months?)\s*(experience|of)/gi
     ];
 
-    const hasQuantifiable = quantifiablePatterns.some(pattern => 
-      pattern.test(text)
-    );
+    let quantifiableCount = 0;
+    quantifiablePatterns.forEach(pattern => {
+      const matches = text.match(pattern) || [];
+      quantifiableCount += matches.length;
+    });
 
-    if (!hasQuantifiable) {
-      analysis.improvements.push('Add quantifiable achievements and metrics');
-      score -= 20;
-    } else {
-      analysis.strengths.push('Includes quantifiable achievements');
+    if (quantifiableCount < 1) {
+      analysis.improvements.push('Add quantifiable achievements with specific metrics');
+      score -= 15;  // Reduced from 25
+    } else if (quantifiableCount >= 2) {
+      analysis.strengths.push('Good use of quantifiable achievements');
+    } else if (quantifiableCount >= 4) {
+      analysis.strengths.push('Strong quantifiable achievements demonstrate impact');
     }
 
-    // Check for professional language
-    const unprofessionalWords = ['i', 'me', 'my', 'myself'];
-    const unprofessionalCount = unprofessionalWords.filter(word => 
-      text.toLowerCase().includes(word)
-    ).length;
+    // Professional language assessment
+    const unprofessionalWords = ['i', 'me', 'my', 'myself', 'we', 'us', 'our'];
+    let unprofessionalCount = 0;
+    
+    unprofessionalWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      const matches = text.match(regex) || [];
+      unprofessionalCount += matches.length;
+    });
 
     if (unprofessionalCount > 10) {
-      analysis.improvements.push('Reduce use of first-person pronouns');
-      score -= 10;
+      analysis.improvements.push('Reduce first-person pronouns for more professional tone');
+      score -= 15;
     }
 
-    analysis.contentScore = Math.max(score, 0);
+    // Industry-specific terminology
+    const industryTerms = this.analyzeIndustryTerminology(text);
+    if (industryTerms.score > 70) {
+      analysis.strengths.push('Good use of industry-specific terminology');
+    }
+
+    analysis.contentScore = Math.round(Math.max(score, 0));
     return analysis.contentScore;
+  }
+
+  // Analyze readability and professional language
+  analyzeReadability(text, analysis, textContext) {
+    const readabilityScore = textContext.readabilityScore;
+    let score = readabilityScore;
+
+    // Adjust score based on resume context
+    if (readabilityScore >= 60 && readabilityScore <= 80) {
+      analysis.strengths.push('Excellent readability for professional documents');
+      score += 10;
+    } else if (readabilityScore < 40) {
+      analysis.improvements.push('Simplify language for better ATS and recruiter readability');
+      score -= 10;
+    } else if (readabilityScore > 90) {
+      analysis.improvements.push('Consider using more professional terminology');
+      score -= 5;
+    }
+
+    analysis.readabilityScore = Math.round(Math.min(100, Math.max(0, score)));
+    return analysis.readabilityScore;
+  }
+
+  // Analyze industry-specific terminology
+  analyzeIndustryTerminology(text) {
+    const industryTerms = Object.values(this.keywordCategories.industrySpecific || {}).flat();
+    const foundTerms = industryTerms.filter(term => 
+      text.toLowerCase().includes(term.toLowerCase())
+    );
+    
+    return {
+      score: industryTerms.length > 0 ? (foundTerms.length / industryTerms.length) * 100 : 50,
+      foundTerms,
+      totalTerms: industryTerms.length
+    };
   }
 
   // Generate suggestions based on analysis
@@ -416,22 +1124,8 @@ const atsCalculator = new ATSScoreCalculator();
 // @access  Public
 router.post('/analyze', 
   upload.single('resume'),
-  [
-    body('jobTitle').optional().isString().trim(),
-    body('industry').optional().isString().trim()
-  ],
   async (req, res) => {
     try {
-      // Check for validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation errors',
-          errors: errors.array()
-        });
-      }
-
       // Check if file was uploaded
       if (!req.file) {
         return res.status(400).json({
@@ -440,7 +1134,7 @@ router.post('/analyze',
         });
       }
 
-      const { jobTitle, industry } = req.body;
+
 
       // Extract text from the uploaded file
       const extractedText = await atsCalculator.extractText(
@@ -462,7 +1156,7 @@ router.post('/analyze',
         console.error('Error deleting uploaded file:', error);
       }
 
-      // Return the analysis results
+      // Return the enhanced analysis results
       res.json({
         success: true,
         data: {
@@ -477,11 +1171,12 @@ router.post('/analyze',
               keywordScore: result.analysis.keywordScore,
               formattingScore: result.analysis.formattingScore,
               structureScore: result.analysis.structureScore,
-              contentScore: result.analysis.contentScore
-            }
+              contentScore: result.analysis.contentScore,
+              readabilityScore: result.analysis.readabilityScore
           },
-          jobTitle,
-          industry,
+            analytics: result.analysis.analytics,
+            interactiveData: result.analysis.interactiveData
+          },
           analyzedAt: new Date().toISOString()
         }
       });
@@ -522,8 +1217,6 @@ router.post('/analyze',
 // @access  Public
 router.get('/keywords', async (req, res) => {
   try {
-    const { jobTitle, industry } = req.query;
-
     // In a real implementation, you might have a database of keywords
     // For now, we'll return the default categories
     const keywords = {
@@ -535,9 +1228,7 @@ router.get('/keywords', async (req, res) => {
     res.json({
       success: true,
       data: {
-        keywords,
-        jobTitle,
-        industry
+        keywords
       }
     });
 
@@ -579,7 +1270,7 @@ router.get('/history', auth, async (req, res) => {
 // @access  Private
 router.post('/save-analysis', auth, async (req, res) => {
   try {
-    const { score, analysis, jobTitle, industry } = req.body;
+    const { score, analysis } = req.body;
 
     // In a real implementation, you would save to database
     // For now, just return success
@@ -590,8 +1281,6 @@ router.post('/save-analysis', auth, async (req, res) => {
         id: Date.now().toString(),
         score,
         analysis,
-        jobTitle,
-        industry,
         createdAt: new Date().toISOString()
       }
     });

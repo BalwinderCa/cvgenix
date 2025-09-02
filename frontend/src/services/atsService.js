@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 class ATSService {
   constructor() {
@@ -20,7 +20,7 @@ class ATSService {
   }
 
   // Analyze resume file
-  async analyzeResume(file, jobTitle = '', industry = '') {
+  async analyzeResume(file) {
     try {
       // Validate file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
@@ -40,22 +40,21 @@ class ATSService {
 
       const formData = new FormData();
       formData.append('resume', file);
-      
-      if (jobTitle) {
-        formData.append('jobTitle', jobTitle);
-      }
-      
-      if (industry) {
-        formData.append('industry', industry);
-      }
+
+      console.log('Sending file to:', `${this.baseURL}/analyze`);
+      console.log('File details:', { name: file.name, size: file.size, type: file.type });
 
       const response = await fetch(`${this.baseURL}/analyze`, {
         method: 'POST',
         body: formData,
+        // Don't set Content-Type for FormData, let the browser set it
         headers: {
-          'Authorization': `Bearer ${this.getAuthToken()}` || ''
+          'Authorization': `Bearer ${this.getAuthToken() || ''}`
         }
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         let errorMessage = 'Failed to analyze resume';
@@ -69,6 +68,7 @@ class ATSService {
       }
 
       const data = await response.json();
+      console.log('Analysis response:', data);
       return data;
     } catch (error) {
       console.error('ATS Analysis Error:', error);
@@ -77,13 +77,9 @@ class ATSService {
   }
 
   // Get keyword suggestions
-  async getKeywords(jobTitle = '', industry = '') {
+  async getKeywords() {
     try {
-      const params = new URLSearchParams();
-      if (jobTitle) params.append('jobTitle', jobTitle);
-      if (industry) params.append('industry', industry);
-
-      const response = await fetch(`${this.baseURL}/keywords?${params}`, {
+      const response = await fetch(`${this.baseURL}/keywords`, {
         method: 'GET',
         headers: this.getAuthHeaders()
       });
