@@ -1,0 +1,63 @@
+{
+  "apiEndpoints": {
+    "stackoverflow": "https://api.stackexchange.com/2.3/tags",
+    "github": "https://api.github.com/search/repositories"
+  },
+  "cacheSettings": {
+    "expiryTime": 1800000,
+    "maxSize": 100,
+    "cacheFile": "./cache/industryKeywords.json"
+  },
+  "fallbackKeywords": {
+    "technology": [
+      "software", "development", "programming", "coding", "javascript", "python", "java",
+      "react", "node.js", "api", "database", "sql", "cloud", "aws", "azure", "devops",
+      "agile", "scrum", "git", "docker", "kubernetes", "microservices", "machine learning",
+      "ai", "data science", "analytics", "frontend", "backend", "full stack"
+    ],
+    "healthcare": [
+      "patient care", "medical", "clinical", "healthcare", "nursing", "physician", "doctor",
+      "hospital", "diagnosis", "treatment", "pharmaceutical", "fda", "hipaa", "medical records",
+      "surgery", "emergency", "critical care", "pediatrics", "oncology", "cardiology"
+    ],
+    "finance": [
+      "financial", "banking", "investment", "portfolio", "risk management", "compliance",
+      "audit", "accounting", "cpa", "cfa", "trading", "derivatives", "securities",
+      "regulatory", "fintech", "blockchain", "cryptocurrency", "robo-advisory"
+    ],
+    "marketing": [
+      "marketing", "digital marketing", "seo", "sem", "ppc", "social media", "content marketing",
+      "brand management", "campaign", "analytics", "crm", "lead generation", "conversion",
+      "roi", "marketing automation", "customer journey", "personalization"
+    ],
+    "sales": [
+      "sales", "revenue", "client", "customer", "account management", "business development",
+      "negotiation", "pipeline", "quota", "territory", "relationship building", "prospecting",
+      "sales enablement", "customer success", "account-based marketing"
+    ],
+    "education": [
+      "teaching", "education", "curriculum", "student", "learning", "instruction", "assessment",
+      "classroom", "academic", "research", "phd", "masters", "bachelor", "certification",
+      "e-learning", "educational technology", "learning management systems"
+    ]
+  },
+  "actionVerbs": [
+    "achieved", "accomplished", "administered", "analyzed", "built", "created", "developed",
+    "designed", "executed", "implemented", "improved", "increased", "led", "managed",
+    "optimized", "produced", "reduced", "streamlined", "transformed", "delivered",
+    "established", "expanded", "generated", "initiated", "innovated", "orchestrated",
+    "pioneered", "revolutionized", "spearheaded", "accelerated", "boosted", "enhanced",
+    "maximized", "minimized", "scaled", "launched", "coordinated", "facilitated"
+  ],
+  "thresholds": {
+    "minTextLength": 100,
+    "minKeywordCoverage": 30,
+    "minActionVerbs": 5,
+    "maxCacheAge": 86400000
+  },
+  "apiSettings": {
+    "timeout": 5000,
+    "retryAttempts": 3,
+    "retryDelay": 1000
+  }
+}

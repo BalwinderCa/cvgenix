@@ -5,14 +5,22 @@
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev:tsx": "concurrently \"npm run server:tsx\" \"npm run client\"",
     "server": "cd server && npm run dev",
+    "server:tsx": "cd server && npm run dev:tsx",
     "client": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
     "start": "cd server && npm start",
     "install-all": "npm install && cd server && npm install && cd ../frontend && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["resume", "builder", "react", "nodejs", "pdf"],
+  "keywords": [
+    "resume",
+    "builder",
+    "react",
+    "nodejs",
+    "pdf"
+  ],
   "author": "Resume4Me Team",
   "license": "MIT",
   "devDependencies": {

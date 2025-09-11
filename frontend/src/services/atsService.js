@@ -2,55 +2,51 @@ const API_BASE_URL = 'http://localhost:3001/api';
 
 class ATSService {
   constructor() {
-    this.baseURL = `${API_BASE_URL}/ats`;
+    this.baseURL = `${API_BASE_URL}/simple-ats`;
   }
 
-  // Get auth token from localStorage
-  getAuthToken() {
-    return localStorage.getItem('token');
-  }
-
-  // Get auth headers
-  getAuthHeaders() {
-    const token = this.getAuthToken();
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
-    };
-  }
-
-  // Analyze resume file
-  async analyzeResume(file) {
+  // Analyze resume file with advanced features
+  async analyzeResume(file, options = {}) {
     try {
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error('File size too large. Maximum size is 10MB.');
+      // Validate file size (15MB limit - increased)
+      if (file.size > 15 * 1024 * 1024) {
+        throw new Error('File size too large. Maximum size is 15MB.');
       }
 
-      // Validate file type
+      // Validate file type (expanded support)
       const allowedTypes = [
         'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain',
+        'text/html'
       ];
       
       if (!allowedTypes.includes(file.type)) {
-        throw new Error('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
+        throw new Error('Invalid file type. Only PDF, DOCX, TXT, and HTML files are allowed.');
       }
 
       const formData = new FormData();
       formData.append('resume', file);
+      
+      // Add optional parameters
+      if (options.industry) {
+        formData.append('industry', options.industry);
+      }
+      if (options.role) {
+        formData.append('role', options.role);
+      }
+      if (options.model) {
+        formData.append('model', options.model);
+      }
 
       console.log('Sending file to:', `${this.baseURL}/analyze`);
       console.log('File details:', { name: file.name, size: file.size, type: file.type });
+      console.log('Options:', options);
 
       const response = await fetch(`${this.baseURL}/analyze`, {
         method: 'POST',
-        body: formData,
+        body: formData
         // Don't set Content-Type for FormData, let the browser set it
-        headers: {
-          'Authorization': `Bearer ${this.getAuthToken() || ''}`
-        }
       });
 
       console.log('Response status:', response.status);
@@ -60,7 +56,7 @@ class ATSService {
         let errorMessage = 'Failed to analyze resume';
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
+          errorMessage = errorData.error || errorData.message || errorMessage;
         } catch (parseError) {
           console.error('Error parsing error response:', parseError);
         }
@@ -68,7 +64,16 @@ class ATSService {
       }
 
       const data = await response.json();
-      console.log('Analysis response:', data);
+      console.log('Advanced analysis response:', data);
+      
+      // Log the extracted text received from backend
+      if (data.data && data.data.extractedText) {
+        console.log('📄 EXTRACTED TEXT RECEIVED FROM BACKEND:');
+        console.log('=' .repeat(80));
+        console.log(data.data.extractedText);
+        console.log('=' .repeat(80));
+      }
+      
       return data;
     } catch (error) {
       console.error('ATS Analysis Error:', error);
@@ -76,69 +81,119 @@ class ATSService {
     }
   }
 
-  // Get keyword suggestions
-  async getKeywords() {
+  // Get health status
+  async getHealthStatus() {
     try {
-      const response = await fetch(`${this.baseURL}/keywords`, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
-      });
-
+      const response = await fetch(`${this.baseURL}/health`);
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch keywords');
+        throw new Error('Health check failed');
       }
-
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
-      console.error('Keywords Error:', error);
+      console.error('Health check error:', error);
       throw error;
     }
   }
 
-  // Get analysis history
-  async getHistory() {
+  // Clear cache (for development)
+  async clearCache() {
     try {
-      const response = await fetch(`${this.baseURL}/history`, {
-        method: 'GET',
-        headers: this.getAuthHeaders()
+      const response = await fetch(`${this.baseURL}/clear-cache`, {
+        method: 'POST'
       });
-
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch history');
+        throw new Error('Cache clear failed');
       }
-
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
-      console.error('History Error:', error);
+      console.error('Cache clear error:', error);
       throw error;
     }
   }
 
-  // Save analysis result
-  async saveAnalysis(analysisData) {
+  // Get industry suggestions
+  getIndustrySuggestions() {
+    return [
+      { value: 'technology', label: 'Technology' },
+      { value: 'healthcare', label: 'Healthcare' },
+      { value: 'finance', label: 'Finance' },
+      { value: 'marketing', label: 'Marketing' },
+      { value: 'sales', label: 'Sales' },
+      { value: 'education', label: 'Education' },
+      { value: 'consulting', label: 'Consulting' },
+      { value: 'manufacturing', label: 'Manufacturing' },
+      { value: 'retail', label: 'Retail' },
+      { value: 'government', label: 'Government' },
+      { value: 'nonprofit', label: 'Non-profit' },
+      { value: 'other', label: 'Other' }
+    ];
+  }
+
+  // Get role level suggestions
+  getRoleLevelSuggestions() {
+    return [
+      { value: 'entry', label: 'Entry Level' },
+      { value: 'mid', label: 'Mid Level' },
+      { value: 'senior', label: 'Senior Level' },
+      { value: 'lead', label: 'Lead/Principal' },
+      { value: 'manager', label: 'Manager' },
+      { value: 'director', label: 'Director' },
+      { value: 'executive', label: 'Executive' },
+      { value: 'c-level', label: 'C-Level' }
+    ];
+  }
+
+  // Get AI model suggestions
+  getModelSuggestions() {
+    return [
+      { value: 'dual-model', label: 'Dual-Model Analysis (Recommended)', description: 'Claude Sonnet 4 + GPT-4o for comprehensive analysis' },
+      { value: 'gpt-4o', label: 'GPT-4o (OpenAI)', description: 'Advanced reasoning and analysis' },
+      { value: 'gpt-4o-mini', label: 'GPT-4o-mini (OpenAI)', description: 'Cost-effective with good quality' },
+      { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Anthropic)', description: 'Excellent for structured analysis' },
+      { value: 'claude-haiku', label: 'Claude 3 Haiku (Anthropic)', description: 'Fast and efficient analysis' }
+    ];
+  }
+
+  // Export analysis to PDF
+  async exportToPDF(analysisData, benchmarkData, fileName) {
     try {
-      const response = await fetch(`${this.baseURL}/save-analysis`, {
+      const response = await fetch(`${this.baseURL}/export-pdf`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(analysisData)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisData,
+          benchmarkData,
+          fileName
+        })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save analysis');
+        throw new Error(errorData.error || 'PDF export failed');
       }
 
-      const data = await response.json();
-      return data;
+      // Get the PDF blob
+      const pdfBlob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName || 'ats-analysis'}-report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return { success: true };
     } catch (error) {
-      console.error('Save Analysis Error:', error);
+      console.error('PDF export error:', error);
       throw error;
     }
   }
+
 }
 
 export default new ATSService();

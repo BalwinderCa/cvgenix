@@ -5,13 +5,21 @@ const morgan = require('morgan')
 const compression = require('compression')
 const rateLimit = require('express-rate-limit')
 const path = require('path')
+const http = require('http')
 require('dotenv').config()
 
 // Import database configuration
 const { initializeDatabases } = require('./config/database')
 
+// Import enhanced services
+const RealtimeService = require('./services/realtimeService')
+
 const app = express()
+const server = http.createServer(app)
 const PORT = process.env.PORT || 3001
+
+// Initialize real-time service
+const realtimeService = new RealtimeService(server)
 
 // Import routes
 const authRoutes = require('./routes/auth')
@@ -19,7 +27,7 @@ const resumeRoutes = require('./routes/resumes')
 const templateRoutes = require('./routes/templates')
 const userRoutes = require('./routes/users')
 const adminRoutes = require('./routes/admin')
-const atsRoutes = require('./routes/ats')
+const simpleATSRoutes = require('./routes/simpleATS')
 
 // Security middleware
 app.use(helmet({
@@ -78,7 +86,7 @@ app.use('/api/resumes', resumeRoutes)
 app.use('/api/templates', templateRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/admin', adminRoutes)
-app.use('/api/ats', atsRoutes)
+app.use('/api/simple-ats', simpleATSRoutes) // Simple AI-powered ATS routes
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {
@@ -133,10 +141,12 @@ app.use('*', (req, res) => {
 const startServer = async () => {
   await initializeDatabases()
   
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`)
+  server.listen(PORT, () => {
+    console.log(`🚀 World-class server running on port ${PORT}`)
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
+    console.log(`🔌 WebSocket enabled for real-time updates`)
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
+    console.log(`✨ Enhanced ATS system ready!`)
   })
 }
 

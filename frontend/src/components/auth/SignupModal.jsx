@@ -59,7 +59,7 @@ const SignupModal = ({ isOpen, onClose, onSwitchToLogin }) => {
       const googleAuth = window.gapi?.auth2?.getAuthInstance()
       if (!googleAuth) {
         // If Google API is not loaded, redirect to Google OAuth
-        window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/auth/google`
+        window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/google`
         return
       }
       
@@ -83,7 +83,7 @@ const SignupModal = ({ isOpen, onClose, onSwitchToLogin }) => {
     setIsLoading(true)
     try {
       // Redirect to GitHub OAuth
-      window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/auth/github`
+      window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/github`
     } catch (error) {
       console.error('GitHub signup error:', error)
       setIsLoading(false)
