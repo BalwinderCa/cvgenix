@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{personalInfo.firstName}} {{personalInfo.lastName}} - Resume</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: #fff;
+        }
+        
+        .resume-container {
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 0.4in;
+            background: white;
+        }
+        
+        /* Header with accent color */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            margin: -0.4in -0.4in 30px -0.4in;
+            text-align: center;
+        }
+        
+        .name {
+            font-size: 2.8em;
+            font-weight: 300;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        
+        .title {
+            font-size: 1.3em;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            font-size: 1em;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .contact-item::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        /* Main content */
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Sections */
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e8f2ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* About */
+        .about-text {
+            font-size: 1.05em;
+            line-height: 1.7;
+            color: #34495e;
+        }
+        
+        /* Experience & Education */
+        .item {
+            margin-bottom: 25px;
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+        }
+        
+        .item-header {
+            margin-bottom: 8px;
+        }
+        
+        .item-title {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin-bottom: 3px;
+        }
+        
+        .item-company {
+            color: #667eea;
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        
+        .item-date {
+            color: #95a5a6;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+        
+        .item-description {
+            margin-top: 8px;
+            color: #34495e;
+            line-height: 1.6;
+        }
+        
+        /* Skills */
+        .skill-category {
+            margin-bottom: 20px;
+        }
+        
+        .skill-category-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        
+        .skill-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .skill-item {
+            background: #f8f9fa;
+            color: #667eea;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 500;
+            border: 1px solid #e8f2ff;
+        }
+        
+        /* Projects */
+        .project-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .project-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .project-tech {
+            color: #667eea;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        /* Certifications */
+        .cert-item {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .cert-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 3px;
+        }
+        
+        .cert-issuer {
+            color: #95a5a6;
+            font-size: 0.9em;
+        }
+        
+        /* Languages */
+        .language-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .language-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .language-level {
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Print styles */
+        @media print {
+            .resume-container {
+                margin: 0;
+                padding: 0.3in;
+            }
+            
+            .header {
+                margin: -0.3in -0.3in 20px -0.3in;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="resume-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="name">{{personalInfo.firstName}} {{personalInfo.lastName}}</div>
+            <div class="title">Professional Resume</div>
+            <div class="contact-grid">
+                <div class="contact-item">{{personalInfo.email}}</div>
+                <div class="contact-item">{{personalInfo.phone}}</div>
+                {{#if personalInfo.website}}<div class="contact-item">{{personalInfo.website}}</div>{{/if}}
+                {{#if personalInfo.address}}<div class="contact-item">{{personalInfo.address}}</div>{{/if}}
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Left Column -->
+            <div class="left-column">
+                <!-- About Section -->
+                {{#if personalInfo.about}}
+                <div class="section">
+                    <div class="section-title">About</div>
+                    <div class="about-text">{{personalInfo.about}}</div>
+                </div>
+                {{/if}}
+
+                <!-- Experience Section -->
+                {{#if experience}}
+                <div class="section">
+                    <div class="section-title">Experience</div>
+                    {{#each experience}}
+                    <div class="item">
+                        <div class="item-header">
+                            <div class="item-title">{{position}}</div>
+                            <div class="item-company">{{company}}</div>
+                            <div class="item-date">{{startDate}} - {{endDate}}</div>
+                        </div>
+                        {{#if description}}
+                        <div class="item-description">{{description}}</div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+                {{/if}}
+
+                <!-- Education Section -->
+                {{#if education}}
+                <div class="section">
+                    <div class="section-title">Education</div>
+                    {{#each education}}
+                    <div class="item">
+                        <div class="item-header">
+                            <div class="item-title">{{degree}} in {{field}}</div>
+                            <div class="item-company">{{school}}</div>
+                            <div class="item-date">{{endDate}}</div>
+                        </div>
+                        {{#if description}}
+                        <div class="item-description">{{description}}</div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+                {{/if}}
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-column">
+                <!-- Skills Section -->
+                {{#if skills}}
+                <div class="section">
+                    <div class="section-title">Skills</div>
+                    {{#each skills}}
+                    <div class="skill-category">
+                        <div class="skill-category-title">{{category}}</div>
+                        <div class="skill-items">
+                            <div class="skill-item">{{name}} ({{level}})</div>
+                        </div>
+                    </div>
+                    {{/each}}
+                </div>
+                {{/if}}
+
+                <!-- Projects Section -->
+                {{#if projects}}
+                <div class="section">
+                    <div class="section-title">Projects</div>
+                    {{#each projects}}
+                    <div class="project-item">
+                        <div class="project-title">{{name}}</div>
+                        {{#if technologies}}
+                        <div class="project-tech">{{technologies}}</div>
+                        {{/if}}
+                        {{#if description}}
+                        <div class="item-description">{{description}}</div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+                {{/if}}
+
+                <!-- Certifications Section -->
+                {{#if certifications}}
+                <div class="section">
+                    <div class="section-title">Certifications</div>
+                    {{#each certifications}}
+                    <div class="cert-item">
+                        <div class="cert-name">{{name}}</div>
+                        {{#if issuer}}
+                        <div class="cert-issuer">{{issuer}} - {{date}}</div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+                {{/if}}
+
+                <!-- Languages Section -->
+                {{#if languages}}
+                <div class="section">
+                    <div class="section-title">Languages</div>
+                    {{#each languages}}
+                    <div class="language-item">
+                        <div class="language-name">{{name}}</div>
+                        <div class="language-level">{{proficiency}}</div>
+                    </div>
+                    {{/each}}
+                </div>
+                {{/if}}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

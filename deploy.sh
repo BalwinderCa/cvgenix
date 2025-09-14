@@ -10,7 +10,7 @@ set -u  # Exit on undefined variables
 SERVER_IP="72.14.179.145"
 SERVER_USER="root"
 SERVER_PATH="/var/www/resume-builder"
-DOMAIN="resume4me.com"
+DOMAIN="cvgenix.com"
 GITHUB_REPO="https://github.com/BalwinderCa/resume-builder-platform.git"
 LOG_FILE="deploy.log"
 MAX_RETRIES=3
@@ -230,7 +230,7 @@ deploy_on_server() {
             
             # Update Apache configuration to proxy to Node.js servers
             echo "Updating Apache configuration..."
-            APACHE_CONF="/etc/apache2/sites-available/resume4me.com.conf"
+            APACHE_CONF="/etc/apache2/sites-available/cvgenix.com.conf"
             if [[ -f "$APACHE_CONF" ]]; then
                 # Backup current config
                 cp "$APACHE_CONF" "${APACHE_CONF}.backup.$(date +%Y%m%d-%H%M%S)"

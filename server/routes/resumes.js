@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator')
 const auth = require('../middleware/auth')
 const Resume = require('../models/Resume')
 const Template = require('../models/Template')
+const resumePdfService = require('../services/resumePdfService')
 
 const router = express.Router()
 
@@ -208,39 +209,100 @@ router.post('/:id/duplicate', auth, async (req, res) => {
 })
 
 // @route   POST /api/resumes/:id/export
-// @desc    Export resume as PDF/PNG
+// @desc    Export resume as PDF/PNG/Word
 // @access  Private
 router.post('/:id/export', auth, async (req, res) => {
   try {
-    const { format = 'pdf' } = req.body
+    const { format = 'pdf', templateId = 'professional-classic' } = req.body
 
     const resume = await Resume.findById(req.params.id)
-      .populate('template', 'html css config')
+      .populate('template', 'name category')
 
     if (!resume) {
-      return res.status(404).json({ message: 'Resume not found' })
+      return res.status(404).json({ 
+        success: false,
+        message: 'Resume not found' 
+      })
     }
 
     // Check if user owns the resume or if it's public
     if (resume.user.toString() !== req.user.id && !resume.isPublic) {
-      return res.status(401).json({ message: 'Not authorized' })
+      return res.status(401).json({ 
+        success: false,
+        message: 'Not authorized' 
+      })
     }
 
-    // TODO: Implement PDF/PNG generation logic
-    // This would use Puppeteer or similar to generate the file
-    // For now, return a placeholder response
+    console.log(`📄 Exporting resume as ${format.toUpperCase()}`)
+    console.log(`👤 User: ${req.user.id}`)
+    console.log(`📋 Resume: ${resume.personalInfo.firstName} ${resume.personalInfo.lastName}`)
 
-    res.json({
-      message: 'Export functionality will be implemented',
-      format,
-      resumeId: resume._id
-    })
+    let result;
+    let filename = `${resume.personalInfo.firstName}_${resume.personalInfo.lastName}_Resume`;
+    let contentType;
+
+    switch (format.toLowerCase()) {
+      case 'pdf':
+        result = await resumePdfService.generatePdf(resume.toObject(), templateId)
+        filename += '.pdf'
+        contentType = 'application/pdf'
+        break
+        
+      case 'png':
+        result = await resumePdfService.generatePng(resume.toObject(), templateId)
+        filename += '.png'
+        contentType = 'image/png'
+        break
+        
+      case 'word':
+      case 'docx':
+        result = await resumePdfService.generateWord(resume.toObject(), templateId)
+        filename += '.html' // Word-compatible HTML
+        contentType = 'application/msword'
+        break
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid format. Supported formats: pdf, png, word'
+        })
+    }
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Export failed',
+        error: result.error
+      })
+    }
+
+    // Set response headers
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Content-Length', result.size || result.pdfBuffer?.length || result.pngBuffer?.length || result.html?.length)
+
+    // Send the file
+    if (format.toLowerCase() === 'word') {
+      res.send(result.html)
+    } else {
+      res.send(result.pdfBuffer || result.pngBuffer)
+    }
+
+    console.log(`✅ Resume exported successfully as ${format.toUpperCase()}`)
+
   } catch (error) {
     console.error('Error exporting resume:', error)
     if (error.kind === 'ObjectId') {
-      return res.status(404).json({ message: 'Resume not found' })
+      return res.status(404).json({ 
+        success: false,
+        message: 'Resume not found' 
+      })
     }
-    res.status(500).json({ message: 'Server error' })
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      error: error.message
+    })
   }
 })
 
@@ -267,6 +329,62 @@ router.get('/public/:id', async (req, res) => {
       return res.status(404).json({ message: 'Resume not found' })
     }
     res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// @route   GET /api/resumes/templates
+// @desc    Get available resume templates
+// @access  Public
+router.get('/templates', async (req, res) => {
+  try {
+    const templates = resumePdfService.getAvailableTemplates()
+    
+    res.json({
+      success: true,
+      templates
+    })
+  } catch (error) {
+    console.error('Error getting templates:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get templates',
+      error: error.message
+    })
+  }
+})
+
+// @route   GET /api/resumes/templates/:id/preview
+// @desc    Get template preview
+// @access  Public
+router.get('/templates/:id/preview', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { sampleData } = req.query
+    
+    let data = null
+    if (sampleData === 'true') {
+      data = resumePdfService.getSampleResumeData()
+    }
+    
+    const result = await resumePdfService.getTemplatePreview(id, data)
+    
+    if (result.success) {
+      res.setHeader('Content-Type', 'text/html')
+      res.send(result.html)
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate preview',
+        error: result.error
+      })
+    }
+  } catch (error) {
+    console.error('Error generating template preview:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate preview',
+      error: error.message
+    })
   }
 })
 

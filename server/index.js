@@ -6,7 +6,22 @@ const compression = require('compression')
 const rateLimit = require('express-rate-limit')
 const path = require('path')
 const http = require('http')
-require('dotenv').config()
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
+
+// Import error handling and logging
+require('express-async-errors')
+const { errorService } = require('./services/errorService')
+const loggerService = require('./services/loggerService')
+const securityMiddleware = require('./middleware/security')
+
+// Import Swagger documentation
+const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./config/swagger')
+
+// Set default environment variables if not provided
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-12345'
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://resume4me:resume4me123@cluster0.vrkl6u1.mongodb.net/resume4me?retryWrites=true&w=majority'
+process.env.PORT = process.env.PORT || 3001
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
 // Import database configuration
 const { initializeDatabases } = require('./config/database')
@@ -18,29 +33,36 @@ const app = express()
 const server = http.createServer(app)
 const PORT = process.env.PORT || 3001
 
+// Initialize error handling and logging
+errorService.initialize()
+
 // Initialize real-time service
 const realtimeService = new RealtimeService(server)
 
 // Import routes
 const authRoutes = require('./routes/auth')
 const resumeRoutes = require('./routes/resumes')
-const templateRoutes = require('./routes/templates')
+const enhancedTemplateRoutes = require('./routes/enhancedTemplates')
 const userRoutes = require('./routes/users')
 const adminRoutes = require('./routes/admin')
 const simpleATSRoutes = require('./routes/simpleATS')
+const fileRoutes = require('./routes/files')
+const emailRoutes = require('./routes/emails')
+const dashboardRoutes = require('./routes/dashboard')
+const coverLetterRoutes = require('./routes/coverLetters')
+const resumeSharingRoutes = require('./routes/resumeSharing')
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'"],
-    },
-  },
-}))
+// Initialize security middleware
+const security = securityMiddleware.initialize()
+
+// Security middleware (order matters!)
+app.use(security.helmetConfig) // Helmet security headers
+app.use(security.securityHeaders) // Custom security headers
+app.use(security.requestSizeLimit) // Request size limiting
+app.use(security.mongoSanitize) // MongoDB injection protection
+app.use(security.xssProtection) // XSS protection
+app.use(security.hppProtection) // HTTP Parameter Pollution protection
+app.use(security.securityLogging) // Security monitoring
 
 // CORS configuration
 app.use(cors({
@@ -49,12 +71,13 @@ app.use(cors({
 }))
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-})
-app.use('/api/', limiter)
+app.use('/api/', security.rateLimit) // General rate limiting
+app.use('/api/auth/login', security.strictRateLimit) // Strict rate limiting for login
+app.use('/api/auth/signup', security.strictRateLimit) // Strict rate limiting for signup
+app.use('/api/auth/forgot-password', security.strictRateLimit) // Strict rate limiting for password reset
+
+// Speed limiting
+app.use(security.speedLimit)
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }))
@@ -70,6 +93,18 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'))
 }
 
+// Custom request logging
+app.use(loggerService.requestLogger())
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions))
+
+// API documentation JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.send(swaggerSpec)
+})
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -83,10 +118,23 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes)
 app.use('/api/resumes', resumeRoutes)
-app.use('/api/templates', templateRoutes)
+app.use('/api/templates', enhancedTemplateRoutes) // Enhanced templates routes (includes basic templates)
 app.use('/api/users', userRoutes)
 app.use('/api/admin', adminRoutes)
-app.use('/api/simple-ats', simpleATSRoutes) // Simple AI-powered ATS routes
+app.use('/api/simple-ats', simpleATSRoutes)
+app.use('/api/ai', require('./routes/ai')) // AI services routes
+app.use('/api/files', security.fileUploadSecurity, require('./routes/files')) // File upload security
+app.use('/api/emails', require('./routes/emails')) // Original email routes
+app.use('/api/dashboard', require('./routes/dashboard'))
+app.use('/api/payments', require('./routes/payments'))
+app.use('/api/cover-letters', coverLetterRoutes)
+app.use('/api/resume-sharing', resumeSharingRoutes)
+app.use('/api/analytics', require('./routes/analytics'))
+app.use('/api/jobs', require('./routes/jobMatching'))
+app.use('/api/resume-scoring', require('./routes/resumeScoring'))
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {
@@ -106,42 +154,23 @@ if (process.env.NODE_ENV === 'production') {
   })
 }
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      message: 'Validation Error',
-      errors: Object.values(err.errors).map(e => e.message)
-    })
-  }
-  
-  if (err.name === 'CastError') {
-    return res.status(400).json({
-      message: 'Invalid ID format'
-    })
-  }
-  
-  res.status(500).json({
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Internal Server Error' 
-      : err.message
-  })
-})
+// 404 handler (must be before error handler)
+app.use(errorService.notFoundHandler())
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    message: 'Route not found'
-  })
-})
+// Global error handler (must be last)
+app.use(errorService.globalErrorHandler())
 
 // Start server
 const startServer = async () => {
   await initializeDatabases()
   
   server.listen(PORT, () => {
+    loggerService.info('Server started successfully', {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      healthCheck: `http://localhost:${PORT}/api/health`
+    })
+    
     console.log(`🚀 World-class server running on port ${PORT}`)
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
     console.log(`🔌 WebSocket enabled for real-time updates`)

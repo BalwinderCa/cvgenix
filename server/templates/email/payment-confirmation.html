@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Confirmation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 2em;
+            font-weight: bold;
+            color: #10B981;
+            margin-bottom: 10px;
+        }
+        .success-icon {
+            font-size: 3em;
+            color: #10B981;
+            margin: 20px 0;
+        }
+        .payment-details {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .payment-details h3 {
+            color: #059669;
+            margin-top: 0;
+        }
+        .amount {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #059669;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ResumeAI Pro</div>
+            <div class="success-icon">✅</div>
+            <h1>Payment Confirmed!</h1>
+        </div>
+
+        <p>Hi {{firstName}},</p>
+
+        <p>Your payment has been successfully processed. Thank you for your subscription!</p>
+
+        <div class="payment-details">
+            <h3>Payment Details</h3>
+            <p><strong>Amount:</strong> <span class="amount">${{amount}}</span></p>
+            <p><strong>Date:</strong> {{date}}</p>
+            <p><strong>Invoice ID:</strong> {{invoiceId}}</p>
+            <p><strong>Payment Method:</strong> {{paymentMethod}}</p>
+        </div>
+
+        <p>Your subscription is now active and you have full access to all premium features.</p>
+
+        <p>If you have any questions about this payment or need assistance, please don't hesitate to contact our support team.</p>
+
+        <p>Thank you for being a valued customer!</p>
+
+        <p>Best regards,<br>
+        The ResumeAI Pro Team</p>
+
+        <div class="footer">
+            <p>This is a payment confirmation for {{email}}</p>
+            <p><a href="{{supportUrl}}">Contact Support</a> | <a href="{{dashboardUrl}}">View Dashboard</a></p>
+        </div>
+    </div>
+</body>
+</html>

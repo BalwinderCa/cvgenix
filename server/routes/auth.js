@@ -4,38 +4,79 @@ const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const User = require('../models/User')
 const auth = require('../middleware/auth')
+const emailService = require('../services/emailService')
+const { errorService, ValidationError, AuthenticationError, ConflictError } = require('../services/errorService')
+const loggerService = require('../services/loggerService')
+const validationService = require('../services/validationService')
+const { authSchemas } = require('../validation/schemas')
+const securityMiddleware = require('../middleware/security')
 
 const router = express.Router()
 
-// @route   POST /api/auth/signup
-// @desc    Register a new user
-// @access  Public
-router.post('/signup', [
-  body('firstName', 'First name is required').not().isEmpty(),
-  body('lastName', 'Last name is required').not().isEmpty(),
-  body('email', 'Please include a valid email').isEmail(),
-  body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
-], async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation Error',
-        errors: errors.array()
-      })
-    }
-
+/**
+ * @swagger
+ * /api/auth/signup:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SignupRequest'
+ *           example:
+ *             firstName: "John"
+ *             lastName: "Doe"
+ *             email: "john.doe@example.com"
+ *             password: "Password123"
+ *     responses:
+ *       200:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               success: true
+ *               message: "User registered successfully"
+ *               token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               user:
+ *                 id: "507f1f77bcf86cd799439011"
+ *                 firstName: "John"
+ *                 lastName: "Doe"
+ *                 email: "john.doe@example.com"
+ *                 role: "user"
+ *                 credits: 3
+ *       400:
+ *         description: Validation error or user already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Validation failed"
+ *               errors:
+ *                 - field: "email"
+ *                   message: "Please include a valid email"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/signup', 
+  securityMiddleware.validateRequest(authSchemas.signup),
+  errorService.asyncHandler(async (req, res) => {
     const { firstName, lastName, email, password } = req.body
 
     // Check if user already exists
     let user = await User.findOne({ email })
     if (user) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists'
-      })
+    throw new ConflictError('User already exists')
     }
 
     // Create new user
@@ -52,6 +93,18 @@ router.post('/signup', [
 
     await user.save()
 
+  // Log user registration
+  loggerService.userAction(user.id, 'user_registered', {
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName
+  })
+
+    // Send welcome email (async, don't wait for it)
+    emailService.sendWelcomeEmail(user).catch(err => {
+    loggerService.error('Welcome email failed', { userId: user.id, error: err.message })
+    })
+
     // Create JWT token
     const payload = {
       user: {
@@ -65,6 +118,12 @@ router.post('/signup', [
       { expiresIn: '7d' },
       (err, token) => {
         if (err) throw err
+      
+      loggerService.info('User registered successfully', {
+        userId: user.id,
+        email: user.email
+      })
+      
         res.json({
           success: true,
           message: 'User registered successfully',
@@ -78,52 +137,90 @@ router.post('/signup', [
         })
       }
     )
-  } catch (err) {
-    console.error(err.message)
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    })
-  }
-})
+}))
 
-// @route   POST /api/auth/login
-// @desc    Authenticate user & get token
-// @access  Public
-router.post('/login', [
-  body('email', 'Please include a valid email').isEmail(),
-  body('password', 'Password is required').exists()
-], async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation Error',
-        errors: errors.array()
-      })
-    }
-
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Authenticate user and get token
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *           example:
+ *             email: "john.doe@example.com"
+ *             password: "password123"
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               success: true
+ *               message: "Login successful"
+ *               token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               user:
+ *                 id: "507f1f77bcf86cd799439011"
+ *                 firstName: "John"
+ *                 lastName: "Doe"
+ *                 email: "john.doe@example.com"
+ *                 role: "user"
+ *                 credits: 3
+ *       400:
+ *         description: Invalid credentials or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Invalid credentials"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/login', 
+  securityMiddleware.validateRequest(authSchemas.login),
+  errorService.asyncHandler(async (req, res) => {
     const { email, password } = req.body
 
     // Check if user exists
     const user = await User.findOne({ email })
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid credentials'
-      })
+    loggerService.security('Failed login attempt - user not found', { email })
+    throw new AuthenticationError('Invalid credentials')
     }
 
     // Validate password
     const isMatch = await bcrypt.compare(password, user.password)
     if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid credentials'
-      })
-    }
+    loggerService.security('Failed login attempt - invalid password', { 
+      email, 
+      userId: user.id 
+    })
+    throw new AuthenticationError('Invalid credentials')
+  }
+
+  // Update last login
+  user.lastLogin = new Date()
+  await user.save()
+
+  // Log successful login
+  loggerService.userAction(user.id, 'user_login', {
+    email: user.email,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  })
 
     // Create JWT token
     const payload = {
@@ -138,6 +235,12 @@ router.post('/login', [
       { expiresIn: '7d' },
       (err, token) => {
         if (err) throw err
+      
+      loggerService.info('User logged in successfully', {
+        userId: user.id,
+        email: user.email
+      })
+      
         res.json({
           success: true,
           message: 'Login successful',
@@ -151,18 +254,64 @@ router.post('/login', [
         })
       }
     )
-  } catch (err) {
-    console.error(err.message)
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    })
-  }
-})
+}))
 
-// @route   GET /api/auth/me
-// @desc    Get current user
-// @access  Private
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current user information
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               success: true
+ *               user:
+ *                 id: "507f1f77bcf86cd799439011"
+ *                 firstName: "John"
+ *                 lastName: "Doe"
+ *                 email: "john.doe@example.com"
+ *                 role: "user"
+ *                 credits: 3
+ *                 isActive: true
+ *                 preferences:
+ *                   emailNotifications: true
+ *                   marketingEmails: false
+ *                   theme: "light"
+ *                   language: "en"
+ *                   timezone: "UTC"
+ *                 lastLogin: "2025-09-13T09:00:00.000Z"
+ *                 createdAt: "2025-09-13T09:00:00.000Z"
+ *                 updatedAt: "2025-09-13T09:00:00.000Z"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "No token, authorization denied"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password')
@@ -264,12 +413,21 @@ router.post('/forgot-password', [
       { expiresIn: '1h' }
     )
 
-    // TODO: Send email with reset link
-    // For now, just return success
-    res.json({
-      success: true,
-      message: 'Password reset email sent'
-    })
+    // Send password reset email
+    const emailResult = await emailService.sendPasswordResetEmail(user, resetToken)
+    
+    if (emailResult.success) {
+      res.json({
+        success: true,
+        message: 'Password reset email sent successfully'
+      })
+    } else {
+      console.error('Password reset email failed:', emailResult.error)
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send password reset email'
+      })
+    }
   } catch (err) {
     console.error(err.message)
     res.status(500).json({
@@ -389,7 +547,14 @@ router.post('/reset-password', [
     const hashedPassword = await bcrypt.hash(password, salt)
 
     // Update user password
-    await User.findByIdAndUpdate(userId, { password: hashedPassword })
+    const user = await User.findByIdAndUpdate(userId, { password: hashedPassword }, { new: true })
+
+    // Send password reset confirmation email
+    if (user) {
+      emailService.sendPasswordResetConfirmationEmail(user).catch(err => {
+        console.error('Password reset confirmation email failed:', err)
+      })
+    }
 
     res.json({
       success: true,

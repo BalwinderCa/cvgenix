@@ -4,7 +4,7 @@ const User = require('../models/User')
 const Template = require('../models/Template')
 const Settings = require('../models/Settings')
 const Resume = require('../models/Resume')
-require('dotenv').config()
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') })
 
 const setupSampleData = async () => {
   try {
@@ -13,13 +13,13 @@ const setupSampleData = async () => {
     console.log('Connected to MongoDB')
 
     // Create admin user if it doesn't exist
-    let adminUser = await User.findOne({ email: 'admin@resume4me.com' })
+    let adminUser = await User.findOne({ email: 'admin@cvgenix.com' })
     if (!adminUser) {
       const hashedPassword = await bcrypt.hash('admin123', 12)
       adminUser = new User({
         firstName: 'Admin',
         lastName: 'User',
-        email: 'admin@resume4me.com',
+        email: 'admin@cvgenix.com',
         password: hashedPassword,
         role: 'super_admin',
         subscription: {
@@ -170,7 +170,7 @@ const setupSampleData = async () => {
           personalInfo: {
             firstName: 'Admin',
             lastName: 'User',
-            email: 'admin@resume4me.com',
+            email: 'admin@cvgenix.com',
             phone: '+1 (555) 123-4567',
             address: 'New York, NY'
           },
@@ -259,7 +259,7 @@ const setupSampleData = async () => {
           }
         },
         contact: {
-          email: 'support@resume4me.com',
+          email: 'support@cvgenix.com',
           phone: '+1 (555) 123-4567',
           address: '123 Resume Street, CV City, RC 12345'
         },
@@ -278,7 +278,7 @@ const setupSampleData = async () => {
 
     console.log('\n✅ Sample data setup completed successfully!')
     console.log('\n📋 Login Credentials:')
-    console.log('Admin: admin@resume4me.com / admin123')
+    console.log('Admin: admin@cvgenix.com / admin123')
     console.log('Users: john.doe@example.com / password123')
     console.log('Users: jane.smith@example.com / password123')
     console.log('Users: mike.johnson@example.com / password123')

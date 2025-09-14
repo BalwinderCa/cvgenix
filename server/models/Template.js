@@ -119,16 +119,59 @@ const TemplateSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
-    mobile: {
-      type: Boolean,
-      default: true
-    },
-    print: {
-      type: Boolean,
-      default: true
+    atsScore: {
+      type: Number,
+      default: 95,
+      min: 0,
+      max: 100
     }
   },
+  industry: [{
+    type: String,
+    trim: true
+  }],
+  features: [{
+    type: String,
+    trim: true
+  }],
+  previewImages: [{
+    type: String
+  }],
+  downloadCount: {
+    type: Number,
+    default: 0
+  },
+  lastUsed: {
+    type: Date
+  },
+  price: {
+    type: Number,
+    default: 0
+  },
+  mobile: {
+    type: Boolean,
+    default: true
+  },
+  print: {
+    type: Boolean,
+    default: true
+  },
   metadata: {
+    colorScheme: {
+      type: String,
+      enum: ['light', 'dark', 'colorful'],
+      default: 'light'
+    },
+    layout: {
+      type: String,
+      enum: ['single-column', 'two-column', 'hybrid'],
+      default: 'single-column'
+    },
+    complexity: {
+      type: String,
+      enum: ['simple', 'moderate', 'complex'],
+      default: 'moderate'
+    },
     author: {
       type: String,
       trim: true

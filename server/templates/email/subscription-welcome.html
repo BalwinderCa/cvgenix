@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{plan.name}} Plan</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3B82F6;
+            margin-bottom: 10px;
+        }
+        .plan-badge {
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .features {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .features h3 {
+            color: #3B82F6;
+            margin-top: 0;
+        }
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        .features li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .features li:before {
+            content: "✅ ";
+            margin-right: 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #3B82F6;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ResumeAI Pro</div>
+            <h1>Welcome to {{plan.name}}!</h1>
+            <div class="plan-badge">{{plan.name}} Plan</div>
+        </div>
+
+        <p>Hi {{firstName}},</p>
+
+        <p>🎉 <strong>Congratulations!</strong> You've successfully upgraded to our <strong>{{plan.name}} plan</strong>. We're excited to have you on board!</p>
+
+        <div class="features">
+            <h3>🚀 What's included in your {{plan.name}} plan:</h3>
+            <ul>
+                {{#each plan.features}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+
+        <p><strong>Your subscription details:</strong></p>
+        <ul>
+            <li><strong>Plan:</strong> {{plan.name}}</li>
+            <li><strong>Price:</strong> ${{plan.price}}/{{plan.interval}}</li>
+            <li><strong>Status:</strong> Active</li>
+        </ul>
+
+        <div style="text-align: center;">
+            <a href="{{dashboardUrl}}" class="cta-button">Access Your Dashboard</a>
+        </div>
+
+        <p>Need help getting started? Check out our <a href="{{helpUrl}}">help center</a> or reply to this email - we're here to help!</p>
+
+        <p>Thank you for choosing ResumeAI Pro!</p>
+
+        <p>Best regards,<br>
+        The ResumeAI Pro Team</p>
+
+        <div class="footer">
+            <p>This email was sent to {{email}} because you subscribed to our {{plan.name}} plan.</p>
+            <p><a href="{{unsubscribeUrl}}">Unsubscribe</a> | <a href="{{supportUrl}}">Contact Support</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -59,7 +59,7 @@ const SettingsSchema = new mongoose.Schema({
     }
   },
   contact: {
-    email: { type: String, default: 'support@resume4me.com' },
+    email: { type: String, default: 'support@cvgenix.com' },
     phone: { type: String, default: '+1 (555) 123-4567' },
     address: { type: String, default: '123 Resume Street, CV City, RC 12345' }
   },

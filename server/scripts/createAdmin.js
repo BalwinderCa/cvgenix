@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const User = require('../models/User')
-require('dotenv').config()
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') })
 
 const createAdminUser = async () => {
   try {
@@ -10,7 +10,7 @@ const createAdminUser = async () => {
     console.log('Connected to MongoDB')
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@resume4me.com' })
+    const existingAdmin = await User.findOne({ email: 'admin@cvgenix.com' })
     if (existingAdmin) {
       console.log('Admin user already exists')
       process.exit(0)
@@ -23,7 +23,7 @@ const createAdminUser = async () => {
     const adminUser = new User({
       firstName: 'Admin',
       lastName: 'User',
-      email: 'admin@resume4me.com',
+      email: 'admin@cvgenix.com',
       password: hashedPassword,
       role: 'super_admin',
       subscription: {
@@ -35,7 +35,7 @@ const createAdminUser = async () => {
 
     await adminUser.save()
     console.log('Admin user created successfully!')
-    console.log('Email: admin@resume4me.com')
+    console.log('Email: admin@cvgenix.com')
     console.log('Password: admin123')
     console.log('Role: super_admin')
 

@@ -16,7 +16,8 @@ const UserSchema = new mongoose.Schema({
     required: true,
     unique: true,
     lowercase: true,
-    trim: true
+    trim: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   password: {
     type: String,
@@ -45,6 +46,20 @@ const UserSchema = new mongoose.Schema({
     marketingEmails: {
       type: Boolean,
       default: false
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'auto'],
+      default: 'light'
+    },
+    language: {
+      type: String,
+      enum: ['en', 'es', 'fr', 'de'],
+      default: 'en'
+    },
+    timezone: {
+      type: String,
+      default: 'UTC'
     }
   },
   lastLogin: {

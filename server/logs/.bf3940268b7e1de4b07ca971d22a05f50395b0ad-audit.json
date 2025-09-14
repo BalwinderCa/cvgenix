@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/mac/Downloads/Pdf maker/server/logs/.bf3940268b7e1de4b07ca971d22a05f50395b0ad-audit.json",
+    "files": [
+        {
+            "date": 1757756552621,
+            "name": "/Users/mac/Downloads/Pdf maker/server/logs/error-2025-09-13.log",
+            "hash": "209a6161448a4a1d24c4b6bac732b006ce724f6baef0554db39303a2228c0576"
+        }
+    ],
+    "hashType": "sha256"
+}

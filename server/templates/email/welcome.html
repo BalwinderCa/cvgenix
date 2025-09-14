@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{siteName}}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome-message {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            color: #4B5563;
+        }
+        .features {
+            background: #F8FAFC;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+        .features h3 {
+            color: #1F2937;
+            margin-top: 0;
+        }
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        .features li {
+            padding: 8px 0;
+            position: relative;
+            padding-left: 25px;
+        }
+        .features li:before {
+            content: "✓";
+            color: #10B981;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            margin: 20px 0;
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+        .footer {
+            background: #F8FAFC;
+            padding: 30px;
+            text-align: center;
+            color: #6B7280;
+            border-top: 1px solid #E5E7EB;
+        }
+        .social-links {
+            margin: 20px 0;
+        }
+        .social-links a {
+            color: #3B82F6;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to {{siteName}}!</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Professional Resume Builder</p>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-message">
+                <h2>Hello {{firstName}} {{lastName}}! 👋</h2>
+                <p>Welcome to {{siteName}}! We're thrilled to have you join our community of professionals who are advancing their careers with AI-powered resume tools.</p>
+            </div>
+
+            <div class="features">
+                <h3>🚀 What you can do with {{siteName}}:</h3>
+                <ul>
+                    <li>Create professional resumes with 50+ ATS-optimized templates</li>
+                    <li>Get AI-powered resume analysis and improvement suggestions</li>
+                    <li>Export your resume in multiple formats (PDF, Word, PNG)</li>
+                    <li>Track your application success with detailed analytics</li>
+                    <li>Access industry-specific keyword optimization</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{siteUrl}}" class="cta-button">Start Building Your Resume</a>
+            </div>
+
+            <div style="background: #FEF3C7; border: 1px solid #F59E0B; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                <h4 style="margin: 0 0 10px 0; color: #92400E;">💡 Pro Tip:</h4>
+                <p style="margin: 0; color: #92400E;">Start with our "Professional Classic" template - it's ATS-friendly and works great for most industries!</p>
+            </div>
+
+            <p>If you have any questions or need help getting started, our support team is here to help. Just reply to this email!</p>
+        </div>
+
+        <div class="footer">
+            <p><strong>Best regards,</strong><br>The {{siteName}} Team</p>
+            
+            <div class="social-links">
+                <a href="#">LinkedIn</a> |
+                <a href="#">Twitter</a> |
+                <a href="#">Facebook</a>
+            </div>
+            
+            <p style="font-size: 0.9em; margin-top: 20px;">
+                You received this email because you signed up for {{siteName}}.<br>
+                If you didn't create an account, please ignore this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
