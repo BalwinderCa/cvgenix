@@ -23,6 +23,27 @@ router.get('/', auth, async (req, res) => {
   }
 })
 
+// @route   GET /api/resumes/current
+// @desc    Get user's current/most recent resume
+// @access  Private
+router.get('/current', auth, async (req, res) => {
+  try {
+    // Get the user's most recent resume
+    const resume = await Resume.findOne({ user: req.user.id })
+      .populate('template', 'name category html css config')
+      .sort({ updatedAt: -1 })
+
+    if (!resume) {
+      return res.status(404).json({ message: 'No resume found' })
+    }
+
+    res.json(resume)
+  } catch (error) {
+    console.error('Error fetching current resume:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // @route   GET /api/resumes/:id
 // @desc    Get resume by ID
 // @access  Private
