@@ -73,16 +73,10 @@ export default function FooterSection({ className, logoHref = "#top" }: FooterSe
               <h3 className="text-sm font-semibold tracking-wide">Company</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">About Us</a>
+                  <a href="/about" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">About Us</a>
                 </li>
                 <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Contact</a>
-                </li>
-                <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Careers</a>
-                </li>
-                <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Blog</a>
+                  <a href="/contact" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Contact</a>
                 </li>
               </ul>
             </div>
@@ -91,16 +85,16 @@ export default function FooterSection({ className, logoHref = "#top" }: FooterSe
               <h3 className="text-sm font-semibold tracking-wide">Support</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Help Center</a>
+                  <a href="/help" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Help Center</a>
                 </li>
                 <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Privacy Policy</a>
+                  <a href="/privacy" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Privacy Policy</a>
                 </li>
                 <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Terms of Service</a>
+                  <a href="/terms" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Terms of Service</a>
                 </li>
                 <li>
-                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Cookie Policy</a>
+                  <a href="/maintenance" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">System Status</a>
                 </li>
               </ul>
             </div>
