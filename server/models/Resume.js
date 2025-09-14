@@ -324,7 +324,7 @@ const ResumeSchema = new mongoose.Schema({
 // Index for faster queries
 ResumeSchema.index({ user: 1, createdAt: -1 })
 ResumeSchema.index({ isPublic: 1, createdAt: -1 })
-ResumeSchema.index({ shareToken: 1 })
+// shareToken index is automatically created due to sparse: true
 
 // Generate share token before saving
 ResumeSchema.pre('save', function(next) {

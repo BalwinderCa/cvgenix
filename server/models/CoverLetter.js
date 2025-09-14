@@ -130,7 +130,7 @@ const CoverLetterSchema = new mongoose.Schema({
 // Index for faster queries
 CoverLetterSchema.index({ user: 1, createdAt: -1 })
 CoverLetterSchema.index({ resume: 1 })
-CoverLetterSchema.index({ shareToken: 1 })
+// shareToken index is automatically created due to unique: true
 CoverLetterSchema.index({ 'jobApplication.applicationStatus': 1 })
 
 // Generate share token before saving
