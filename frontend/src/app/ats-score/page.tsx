@@ -1,5 +1,7 @@
 "use client";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';

@@ -2,6 +2,9 @@ import { Wrench, Clock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default function MaintenancePage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

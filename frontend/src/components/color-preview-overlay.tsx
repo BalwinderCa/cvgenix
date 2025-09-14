@@ -36,7 +36,7 @@ function setVar(varName: string, value: string) {
   document.documentElement.style.setProperty(varName, value);
 }
 
-function getInitialDefaults(): Record<string, string> {
+function getInitialDefaults(): { primary: string; secondary: string } {
   return {
     primary: getVar('--color-primary'),
     secondary: getVar('--color-secondary'),
@@ -45,8 +45,8 @@ function getInitialDefaults(): Record<string, string> {
 
 export const ColorPreviewOverlay = () => {
   const [open, setOpen] = useState(false);
-  const [colors, setColors] = useState<Record<string, string>>(() => getInitialDefaults());
-  const originalRef = useRef<Record<string, string>>({});
+  const [colors, setColors] = useState<{ primary: string; secondary: string }>(() => getInitialDefaults());
+  const originalRef = useRef<{ primary: string; secondary: string }>({ primary: "", secondary: "" });
   const [copied, setCopied] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<string>(

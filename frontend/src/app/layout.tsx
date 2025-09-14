@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   description: "Create ATS-optimized resumes with elegant templates and a guided editor. Save time, stand out to recruiters, and land more interviews.",
 };
 
+// Force dynamic rendering for all pages
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{

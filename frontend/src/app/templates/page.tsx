@@ -1,5 +1,7 @@
 "use client";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -159,7 +161,7 @@ export default function TemplatesPage() {
     setFilteredTemplates(filtered);
   };
 
-  const useTemplate = (templateId: string) => {
+  const handleUseTemplate = (templateId: string) => {
     const token = localStorage.getItem('token');
     if (!token) {
       setSignupModalOpen(true);
@@ -295,7 +297,7 @@ export default function TemplatesPage() {
                   <Button
                     size="sm"
                     className="flex-1"
-                    onClick={() => useTemplate(template._id)}
+                    onClick={() => handleUseTemplate(template._id)}
                   >
                     Use Template
                   </Button>

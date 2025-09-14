@@ -1,6 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Home, RefreshCw, AlertTriangle, Wifi, Server, FileX } from "lucide-react";

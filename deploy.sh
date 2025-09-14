@@ -197,17 +197,17 @@ deploy_on_server() {
             
             echo "Installing frontend dependencies..."
             cd "$SERVER_PATH/frontend"
-            if ! npm install; then
+            if ! npm install --legacy-peer-deps; then
                 echo "Frontend npm install failed"
                 exit 1
             fi
             
-            # Wait for npm install to complete and verify vite is available
+            # Wait for npm install to complete and verify next is available
             echo "Verifying frontend dependencies..."
             sleep 2
-            if ! npm list vite >/dev/null 2>&1; then
-                echo "Vite not found in node_modules, reinstalling..."
-                npm install
+            if ! npm list next >/dev/null 2>&1; then
+                echo "Next.js not found in node_modules, reinstalling..."
+                npm install --legacy-peer-deps
                 sleep 2
             fi
             
@@ -225,7 +225,7 @@ deploy_on_server() {
             
             echo "Starting frontend server..."
             cd "$SERVER_PATH/frontend"
-            nohup serve -s build -l 3000 > frontend.log 2>&1 &
+            nohup npm start > frontend.log 2>&1 &
             FRONTEND_PID=$!
             
             # Update Apache configuration to proxy to Node.js servers
