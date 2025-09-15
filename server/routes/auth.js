@@ -320,7 +320,11 @@ router.get('/me', auth, async (req, res) => {
       user
     })
   } catch (err) {
-    console.error(err.message)
+    loggerService.error('Server error in /me endpoint', { 
+      error: err.message, 
+      userId: req.user?.id,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    })
     res.status(500).json({
       success: false,
       message: 'Server error'

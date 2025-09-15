@@ -2,7 +2,11 @@ const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
-const xss = require('xss-clean');
+const createDOMPurify = require('dompurify');
+const { JSDOM } = require('jsdom');
+
+const window = new JSDOM('').window;
+const DOMPurify = createDOMPurify(window);
 const helmet = require('helmet');
 const loggerService = require('../services/loggerService');
 const { errorService } = require('../services/errorService');
@@ -86,19 +90,52 @@ class SecurityMiddleware {
     });
   }
 
-  // XSS protection
+  // XSS protection using DOMPurify
   xssProtection() {
-    return xss({
-      onSanitize: (req, key, value) => {
+    return (req, res, next) => {
+      // Sanitize request body
+      if (req.body && typeof req.body === 'object') {
+        req.body = this.sanitizeObject(req.body, req);
+      }
+      
+      // Sanitize query parameters
+      if (req.query && typeof req.query === 'object') {
+        req.query = this.sanitizeObject(req.query, req);
+      }
+      
+      next();
+    };
+  }
+
+  // Helper method to recursively sanitize objects
+  sanitizeObject(obj, req) {
+    if (typeof obj === 'string') {
+      const sanitized = DOMPurify.sanitize(obj, { ALLOWED_TAGS: [] });
+      if (sanitized !== obj) {
         this.logger.security('XSS attempt blocked', {
           ip: req.ip,
-          key,
-          value: value.substring(0, 100), // Log first 100 chars
+          original: obj.substring(0, 100),
+          sanitized: sanitized.substring(0, 100),
           url: req.url,
           method: req.method
         });
       }
-    });
+      return sanitized;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeObject(item, req));
+    }
+    
+    if (obj && typeof obj === 'object') {
+      const sanitizedObj = {};
+      for (const [key, value] of Object.entries(obj)) {
+        sanitizedObj[key] = this.sanitizeObject(value, req);
+      }
+      return sanitizedObj;
+    }
+    
+    return obj;
   }
 
   // HTTP Parameter Pollution protection

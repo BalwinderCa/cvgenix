@@ -17,9 +17,18 @@ const securityMiddleware = require('./middleware/security')
 // Import Swagger documentation
 const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./config/swagger')
 
-// Set default environment variables if not provided
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-12345'
-process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://resume4me:resume4me123@cluster0.vrkl6u1.mongodb.net/resume4me?retryWrites=true&w=majority'
+// Validate critical environment variables
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('❌ CRITICAL: JWT_SECRET must be set and at least 32 characters long')
+  process.exit(1)
+}
+
+if (!process.env.MONGODB_URI) {
+  console.error('❌ CRITICAL: MONGODB_URI must be set')
+  process.exit(1)
+}
+
+// Set other default environment variables if not provided
 process.env.PORT = process.env.PORT || 3001
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
@@ -66,9 +75,33 @@ app.use(security.hppProtection) // HTTP Parameter Pollution protection
 app.use(security.securityLogging) // Security monitoring
 
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://localhost:3000',
+  process.env.FRONTEND_URL,
+  process.env.PRODUCTION_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      loggerService.security('CORS violation attempt', {
+        origin,
+        allowedOrigins,
+        ip: origin // This will be logged by the security middleware
+      });
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400 // 24 hours
 }))
 
 // Rate limiting
