@@ -17,11 +17,22 @@ const securityMiddleware = require('./middleware/security')
 // Import Swagger documentation
 const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./config/swagger')
 
-// Set default environment variables if not provided
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-12345'
-process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://resume4me:resume4me123@cluster0.vrkl6u1.mongodb.net/resume4me?retryWrites=true&w=majority'
+// Environment configuration
 process.env.PORT = process.env.PORT || 3001
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+
+// In production, require critical environment variables instead of using insecure defaults
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is required in production')
+  }
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is required in production')
+  }
+  if (!process.env.FRONTEND_URL) {
+    throw new Error('FRONTEND_URL is required in production')
+  }
+}
 
 // Import database configuration
 const { initializeDatabases } = require('./config/database')
@@ -66,6 +77,7 @@ app.use(security.hppProtection) // HTTP Parameter Pollution protection
 app.use(security.securityLogging) // Security monitoring
 
 // CORS configuration
+app.use(security.corsSecurity) // Enforce allowed origins
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
