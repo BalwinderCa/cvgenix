@@ -207,42 +207,33 @@ deploy_on_server() {
                 sleep 2
             fi
             
-            echo "Building frontend..."
-            if ! npm run build; then
-                echo "Frontend build failed"
-                exit 1
-            fi
-            
-            # Start servers
+            # Start servers (using dev mode for Next.js)
             echo "Starting backend server..."
             cd "$SERVER_PATH/server"
             nohup npm start > server.log 2>&1 &
             BACKEND_PID=$!
             
-            echo "Starting frontend server..."
+            echo "Starting frontend server (Next.js dev mode)..."
             cd "$SERVER_PATH/frontend"
-            nohup npm start > frontend.log 2>&1 &
+            nohup npm run dev > frontend.log 2>&1 &
             FRONTEND_PID=$!
             
-            # Update Apache configuration to proxy to Node.js servers
-            echo "Updating Apache configuration..."
+            # Ensure Apache is configured to proxy to Next.js
+            echo "Ensuring Apache proxy configuration..."
             APACHE_CONF="/etc/apache2/sites-available/cvgenix.com.conf"
             if [[ -f "$APACHE_CONF" ]]; then
-                # Backup current config
-                cp "$APACHE_CONF" "${APACHE_CONF}.backup.$(date +%Y%m%d-%H%M%S)"
-                
-                # Add proxy configuration if not already present
+                # Check if proxy configuration exists
                 if ! grep -q "ProxyPass / http://localhost:3000/" "$APACHE_CONF"; then
-                    # Add proxy rules after the existing ProxyPass /api line
+                    echo "Adding Next.js proxy configuration to Apache..."
+                    # Add proxy rules for Next.js frontend
                     sed -i '/ProxyPass \/api http:\/\/localhost:3001\/api/a\    ProxyPass / http://localhost:3000/\n    ProxyPassReverse / http://localhost:3000/' "$APACHE_CONF"
-                    echo "Added frontend proxy configuration to Apache"
                 else
-                    echo "Frontend proxy configuration already exists"
+                    echo "Next.js proxy configuration already exists"
                 fi
                 
                 # Reload Apache to apply changes
                 systemctl reload apache2
-                echo "Apache configuration reloaded"
+                echo "Apache configuration updated"
             else
                 echo "Warning: Apache configuration file not found at $APACHE_CONF"
             fi
@@ -288,9 +279,9 @@ test_deployment() {
     local health_check_success=false
     
     while [[ $retry_count -lt $HEALTH_CHECK_TIMEOUT && $health_check_success == false ]]; do
-        if curl -s --max-time 10 "https://$DOMAIN/api/health" | grep -q "OK"; then
+        if curl -s --max-time 10 "https://$DOMAIN" | grep -q "CVGenix"; then
             health_check_success=true
-            print_success "Health check passed"
+            print_success "Health check passed - Next.js frontend is serving"
         else
             retry_count=$((retry_count + 1))
             if [[ $retry_count -lt $HEALTH_CHECK_TIMEOUT ]]; then
