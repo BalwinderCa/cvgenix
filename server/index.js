@@ -67,7 +67,11 @@ app.use(security.securityLogging) // Security monitoring
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'https://cvgenix.com',
+    'https://www.cvgenix.com'
+  ],
   credentials: true,
 }))
 
