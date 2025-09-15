@@ -102,16 +102,6 @@ check_prerequisites() {
     print_success "Prerequisites check passed"
 }
 
-# Function to stop Apache (no longer needed with Next.js)
-stop_apache() {
-    print_status "Stopping Apache service..."
-    ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
-        systemctl stop apache2 || true
-        systemctl disable apache2 || true
-        echo "Apache stopped"
-EOF
-    print_success "Apache service stopped"
-}
 
 # Function to deploy on server with retry mechanism
 deploy_on_server() {
@@ -201,22 +191,25 @@ deploy_on_server() {
                 sleep 2
             fi
             
-            # Start servers (using dev mode for Next.js)
+            # Build the frontend for production
+            echo "Building frontend for production..."
+            if ! npm run build; then
+                echo "Frontend build failed"
+                exit 1
+            fi
+            
+            # Start servers (production mode)
             echo "Starting backend server..."
             cd "$SERVER_PATH/server"
             nohup npm start > server.log 2>&1 &
             BACKEND_PID=$!
             
-            echo "Starting frontend server (Next.js on port 80)..."
+            echo "Starting frontend server (Next.js production on port 80)..."
             cd "$SERVER_PATH/frontend"
-            nohup npm run dev -- -p 80 > frontend.log 2>&1 &
+            nohup npm run start -- -p 80 > frontend.log 2>&1 &
             FRONTEND_PID=$!
             
-            # Stop Apache and run Next.js directly on port 80
-            echo "Stopping Apache to run Next.js directly..."
-            systemctl stop apache2 || true
-            systemctl disable apache2 || true
-            echo "Apache stopped - Next.js will run directly"
+            # Next.js will run directly on port 80
             
             # Wait a moment for servers to start
             sleep 5
@@ -259,7 +252,8 @@ test_deployment() {
     local health_check_success=false
     
     while [[ $retry_count -lt $HEALTH_CHECK_TIMEOUT && $health_check_success == false ]]; do
-        if curl -s --max-time 10 "https://$DOMAIN" | grep -q "CVGenix"; then
+        # Test frontend on port 80
+        if curl -s --max-time 10 "http://$SERVER_IP:80" | grep -q "CVGenix"; then
             health_check_success=true
             print_success "Health check passed - Next.js frontend is serving"
         else
@@ -272,7 +266,7 @@ test_deployment() {
     done
     
     if [[ $health_check_success == true ]]; then
-        print_success "Deployment successful! Your site is live at https://$DOMAIN"
+        print_success "Deployment successful! Your site is live at http://$SERVER_IP:80"
         return 0
     else
         print_warning "Health check failed after $HEALTH_CHECK_TIMEOUT attempts. Please check server logs."
@@ -296,7 +290,6 @@ main() {
     check_prerequisites
     check_internet
     check_ssh_connection
-    stop_apache
     
     log "Starting server deployment"
     if deploy_on_server; then
@@ -306,7 +299,7 @@ main() {
             log "Health check passed"
             print_success "Deployment completed successfully!"
             echo "Deployment completed at $(date)"
-            echo "Live site: https://$DOMAIN"
+            echo "Live site: http://$SERVER_IP:80"
             echo "Log file: $LOG_FILE"
         else
             log "Health check failed"
