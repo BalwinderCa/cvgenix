@@ -392,7 +392,7 @@ class SecurityMiddleware {
         
         // Log high response times
         if (duration > 5000) { // 5 seconds
-          this.logger.warn('Slow response detected', {
+          loggerService.warn('Slow response detected', {
             ip: req.ip,
             url: req.url,
             method: req.method,
@@ -410,7 +410,7 @@ class SecurityMiddleware {
 
   // Initialize all security middleware
   initialize() {
-    this.logger.info('Security middleware initialized');
+    // Removed verbose initialization log
     return {
       rateLimit: this.createRateLimit(),
       strictRateLimit: this.createStrictRateLimit(),

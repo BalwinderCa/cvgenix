@@ -19,17 +19,19 @@ const logFormat = winston.format.combine(
   winston.format.prettyPrint()
 );
 
-// Console format for development
+// Console format for development - simplified
 const consoleFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({
     format: 'HH:mm:ss'
   }),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let msg = `${timestamp} [${level}]: ${message}`;
-    if (Object.keys(meta).length > 0) {
-      msg += ` ${JSON.stringify(meta, null, 2)}`;
+    // Only show essential info in development
+    if (level === 'info' && Object.keys(meta).length > 0) {
+      // Skip verbose info logs with metadata in development
+      return '';
     }
+    let msg = `${timestamp} [${level}]: ${message}`;
     return msg;
   })
 );

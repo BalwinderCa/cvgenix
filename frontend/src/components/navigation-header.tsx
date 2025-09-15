@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, ChevronRight } from "lucide-react";
+import { Menu, ChevronRight, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -12,7 +12,15 @@ import {
   SheetTrigger,
   SheetClose } from
 "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import LoginModal from "@/components/auth/LoginModal";
+import SignupModal from "@/components/auth/SignupModal";
 
 type NavItem = {
   label: string;
@@ -25,7 +33,6 @@ export interface NavigationHeaderProps {
 
 const NAV_ITEMS: NavItem[] = [
 { label: "Homepage", href: "/" },
-{ label: "Resume Templates", href: "/templates" },
 { label: "Resume Builder", href: "/resume-builder" },
 { label: "Cover Letter", href: "/cover-letter" },
 { label: "ATS Score", href: "/ats-score" }];
@@ -33,6 +40,27 @@ const NAV_ITEMS: NavItem[] = [
 
 export default function NavigationHeader({ className }: NavigationHeaderProps) {
   const [open, setOpen] = React.useState(false);
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [user, setUser] = React.useState<any>(null);
+  const [loginModalOpen, setLoginModalOpen] = React.useState(false);
+  const [signupModalOpen, setSignupModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    setIsAuthenticated(!!token);
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+    setUser(null);
+    window.location.reload();
+  };
 
   return (
     <header
@@ -78,16 +106,54 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-4">
-            {/* Build My Resume Button */}
-            <div className="hidden sm:flex items-center gap-2">
-              <Button
-                asChild
-                className="text-sm font-semibold bg-primary text-primary-foreground hover:opacity-95 shadow-sm">
-                <Link href="/resume-builder" aria-label="Build My Resume">
-                  Build My Resume
-                </Link>
-              </Button>
-            </div>
+            {/* Authentication Buttons */}
+            {!isAuthenticated ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setLoginModalOpen(true)}
+                  className="text-sm font-medium">
+                  Sign In
+                </Button>
+                <Button
+                  onClick={() => setSignupModalOpen(true)}
+                  className="text-sm font-semibold bg-primary text-primary-foreground hover:opacity-95 shadow-sm">
+                  Sign Up
+                </Button>
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        {user?.firstName || 'User'}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2">
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  asChild
+                  className="text-sm font-semibold bg-primary text-primary-foreground hover:opacity-95 shadow-sm">
+                  <Link href="/resume-builder" aria-label="Build My Resume">
+                    Build My Resume
+                  </Link>
+                </Button>
+              </div>
+            )}
 
             {/* Mobile Menu */}
             <Sheet open={open} onOpenChange={setOpen}>
@@ -145,7 +211,55 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
                   <div className="mt-2 border-t border-border" />
 
                   <div className="p-2 flex flex-col gap-2">
-                    {/* Buy Me a Coffee (Mobile) */}
+                    {/* Authentication (Mobile) */}
+                    {!isAuthenticated ? (
+                      <>
+                        <SheetClose asChild>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setOpen(false);
+                              setLoginModalOpen(true);
+                            }}
+                            className="justify-center">
+                            Sign In
+                          </Button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Button
+                            onClick={() => {
+                              setOpen(false);
+                              setSignupModalOpen(true);
+                            }}
+                            className="justify-center bg-primary text-primary-foreground hover:opacity-95">
+                            Sign Up
+                          </Button>
+                        </SheetClose>
+                      </>
+                    ) : (
+                      <>
+                        <SheetClose asChild>
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setOpen(false)}
+                            className="flex items-center gap-2 px-2 py-3 rounded-md hover:bg-muted/70 text-foreground/90">
+                            <User className="h-4 w-4" />
+                            <span className="text-base font-medium">Dashboard</span>
+                          </Link>
+                        </SheetClose>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setOpen(false);
+                            handleLogout();
+                          }}
+                          className="justify-center">
+                          Sign Out
+                        </Button>
+                      </>
+                    )}
+                    
+                    {/* Build My Resume (Mobile) */}
                     <SheetClose asChild>
                       <Button
                         asChild
@@ -163,6 +277,23 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
         </div>
       </div>
 
+      {/* Auth Modals */}
+      <LoginModal
+        open={loginModalOpen}
+        onOpenChange={setLoginModalOpen}
+        onSwitchToSignup={() => {
+          setLoginModalOpen(false);
+          setSignupModalOpen(true);
+        }}
+      />
+      <SignupModal
+        open={signupModalOpen}
+        onOpenChange={setSignupModalOpen}
+        onSwitchToLogin={() => {
+          setSignupModalOpen(false);
+          setLoginModalOpen(true);
+        }}
+      />
     </header>);
 
 }

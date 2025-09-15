@@ -156,8 +156,9 @@ deploy_on_server() {
             if [[ -d "$SERVER_PATH/.git" ]]; then
                 # Repository exists, pull latest changes
                 cd "$SERVER_PATH"
-                echo "Stashing any local changes..."
-                git stash
+                echo "Resetting any local changes..."
+                git reset --hard HEAD
+                git clean -fd
                 echo "Pulling latest changes..."
                 if ! git pull origin main; then
                     echo "Git pull failed"

@@ -22,6 +22,8 @@ import {
   Award
 } from 'lucide-react';
 import { toast } from 'sonner';
+import NavigationHeader from '@/components/navigation-header';
+import FooterSection from '@/components/footer-section';
 
 interface ATSResult {
   overallScore: number;
@@ -86,7 +88,7 @@ export default function ATSScorePage() {
 
       if (response.ok) {
         const result = await response.json();
-        setAtsResult(result);
+        setAtsResult(result.data);
         toast.success('Resume analyzed successfully!');
       } else {
         const errorData = await response.json();
@@ -129,7 +131,8 @@ export default function ATSScorePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
+      <NavigationHeader />
+      <div className="container mx-auto py-8 pt-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">ATS Score Analyzer</h1>
           <p className="text-muted-foreground">
@@ -361,6 +364,7 @@ export default function ATSScorePage() {
           </CardContent>
         </Card>
       </div>
+      <FooterSection />
     </div>
   );
 }

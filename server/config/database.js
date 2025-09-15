@@ -4,7 +4,7 @@ const mongoose = require('mongoose')
 const connectMongoDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/resume4me')
-    console.log(`📦 MongoDB Connected: ${conn.connection.host}`)
+    console.log(`📦 Database connected`)
     return conn
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message)
@@ -15,7 +15,7 @@ const connectMongoDB = async () => {
 // Initialize database
 const initializeDatabases = async () => {
   await connectMongoDB()
-  console.log('✅ Database connected successfully')
+  // Database initialization complete
 }
 
 module.exports = {

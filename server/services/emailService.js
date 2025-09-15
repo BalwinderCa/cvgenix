@@ -34,7 +34,7 @@ class EmailService {
         });
       }
 
-      console.log('📧 Email service initialized');
+      // Email service initialized
     } catch (error) {
       console.error('❌ Email service initialization failed:', error);
     }
@@ -55,7 +55,7 @@ class EmailService {
           }
         });
         
-        console.log(`📧 Loaded ${Object.keys(this.templates).length} email templates`);
+        // Email templates loaded
       }
     } catch (error) {
       console.error('❌ Template loading failed:', error);

@@ -46,6 +46,7 @@ const enhancedTemplateRoutes = require('./routes/enhancedTemplates')
 const userRoutes = require('./routes/users')
 const adminRoutes = require('./routes/admin')
 const simpleATSRoutes = require('./routes/simpleATS')
+const atsRoutes = require('./routes/ats')
 const fileRoutes = require('./routes/files')
 const emailRoutes = require('./routes/emails')
 const dashboardRoutes = require('./routes/dashboard')
@@ -122,6 +123,7 @@ app.use('/api/templates', enhancedTemplateRoutes) // Enhanced templates routes (
 app.use('/api/users', userRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/simple-ats', simpleATSRoutes)
+app.use('/api/ats', atsRoutes)
 app.use('/api/ai', require('./routes/ai')) // AI services routes
 app.use('/api/files', security.fileUploadSecurity, require('./routes/files')) // File upload security
 app.use('/api/emails', require('./routes/emails')) // Original email routes
@@ -165,17 +167,7 @@ const startServer = async () => {
   await initializeDatabases()
   
   server.listen(PORT, () => {
-    loggerService.info('Server started successfully', {
-      port: PORT,
-      environment: process.env.NODE_ENV || 'development',
-      healthCheck: `http://localhost:${PORT}/api/health`
-    })
-    
-    console.log(`🚀 World-class server running on port ${PORT}`)
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
-    console.log(`🔌 WebSocket enabled for real-time updates`)
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
-    console.log(`✨ Enhanced ATS system ready!`)
+    console.log(`🚀 Server running on port ${PORT}`)
   })
 }
 

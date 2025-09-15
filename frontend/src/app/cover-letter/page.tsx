@@ -21,6 +21,8 @@ import {
   Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
+import NavigationHeader from '@/components/navigation-header';
+import FooterSection from '@/components/footer-section';
 
 interface CoverLetter {
   _id: string;
@@ -60,7 +62,7 @@ export default function CoverLetterPage() {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        router.push('/auth/login');
+        router.push('/login');
         return;
       }
 
@@ -73,7 +75,7 @@ export default function CoverLetterPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setCoverLetters(data);
+        setCoverLetters(data.data || []);
       }
     } catch (error) {
       console.error('Error loading cover letters:', error);
@@ -209,7 +211,8 @@ export default function CoverLetterPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
+      <NavigationHeader />
+      <div className="container mx-auto py-8 pt-24">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">Cover Letters</h1>
@@ -419,6 +422,7 @@ export default function CoverLetterPage() {
           </div>
         </div>
       </div>
+      <FooterSection />
     </div>
   );
 }

@@ -297,7 +297,7 @@ class ErrorService {
   initialize() {
     this.handleUnhandledRejection();
     this.handleUncaughtException();
-    this.logger.info('Error service initialized');
+    // Removed verbose initialization log
   }
 }
 

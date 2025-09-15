@@ -1267,3 +1267,101 @@
   environment: 'development',
   timestamp: '2025-09-13 16:50:39'
 }
+{
+  error: Error: listen EADDRINUSE: address already in use :::3001
+      at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+      at listenInCluster (node:net:1997:12)
+      at Server.listen (node:net:2102:7)
+      at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:167:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+    code: 'EADDRINUSE',
+    errno: -48,
+    syscall: 'listen',
+    address: '::',
+    port: 3001
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use :::3001\n' +
+    'Error: listen EADDRINUSE: address already in use :::3001\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n' +
+    '    at listenInCluster (node:net:1997:12)\n' +
+    '    at Server.listen (node:net:2102:7)\n' +
+    '    at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:167:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: 'Error: listen EADDRINUSE: address already in use :::3001\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n' +
+    '    at listenInCluster (node:net:1997:12)\n' +
+    '    at Server.listen (node:net:2102:7)\n' +
+    '    at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:167:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  exception: true,
+  date: 'Sun Sep 14 2025 19:46:30 GMT-0600 (Central Standard Time)',
+  process: {
+    pid: 50042,
+    uid: 502,
+    gid: 20,
+    cwd: '/Users/mac/Downloads/Pdf maker/server',
+    execPath: '/usr/local/Cellar/node/24.6.0/bin/node',
+    version: 'v24.6.0',
+    argv: [
+      '/usr/local/Cellar/node/24.6.0/bin/node',
+      '/Users/mac/Downloads/Pdf maker/server/index.js'
+    ],
+    memoryUsage: {
+      rss: 191500288,
+      heapTotal: 204025856,
+      heapUsed: 83307888,
+      external: 22294310,
+      arrayBuffers: 18784325
+    }
+  },
+  os: {
+    loadavg: [ 3.5634765625, 2.7158203125, 2.71923828125 ],
+    uptime: 23237
+  },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1940,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1997,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'Server.listen',
+      line: 2102,
+      method: 'listen',
+      native: false
+    },
+    {
+      column: 10,
+      file: '/Users/mac/Downloads/Pdf maker/server/index.js',
+      function: 'startServer',
+      line: 167,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'resume-builder-api',
+  environment: 'development',
+  timestamp: '2025-09-14 19:46:30'
+}

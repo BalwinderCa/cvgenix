@@ -24,6 +24,8 @@ import {
   Edit
 } from 'lucide-react';
 import { toast } from 'sonner';
+import NavigationHeader from '@/components/navigation-header';
+import FooterSection from '@/components/footer-section';
 
 interface ResumeData {
   personalInfo: {
@@ -93,7 +95,7 @@ export default function ResumeBuilderPage() {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        router.push('/auth/login');
+        router.push('/login');
         return;
       }
 
@@ -257,7 +259,8 @@ export default function ResumeBuilderPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
+      <NavigationHeader />
+      <div className="container mx-auto py-8 pt-24">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">Resume Builder</h1>
@@ -639,6 +642,7 @@ export default function ResumeBuilderPage() {
           </TabsContent>
         </Tabs>
       </div>
+      <FooterSection />
     </div>
   );
 }

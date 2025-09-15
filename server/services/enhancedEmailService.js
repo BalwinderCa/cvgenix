@@ -30,11 +30,7 @@ class EnhancedEmailService {
       await this.loadTemplates();
       await this.initializeTransporter();
       this.initialized = true;
-      if (loggerService && loggerService.info) {
-        loggerService.info('Enhanced email service initialized successfully');
-      } else {
-        console.log('📧 Enhanced email service initialized successfully');
-      }
+      // Enhanced email service initialized
     } catch (error) {
       if (loggerService && loggerService.error) {
         loggerService.error('Failed to initialize enhanced email service', { error: error.message });

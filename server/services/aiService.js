@@ -31,7 +31,7 @@ class AIService {
           timeout: 30000, // 30 seconds timeout
           maxRetries: 3
         });
-        loggerService.info('OpenAI service initialized successfully');
+        // OpenAI service initialized
       } else {
         loggerService.warn('OpenAI API key not found - OpenAI features disabled');
       }
@@ -42,7 +42,7 @@ class AIService {
           apiKey: process.env.ANTHROPIC_API_KEY,
           timeout: 30000, // 30 seconds timeout
         });
-        loggerService.info('Anthropic service initialized successfully');
+        // Anthropic service initialized
       } else {
         loggerService.warn('Anthropic API key not found - Anthropic features disabled');
       }

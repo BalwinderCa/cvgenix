@@ -61,7 +61,7 @@ export default function TemplatesPage() {
       const response = await fetch('http://localhost:3001/api/templates');
       if (response.ok) {
         const data = await response.json();
-        setTemplates(data);
+        setTemplates(data.templates || []);
       } else {
         // Fallback to default templates if API fails
         setTemplates(getDefaultTemplates());
