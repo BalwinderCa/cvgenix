@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiUrl } from '@/lib/api-utils';
 
 interface SignupModalProps {
   open: boolean;
@@ -54,7 +55,7 @@ export default function SignupModal({ open, onOpenChange, onSwitchToLogin }: Sig
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch(getApiUrl('/auth/signup'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
