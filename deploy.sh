@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Resume4Me Deployment Script
-# This script pulls latest code from GitHub and deploys on server
+# This script pulls latest code from GitHub and deploys on server using PM2 and systemd
 
 set -e  # Exit on any error
 set -u  # Exit on undefined variables
@@ -9,7 +9,7 @@ set -u  # Exit on undefined variables
 # Configuration
 SERVER_IP="72.14.179.145"
 SERVER_USER="root"
-SERVER_PATH="/var/www/resume-builder"
+SERVER_PATH="/var/www/resume-builder-platform"
 DOMAIN="cvgenix.com"
 GITHUB_REPO="https://github.com/BalwinderCa/resume-builder-platform.git"
 LOG_FILE="deploy.log"
@@ -102,6 +102,80 @@ check_prerequisites() {
     print_success "Prerequisites check passed"
 }
 
+# Function to install PM2 if not present
+install_pm2() {
+    print_status "Checking PM2 installation..."
+    if ! ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" "command -v pm2 >/dev/null 2>&1"; then
+        print_status "Installing PM2..."
+        ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" "npm install -g pm2"
+        print_success "PM2 installed successfully"
+    else
+        print_success "PM2 is already installed"
+    fi
+}
+
+# Function to create PM2 ecosystem configuration
+create_pm2_config() {
+    print_status "Creating PM2 ecosystem configuration..."
+    ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
+        cd /var/www/resume-builder-platform
+        cat > ecosystem.config.js << 'PM2_EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'resume-builder-backend',
+      script: './server/index.js',
+      cwd: '/var/www/resume-builder-platform',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3001
+      },
+      error_file: './logs/backend-error.log',
+      out_file: './logs/backend-out.log',
+      log_file: './logs/backend-combined.log',
+      time: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+    }
+  ]
+};
+PM2_EOF
+        echo "PM2 ecosystem configuration created"
+EOF
+    print_success "PM2 configuration created"
+}
+
+# Function to create systemd service for frontend
+create_systemd_service() {
+    print_status "Creating systemd service for frontend..."
+    ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
+        cat > /etc/systemd/system/resume-frontend.service << 'SYSTEMD_EOF'
+[Unit]
+Description=Resume Builder Frontend (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/resume-builder-platform/frontend
+ExecStart=/usr/bin/npm run start -- -p 3000
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMD_EOF
+        systemctl daemon-reload
+        systemctl enable resume-frontend
+        echo "Systemd service created and enabled"
+EOF
+    print_success "Systemd service created"
+}
 
 # Function to deploy on server with retry mechanism
 deploy_on_server() {
@@ -113,20 +187,20 @@ deploy_on_server() {
         if ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'; then
             set -e
             
-            SERVER_PATH="/var/www/resume-builder"
+            SERVER_PATH="/var/www/resume-builder-platform"
             GITHUB_REPO="https://github.com/BalwinderCa/resume-builder-platform.git"
             
             echo "Starting deployment process..."
             
-            # Stop the current servers gracefully
-            echo "Stopping current servers..."
+            # Stop current services gracefully
+            echo "Stopping current services..."
+            pm2 stop all || true
+            systemctl stop resume-frontend || true
             pkill -f "node index.js" || true
-            pkill -f "serve -s build" || true
+            pkill -f "npm.*start" || true
             
             # Wait for processes to stop
             sleep 3
-            
-            # Skip backup process for faster deployment
             
             # Clone or pull from GitHub
             echo "Updating from GitHub..."
@@ -152,6 +226,14 @@ deploy_on_server() {
                 fi
             fi
             
+            # Copy environment file if it doesn't exist
+            if [[ ! -f "$SERVER_PATH/.env" ]]; then
+                echo "Creating .env file from template..."
+                cp "$SERVER_PATH/env.example" "$SERVER_PATH/.env"
+                # Update MongoDB URI to use local MongoDB
+                sed -i 's|MONGODB_URI=mongodb+srv://.*|MONGODB_URI=mongodb://localhost:27017/resume4me|' "$SERVER_PATH/.env"
+            fi
+            
             # Install dependencies
             echo "Installing root dependencies..."
             if ! npm install; then
@@ -166,29 +248,11 @@ deploy_on_server() {
                 exit 1
             fi
             
-            # Verify server dependencies are installed
-            echo "Verifying server dependencies..."
-            sleep 2
-            if ! npm list express >/dev/null 2>&1; then
-                echo "Express not found in node_modules, reinstalling..."
-                npm install
-                sleep 2
-            fi
-            
             echo "Installing frontend dependencies..."
             cd "$SERVER_PATH/frontend"
             if ! npm install --legacy-peer-deps; then
                 echo "Frontend npm install failed"
                 exit 1
-            fi
-            
-            # Wait for npm install to complete and verify next is available
-            echo "Verifying frontend dependencies..."
-            sleep 2
-            if ! npm list next >/dev/null 2>&1; then
-                echo "Next.js not found in node_modules, reinstalling..."
-                npm install --legacy-peer-deps
-                sleep 2
             fi
             
             # Build the frontend for production
@@ -198,36 +262,72 @@ deploy_on_server() {
                 exit 1
             fi
             
-            # Start servers (production mode)
-            echo "Starting backend server..."
-            cd "$SERVER_PATH/server"
-            nohup npm start > server.log 2>&1 &
-            BACKEND_PID=$!
+            # Create logs directory
+            mkdir -p "$SERVER_PATH/logs"
             
-            echo "Starting frontend server (Next.js production on port 80)..."
-            cd "$SERVER_PATH/frontend"
-            nohup npm run start -- -p 80 > frontend.log 2>&1 &
-            FRONTEND_PID=$!
+            # Recreate PM2 ecosystem configuration (in case it was removed by git reset)
+            echo "Recreating PM2 ecosystem configuration..."
+            cat > "$SERVER_PATH/ecosystem.config.js" << 'PM2_EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'resume-builder-backend',
+      script: './server/index.js',
+      cwd: '/var/www/resume-builder-platform',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3001
+      },
+      error_file: './logs/backend-error.log',
+      out_file: './logs/backend-out.log',
+      log_file: './logs/backend-combined.log',
+      time: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+    }
+  ]
+};
+PM2_EOF
             
-            # Next.js will run directly on port 80
+            # Start MongoDB if not running
+            echo "Starting MongoDB..."
+            systemctl start mongod || true
+            systemctl enable mongod || true
             
-            # Wait a moment for servers to start
-            sleep 5
+            # Start backend with PM2
+            echo "Starting backend with PM2..."
+            cd "$SERVER_PATH"
+            pm2 start ecosystem.config.js
             
-            # Check if servers are running
-            if ! ps -p $BACKEND_PID > /dev/null; then
-                echo "Backend server failed to start"
+            # Start frontend with systemd
+            echo "Starting frontend with systemd..."
+            systemctl start resume-frontend
+            
+            # Wait for services to start
+            sleep 10
+            
+            # Check if services are running
+            if ! pm2 list | grep -q "resume-builder-backend.*online"; then
+                echo "Backend service failed to start"
+                pm2 logs resume-builder-backend --lines 10
                 exit 1
             fi
             
-            if ! ps -p $FRONTEND_PID > /dev/null; then
-                echo "Frontend server failed to start"
+            if ! systemctl is-active --quiet resume-frontend; then
+                echo "Frontend service failed to start"
+                systemctl status resume-frontend --no-pager
                 exit 1
             fi
+            
+            # Save PM2 configuration
+            pm2 save
             
             echo "Deployment completed successfully!"
-            echo "Backend PID: $BACKEND_PID"
-            echo "Frontend PID: $FRONTEND_PID"
+            echo "Backend: Running via PM2"
+            echo "Frontend: Running via systemd"
 EOF
             print_success "Server deployment completed"
             return 0
@@ -252,10 +352,10 @@ test_deployment() {
     local health_check_success=false
     
     while [[ $retry_count -lt $HEALTH_CHECK_TIMEOUT && $health_check_success == false ]]; do
-        # Test frontend on port 80
-        if curl -s --max-time 10 "http://$SERVER_IP:80" | grep -q "CVGenix"; then
+        # Test HTTPS endpoint
+        if curl -s --max-time 10 "https://$DOMAIN" | grep -q "CVGenix\|Resume\|Builder"; then
             health_check_success=true
-            print_success "Health check passed - Next.js frontend is serving"
+            print_success "Health check passed - Application is serving correctly"
         else
             retry_count=$((retry_count + 1))
             if [[ $retry_count -lt $HEALTH_CHECK_TIMEOUT ]]; then
@@ -266,7 +366,7 @@ test_deployment() {
     done
     
     if [[ $health_check_success == true ]]; then
-        print_success "Deployment successful! Your site is live at http://$SERVER_IP:80"
+        print_success "Deployment successful! Your site is live at https://$DOMAIN"
         return 0
     else
         print_warning "Health check failed after $HEALTH_CHECK_TIMEOUT attempts. Please check server logs."
@@ -274,15 +374,35 @@ test_deployment() {
     fi
 }
 
-# Backup cleanup function removed for faster deployment
+# Function to show deployment status
+show_status() {
+    print_status "Deployment Status:"
+    ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
+        echo "=== PM2 Status ==="
+        pm2 status
+        echo ""
+        echo "=== Systemd Service Status ==="
+        systemctl status resume-frontend --no-pager
+        echo ""
+        echo "=== Port Status ==="
+        ss -tlnp | grep -E ':(80|3000|3001)'
+        echo ""
+        echo "=== Recent Logs ==="
+        echo "Backend logs (last 5 lines):"
+        pm2 logs resume-builder-backend --lines 5 --nostream
+        echo ""
+        echo "Frontend logs (last 5 lines):"
+        journalctl -u resume-frontend --no-pager -n 5
+EOF
+}
 
 # Main deployment function
 main() {
-    echo "Starting Resume4Me deployment at $(date)"
+    echo "Starting Resume4Me deployment with PM2 and systemd at $(date)"
     echo "Log file: $LOG_FILE"
     
     # Initialize log file
-    echo "=== Resume4Me Deployment Log ===" > "$LOG_FILE"
+    echo "=== Resume4Me Deployment Log (PM2 + systemd) ===" > "$LOG_FILE"
     log "Deployment started"
     
     # Run all checks and deployment steps
@@ -290,6 +410,9 @@ main() {
     check_prerequisites
     check_internet
     check_ssh_connection
+    install_pm2
+    create_pm2_config
+    create_systemd_service
     
     log "Starting server deployment"
     if deploy_on_server; then
@@ -299,11 +422,14 @@ main() {
             log "Health check passed"
             print_success "Deployment completed successfully!"
             echo "Deployment completed at $(date)"
-            echo "Live site: http://$SERVER_IP:80"
+            echo "Live site: https://$DOMAIN"
             echo "Log file: $LOG_FILE"
+            echo ""
+            show_status
         else
             log "Health check failed"
             print_error "Deployment completed but health check failed"
+            show_status
             exit 1
         fi
     else
