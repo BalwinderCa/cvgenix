@@ -18,10 +18,22 @@ const securityMiddleware = require('./middleware/security')
 const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./config/swagger')
 
 // Set default environment variables if not provided
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-12345'
-process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://resume4me:resume4me123@cluster0.vrkl6u1.mongodb.net/resume4me?retryWrites=true&w=majority'
-process.env.PORT = process.env.PORT || 3001
-process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+// Validate required environment variables to avoid insecure defaults
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'MONGODB_URI'];
+
+REQUIRED_ENV_VARS.forEach((envVar) => {
+  if (!process.env[envVar]) {
+    console.error(`❌ Missing required environment variable: ${envVar}`);
+    // Gracefully exit in non-test environments to avoid running with insecure defaults
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
+  }
+});
+
+// Provide sensible defaults for optional vars only
+process.env.PORT = process.env.PORT || 3001;
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Import database configuration
 const { initializeDatabases } = require('./config/database')
