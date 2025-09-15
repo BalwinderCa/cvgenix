@@ -124,6 +124,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/simple-ats', simpleATSRoutes)
 app.use('/api/ats', atsRoutes)
+app.use('/api/progress', require('./routes/progress')) // Simple progress tracking
 app.use('/api/ai', require('./routes/ai')) // AI services routes
 app.use('/api/files', security.fileUploadSecurity, require('./routes/files')) // File upload security
 app.use('/api/emails', require('./routes/emails')) // Original email routes

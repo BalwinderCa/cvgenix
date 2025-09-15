@@ -14,6 +14,11 @@
             "date": 1757900313657,
             "name": "/Users/mac/Downloads/Pdf maker/server/logs/combined-2025-09-14.log",
             "hash": "8af948e98598a902579c979c7f916e7f0adb3e1bcda766cfc447ad391ee9436e"
+        },
+        {
+            "date": 1757919452168,
+            "name": "/Users/mac/Downloads/Pdf maker/server/logs/combined-2025-09-15.log",
+            "hash": "e1cde46e3a2df565120ba088ee35acf91c04ad558e1e30f998fc21a500fc70b7"
         }
     ],
     "hashType": "sha256"

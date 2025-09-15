@@ -1,14 +1,14 @@
 "use client";
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SimpleProgressModal } from '@/components/ui/simple-progress-modal';
 import { 
   Upload, 
   FileText, 
@@ -41,13 +41,52 @@ interface ATSResult {
     suggested: string[];
   };
   recommendations: string[];
+  // Additional data from enhanced analyzer
+  overallGrade?: string;
+  detailedMetrics?: {
+    sectionCompleteness: number;
+    keywordDensity: number;
+    formatConsistency: number;
+    actionVerbs: number;
+    quantifiedAchievements: number;
+  };
+  quickStats?: {
+    wordCount: number;
+    sectionsFound: number;
+    keywordsMatched: number;
+    improvementAreas: number;
+  };
+  strengths?: string[];
+  weaknesses?: string[];
+  detailedInsights?: {
+    keywordAnalysis: string;
+    formatAnalysis: string;
+    contentAnalysis: string;
+    industryAlignment: string;
+    atsCompatibility: string;
+  };
+  industryAlignment?: number;
+  contentQuality?: number;
+  industryBenchmark?: any;
 }
 
 export default function ATSScorePage() {
+  const router = useRouter();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [atsResult, setAtsResult] = useState<ATSResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressError, setProgressError] = useState('');
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [stepMessage, setStepMessage] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  // Generate a unique analysis ID
+  const generateAnalysisId = () => {
+    return 'ats-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -76,11 +115,23 @@ export default function ATSScorePage() {
 
     setLoading(true);
     setError('');
+    setProgressError('');
+    setShowProgressModal(true);
+    setCurrentStep(0);
+    setStepMessage('Starting analysis...');
+
+    // Generate session ID for real progress tracking
+    const newSessionId = generateAnalysisId();
+    setSessionId(newSessionId);
 
     try {
       const formData = new FormData();
       formData.append('resume', uploadedFile);
+      formData.append('sessionId', newSessionId);
 
+      console.log(`🚀 Starting analysis with session ID: ${newSessionId}`);
+
+      // Start the request - this will trigger the SSE progress updates
       const response = await fetch('http://localhost:3001/api/ats/analyze', {
         method: 'POST',
         body: formData
@@ -88,283 +139,349 @@ export default function ATSScorePage() {
 
       if (response.ok) {
         const result = await response.json();
-        setAtsResult(result.data);
-        toast.success('Resume analyzed successfully!');
+        const analysisId = generateAnalysisId();
+        setCurrentAnalysisId(analysisId);
+        
+        console.log('✅ Backend analysis completed successfully');
+        
+        // Store the analysis data with the unique ID
+        const analysisData = {
+          result: result.data,
+          fileName: uploadedFile.name,
+          fileSize: uploadedFile.size,
+          analyzedAt: new Date().toISOString(),
+          analysisId: analysisId
+        };
+        
+        // Store in localStorage for immediate access
+        localStorage.setItem(`ats-analysis-${analysisId}`, JSON.stringify(analysisData));
+        
+        console.log('✅ Analysis data stored with ID:', analysisId);
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Failed to analyze resume');
+        const errorMsg = errorData.message || 'Failed to analyze resume';
+        setError(errorMsg);
+        setProgressError(errorMsg);
         toast.error('Failed to analyze resume');
       }
     } catch (error) {
       console.error('Error analyzing resume:', error);
-      setError('An error occurred while analyzing your resume');
+      const errorMsg = 'An error occurred while analyzing your resume';
+      setError(errorMsg);
+      setProgressError(errorMsg);
       toast.error('An error occurred while analyzing your resume');
     } finally {
       setLoading(false);
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+  const handleCancelAnalysis = () => {
+    setShowProgressModal(false);
+    setLoading(false);
+    setProgressError('');
+    setCurrentStep(0);
+    setStepMessage('');
+    setSessionId(null);
+    // Note: In a real implementation, you might want to cancel the actual request
+    toast.info('Analysis cancelled');
   };
 
-  const getScoreBadgeVariant = (score: number) => {
-    if (score >= 80) return 'default';
-    if (score >= 60) return 'secondary';
-    return 'destructive';
+  const handleRetryAnalysis = () => {
+    setShowProgressModal(false);
+    setError('');
+    setProgressError('');
+    setCurrentStep(0);
+    setStepMessage('');
+    setSessionId(null);
+    analyzeResume();
   };
 
-  const getIssueIcon = (type: string) => {
-    switch (type) {
-      case 'error':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-      case 'info':
-        return <CheckCircle className="w-4 h-4 text-blue-500" />;
-      default:
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+  const handleProgressError = (errorMsg: string) => {
+    setProgressError(errorMsg);
+    setError(errorMsg);
+  };
+
+  const handleAnalysisComplete = (result: any) => {
+    if (currentAnalysisId) {
+      setShowProgressModal(false);
+      router.push(`/ats-score/summary/${currentAnalysisId}`);
+      toast.success('Resume analyzed successfully!');
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background">
       <NavigationHeader />
-      <div className="container mx-auto py-8 pt-24">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">ATS Score Analyzer</h1>
-          <p className="text-muted-foreground">
-            Upload your resume to get an instant ATS compatibility score and optimization suggestions
-          </p>
-        </div>
+      
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8 pt-24">
+        <div className="max-w-6xl mx-auto">
+          
+          {/* Header */}
+          <div className="text-center mb-16 mt-15">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium mb-6">
+              AI-Powered Analysis
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              ATS Resume Analyzer
+            </h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Get instant AI-powered analysis of your resume's ATS compatibility with detailed insights and actionable recommendations
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Upload Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Upload Resume
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div
-                {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragActive
-                    ? 'border-primary bg-primary/5'
-                    : 'border-muted-foreground/25 hover:border-primary/50'
-                }`}
-              >
-                <input {...getInputProps()} />
-                <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                {uploadedFile ? (
-                  <div>
-                    <FileText className="w-8 h-8 mx-auto mb-2 text-primary" />
-                    <p className="font-medium">{uploadedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-lg font-medium mb-2">
-                      {isDragActive ? 'Drop your resume here' : 'Drag & drop your resume'}
-                    </p>
-                    <p className="text-muted-foreground mb-4">
-                      or click to browse files
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Supports PDF files up to 10MB
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <Button
-                onClick={analyzeResume}
-                disabled={!uploadedFile || loading}
-                className="w-full"
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Analyze Resume
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Results Section */}
-          {atsResult && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5" />
-                  ATS Analysis Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Overall Score */}
-                <div className="text-center">
-                  <div className="text-4xl font-bold mb-2">
-                    <span className={getScoreColor(atsResult.overallScore)}>
-                      {atsResult.overallScore}%
-                    </span>
-                  </div>
-                  <Badge variant={getScoreBadgeVariant(atsResult.overallScore)}>
-                    {atsResult.overallScore >= 80 ? 'Excellent' : 
-                     atsResult.overallScore >= 60 ? 'Good' : 'Needs Improvement'}
-                  </Badge>
-                </div>
-
-                {/* Score Breakdown */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Keywords</span>
-                      <span className="text-sm">{atsResult.keywordScore}%</span>
-                    </div>
-                    <Progress value={atsResult.keywordScore} className="h-2" />
-                  </div>
+          {/* Main Content - Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-8">
+            
+            {/* Left Side - How It Works */}
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">How It Works</h2>
+                <div className="relative">
+                  {/* Timeline line with gradient */}
+                 
                   
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Format</span>
-                      <span className="text-sm">{atsResult.formatScore}%</span>
-                    </div>
-                    <Progress value={atsResult.formatScore} className="h-2" />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Structure</span>
-                      <span className="text-sm">{atsResult.structureScore}%</span>
-                    </div>
-                    <Progress value={atsResult.structureScore} className="h-2" />
-                  </div>
-                </div>
-
-                {/* Issues */}
-                {atsResult.issues.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-3">Issues Found</h4>
-                    <div className="space-y-2">
-                      {atsResult.issues.map((issue, index) => (
-                        <div key={index} className="flex items-start gap-2 p-2 rounded border">
-                          {getIssueIcon(issue.type)}
-                          <div className="flex-1">
-                            <p className="text-sm">{issue.message}</p>
-                            {issue.suggestion && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                💡 {issue.suggestion}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Keywords */}
-                <div>
-                  <h4 className="font-medium mb-3">Keywords Analysis</h4>
-                  <div className="space-y-3">
-                    {atsResult.keywords.found.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-green-600 mb-1">Found Keywords</p>
-                        <div className="flex flex-wrap gap-1">
-                          {atsResult.keywords.found.map((keyword, index) => (
-                            <Badge key={index} variant="default" className="text-xs">
-                              {keyword}
-                            </Badge>
-                          ))}
-                        </div>
+                  <div className="space-y-4">
+                    <div className="relative flex items-center gap-4">
+                      {/* Timeline dot */}
+                      <div className="relative z-10 w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                        <Upload className="w-5 h-5 text-white" />
                       </div>
-                    )}
+                      {/* Content */}
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Upload Your Resume</h3>
+                        <p className="text-gray-600 text-sm">Simply drag and drop your PDF resume</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                        <svg className="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                    </div>
                     
-                    {atsResult.keywords.missing.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-red-600 mb-1">Missing Keywords</p>
-                        <div className="flex flex-wrap gap-1">
-                          {atsResult.keywords.missing.map((keyword, index) => (
-                            <Badge key={index} variant="destructive" className="text-xs">
-                              {keyword}
-                            </Badge>
-                          ))}
-                        </div>
+                    <div className="relative flex items-center gap-4">
+                      {/* Timeline dot */}
+                      <div className="relative z-10 w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                        <TrendingUp className="w-5 h-5 text-white" />
                       </div>
-                    )}
+                      {/* Content */}
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">AI Analysis</h3>
+                        <p className="text-gray-600 text-sm">Our AI analyzes your resume across multiple dimensions</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center">
+                        <svg className="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                
+                    <div className="relative flex items-center gap-4">
+                      {/* Timeline dot */}
+                      <div className="relative z-10 w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                        <Award className="w-5 h-5 text-white" />
+                      </div>
+                      {/* Content */}
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Get Results</h3>
+                        <p className="text-gray-600 text-sm">Receive detailed scores and recommendations</p>
+                      </div>
+                    </div>
+                    
+                    
                   </div>
                 </div>
-
-                {/* Recommendations */}
-                {atsResult.recommendations.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                      <Award className="w-4 h-4" />
-                      Recommendations
-                    </h4>
-                    <ul className="space-y-2">
-                      {atsResult.recommendations.map((rec, index) => (
-                        <li key={index} className="text-sm flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>{rec}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Tips Section */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>ATS Optimization Tips</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">Keywords</h4>
-                <p className="text-sm text-muted-foreground">
-                  Include relevant keywords from the job description throughout your resume
-                </p>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">Format</h4>
-                <p className="text-sm text-muted-foreground">
-                  Use standard fonts, avoid graphics, and maintain consistent formatting
-                </p>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">Structure</h4>
-                <p className="text-sm text-muted-foreground">
-                  Use clear section headers and bullet points for easy parsing
-                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Right Side - Upload */}
+            <div>
+              <Card className="border border-gray-200 shadow-lg">
+                <CardHeader className="text-center pb-4">
+                  <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <Upload className="w-5 h-5 text-white" />
+                  </div>
+                  <CardTitle className="text-lg">Upload Your Resume</CardTitle>
+                  <p className="text-gray-600 text-sm">Get instant AI-powered analysis</p>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {error && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div
+                    {...getRootProps()}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                      isDragActive
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-300 hover:border-primary/50 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input {...getInputProps()} />
+                    {uploadedFile ? (
+                      <div className="space-y-2">
+                        <FileText className="w-10 h-10 mx-auto text-primary" />
+                        <div>
+                          <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Upload className="w-10 h-10 mx-auto text-gray-400" />
+                        <div>
+                          <p className="font-medium text-gray-900 mb-1">
+                            {isDragActive ? 'Drop your resume here' : 'Upload Resume'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Drag & drop or click to browse • PDF files only
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={analyzeResume}
+                    disabled={!uploadedFile || loading}
+                    className="w-full mt-4"
+                    size="default"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                        Analyze Resume
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+
+          {/* Why ATS Optimization Matters Section */}
+          {/* <div className="mb-8">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Why ATS Optimization Matters</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Understanding the importance of ATS compatibility for your career success
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4">
+                <div className="w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <span className="text-red-600 font-bold text-xl">75%</span>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">High Rejection Rate</h3>
+                <p className="text-sm text-gray-600">of resumes are rejected by ATS systems before a human ever sees them</p>
+              </div>
+              
+              <div className="text-center p-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Target className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Multi-Dimensional Analysis</h3>
+                <p className="text-sm text-gray-600">We analyze your resume across keyword optimization, formatting, and structure</p>
+              </div>
+              
+              <div className="text-center p-4">
+                <div className="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <TrendingUp className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Maximize Opportunities</h3>
+                <p className="text-sm text-gray-600">Get detailed feedback and recommendations to land more interviews</p>
+              </div>
+            </div>
+          </div> */}
+
+          {/* Privacy & Security Section */}
+          <div className="mb-8 mt-22">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Privacy & Security</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Your data privacy and security are our top priorities
+              </p>
+            </div>
+            
+            <Card className="border border-gray-200 shadow-lg">
+              <CardContent className="px-8 py-8">
+                <div className="max-w-4xl mx-auto">
+                  {/* Security Badges */}
+                  <div className="flex flex-wrap justify-center gap-4 mb-8">
+                    <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>No Data Storage</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Secure Processing</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>No Third-Party Sharing</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-800 px-4 py-2 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Complete Anonymity</span>
+                    </div>
+                  </div>
+                  
+                  {/* Main Description */}
+                  <div className="text-center mb-8">
+                    <p className="text-gray-600 text-base max-w-3xl mx-auto leading-relaxed">
+                      Your resume is processed temporarily and immediately deleted from our servers. 
+                      All analysis is done securely with industry-standard encryption. We never share 
+                      your data with third parties or use it for marketing. Your personal information 
+                      remains completely anonymous during analysis.
+                    </p>
+                  </div>
+
+                  {/* Trust Indicators */}
+                 
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+        
+
+          
+
+        </div>
       </div>
+      
       <FooterSection />
+
+      {/* Progress Modal */}
+      {showProgressModal && (
+        <SimpleProgressModal
+          key={`progress-${currentAnalysisId || 'new'}`}
+          open={showProgressModal}
+          onOpenChange={setShowProgressModal}
+          fileName={uploadedFile?.name}
+          fileSize={uploadedFile?.size}
+          onCancel={handleCancelAnalysis}
+          onRetry={handleRetryAnalysis}
+          hasError={!!progressError}
+          errorMessage={progressError}
+          onError={handleProgressError}
+          onComplete={handleAnalysisComplete}
+          sessionId={sessionId || undefined}
+        />
+      )}
     </div>
   );
 }

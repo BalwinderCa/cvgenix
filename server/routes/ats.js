@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const SimpleATSAnalyzer = require('../utils/simpleATSAnalyzer');
 const EnhancedResumeParser = require('../utils/enhancedResumeParser');
+const progressTracker = require('../utils/progressTracker');
 
 const router = express.Router();
 const analyzer = new SimpleATSAnalyzer();
@@ -44,10 +45,12 @@ const upload = multer({
 router.post('/analyze', upload.single('resume'), async (req, res) => {
   const startTime = Date.now();
   const timeout = 120000; // 2 minutes timeout
+  const sessionId = req.body.sessionId || `ats-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   // Set response timeout
   res.setTimeout(timeout, () => {
     if (!res.headersSent) {
+      errorProgress(sessionId, { message: 'Analysis timeout - file too large or complex' });
       res.status(408).json({
         success: false,
         error: 'Analysis timeout - file too large or complex'
@@ -57,8 +60,11 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
   
   try {
     console.log('🚀 Starting ATS analysis...');
+    progressTracker.initializeProgress(sessionId);
+    progressTracker.updateProgress(sessionId, 0, 'Resume file uploaded successfully');
     
     if (!req.file) {
+      progressTracker.errorProgress(sessionId, { message: 'No resume file uploaded' });
       return res.status(400).json({
         success: false,
         error: 'No resume file uploaded'
@@ -69,11 +75,13 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     
     console.log(`📄 Processing file: ${req.file.originalname}`);
     console.log(`🎯 Target: ${role} ${industry}`);
+    progressTracker.updateProgress(sessionId, 1, `Extracting text from ${req.file.originalname}...`);
 
     // Parse the resume using EnhancedResumeParser
     const parseResult = await resumeParser.parseResume(req.file.path, req.file.mimetype);
     
     if (!parseResult.success) {
+      progressTracker.errorProgress(sessionId, { message: parseResult.error || 'Failed to parse resume' });
       return res.status(400).json({
         success: false,
         error: parseResult.error || 'Failed to parse resume'
@@ -81,6 +89,7 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     }
     
     if (!parseResult.text || parseResult.text.trim().length === 0) {
+      progressTracker.errorProgress(sessionId, { message: 'No text content found in the uploaded file' });
       return res.status(400).json({
         success: false,
         error: 'No text content found in the uploaded file'
@@ -96,35 +105,65 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     };
 
     console.log(`📝 Extracted text length: ${resumeData.text.length} characters`);
+    progressTracker.updateProgress(sessionId, 1, `Successfully extracted ${resumeData.text.length} characters from resume`);
     
     // Analyze with ATS analyzer
+    progressTracker.updateProgress(sessionId, 2, 'Running dual AI analysis with Claude Sonnet 4 and GPT-4o...');
     const analysis = await analyzer.analyzeResume(resumeData, industry, role);
 
     // Clean up uploaded file
     try {
       fs.unlinkSync(req.file.path);
+      console.log('🗑️ Cleaned up uploaded file');
     } catch (cleanupError) {
       console.warn('⚠️ Could not delete uploaded file:', cleanupError.message);
     }
 
+    progressTracker.updateProgress(sessionId, 3, 'Combining and analyzing results from both AI models...');
+
     // Transform the analysis result to match frontend expectations
     const transformedResult = {
-      overallScore: analysis.overallScore || 0,
-      keywordScore: analysis.keywordScore || 0,
-      formatScore: analysis.formatScore || 0,
-      structureScore: analysis.structureScore || 0,
-      issues: analysis.issues || [],
+      overallScore: analysis.atsScore || 0,
+      keywordScore: analysis.detailedMetrics?.keywordDensity || 0,
+      formatScore: analysis.detailedMetrics?.formatConsistency || 0,
+      structureScore: analysis.detailedMetrics?.sectionCompleteness || 0,
+      issues: [
+        ...(analysis.weaknesses || []).map(weakness => ({
+          type: 'warning',
+          message: weakness,
+          suggestion: 'Consider addressing this area for improvement'
+        })),
+        ...(analysis.strengths || []).map(strength => ({
+          type: 'info',
+          message: strength,
+          suggestion: 'This is a strong point in your resume'
+        }))
+      ],
       keywords: {
-        found: analysis.keywords?.found || [],
-        missing: analysis.keywords?.missing || [],
-        suggested: analysis.keywords?.suggested || []
+        found: [], // Will be populated from detailedInsights if available
+        missing: [], // Will be populated from detailedInsights if available
+        suggested: [] // Will be populated from detailedInsights if available
       },
-      recommendations: analysis.recommendations || []
+      recommendations: analysis.recommendations || [],
+      // Additional data from the analyzer
+      overallGrade: analysis.overallGrade,
+      detailedMetrics: analysis.detailedMetrics,
+      quickStats: analysis.quickStats,
+      strengths: analysis.strengths || [],
+      weaknesses: analysis.weaknesses || [],
+      detailedInsights: analysis.detailedInsights,
+      industryAlignment: analysis.industryAlignment,
+      contentQuality: analysis.contentQuality,
+      industryBenchmark: analysis.industryBenchmark
     };
+
+    // Complete the progress
+    progressTracker.completeProgress(sessionId, transformedResult);
 
     res.json({
       success: true,
-      data: transformedResult
+      data: transformedResult,
+      sessionId: sessionId
     });
 
   } catch (error) {
@@ -138,6 +177,9 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
         console.warn('⚠️ Could not delete uploaded file after error:', cleanupError.message);
       }
     }
+
+    // Send error progress
+    progressTracker.errorProgress(sessionId, error);
 
     res.status(500).json({
       success: false,
