@@ -142,14 +142,7 @@ deploy_on_server() {
             # Wait for processes to stop
             sleep 3
             
-            # Backup current version (preserve git repository)
-            if [[ -d "$SERVER_PATH" ]]; then
-                echo "Creating backup..."
-                BACKUP_PATH="${SERVER_PATH}-backup-$(date +%Y%m%d-%H%M%S)"
-                # Copy instead of move to preserve git repository
-                cp -r "$SERVER_PATH" "$BACKUP_PATH"
-                echo "Backup created: $BACKUP_PATH"
-            fi
+            # Skip backup process for faster deployment
             
             # Clone or pull from GitHub
             echo "Updating from GitHub..."
@@ -316,21 +309,7 @@ test_deployment() {
     fi
 }
 
-# Function to cleanup old backups
-cleanup_backups() {
-    print_status "Cleaning up old backups..."
-    ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
-        SERVER_PATH="/var/www/resume-builder"
-        
-        # Keep only the last 3 backups
-        if [[ -d "$SERVER_PATH" ]]; then
-            cd "$(dirname "$SERVER_PATH")"
-            ls -dt "${SERVER_PATH}-backup-"* 2>/dev/null | tail -n +4 | xargs -r rm -rf
-            echo "Old backups cleaned up"
-        fi
-EOF
-    print_success "Backup cleanup completed"
-}
+# Backup cleanup function removed for faster deployment
 
 # Main deployment function
 main() {
@@ -354,7 +333,6 @@ main() {
         
         if test_deployment; then
             log "Health check passed"
-            cleanup_backups
             print_success "Deployment completed successfully!"
             echo "Deployment completed at $(date)"
             echo "Live site: https://$DOMAIN"
