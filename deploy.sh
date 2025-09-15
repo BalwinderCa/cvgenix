@@ -102,21 +102,15 @@ check_prerequisites() {
     print_success "Prerequisites check passed"
 }
 
-# Function to ensure Apache proxy modules are enabled
-ensure_apache_proxy_modules() {
-    print_status "Ensuring Apache proxy modules are enabled..."
+# Function to stop Apache (no longer needed with Next.js)
+stop_apache() {
+    print_status "Stopping Apache service..."
     ssh -i ~/.ssh/id_rsa_resume_builder "$SERVER_USER@$SERVER_IP" << 'EOF'
-        # Enable proxy modules if not already enabled
-        a2enmod proxy proxy_http 2>/dev/null || true
-        
-        # Check if modules are enabled
-        if apache2ctl -M | grep -q proxy_module; then
-            echo "Apache proxy modules are enabled"
-        else
-            echo "Warning: Apache proxy modules may not be properly enabled"
-        fi
+        systemctl stop apache2 || true
+        systemctl disable apache2 || true
+        echo "Apache stopped"
 EOF
-    print_success "Apache proxy modules check completed"
+    print_success "Apache service stopped"
 }
 
 # Function to deploy on server with retry mechanism
@@ -213,30 +207,16 @@ deploy_on_server() {
             nohup npm start > server.log 2>&1 &
             BACKEND_PID=$!
             
-            echo "Starting frontend server (Next.js dev mode)..."
+            echo "Starting frontend server (Next.js on port 80)..."
             cd "$SERVER_PATH/frontend"
-            nohup npm run dev > frontend.log 2>&1 &
+            nohup npm run dev -- -p 80 > frontend.log 2>&1 &
             FRONTEND_PID=$!
             
-            # Ensure Apache is configured to proxy to Next.js
-            echo "Ensuring Apache proxy configuration..."
-            APACHE_CONF="/etc/apache2/sites-available/cvgenix.com.conf"
-            if [[ -f "$APACHE_CONF" ]]; then
-                # Check if proxy configuration exists
-                if ! grep -q "ProxyPass / http://localhost:3000/" "$APACHE_CONF"; then
-                    echo "Adding Next.js proxy configuration to Apache..."
-                    # Add proxy rules for Next.js frontend
-                    sed -i '/ProxyPass \/api http:\/\/localhost:3001\/api/a\    ProxyPass / http://localhost:3000/\n    ProxyPassReverse / http://localhost:3000/' "$APACHE_CONF"
-                else
-                    echo "Next.js proxy configuration already exists"
-                fi
-                
-                # Reload Apache to apply changes
-                systemctl reload apache2
-                echo "Apache configuration updated"
-            else
-                echo "Warning: Apache configuration file not found at $APACHE_CONF"
-            fi
+            # Stop Apache and run Next.js directly on port 80
+            echo "Stopping Apache to run Next.js directly..."
+            systemctl stop apache2 || true
+            systemctl disable apache2 || true
+            echo "Apache stopped - Next.js will run directly"
             
             # Wait a moment for servers to start
             sleep 5
@@ -316,7 +296,7 @@ main() {
     check_prerequisites
     check_internet
     check_ssh_connection
-    ensure_apache_proxy_modules
+    stop_apache
     
     log "Starting server deployment"
     if deploy_on_server; then
