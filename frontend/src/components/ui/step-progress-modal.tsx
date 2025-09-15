@@ -119,7 +119,13 @@ export function StepProgressModal({
     if (!sessionId) return;
 
     console.log(`🔗 Connecting to progress stream for session: ${sessionId}`);
-    const eventSource = new EventSource(`http://localhost:3001/api/ats-progress/stream/${sessionId}`);
+    
+    // Get API base URL dynamically
+    const apiBaseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+      ? `${window.location.protocol}//${window.location.host}/api`
+      : 'http://localhost:3001/api';
+    
+    const eventSource = new EventSource(`${apiBaseUrl}/ats-progress/stream/${sessionId}`);
 
     eventSource.onopen = () => {
       console.log('✅ SSE connection opened');

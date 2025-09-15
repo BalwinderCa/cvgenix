@@ -14,6 +14,7 @@ import { Eye, EyeOff, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
 import FooterSection from '@/components/footer-section';
+import { getApiUrl } from '@/lib/api-utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -131,8 +131,13 @@ export default function ATSScorePage() {
 
       console.log(`🚀 Starting analysis with session ID: ${newSessionId}`);
 
+      // Get API base URL dynamically
+      const apiBaseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+        ? `${window.location.protocol}//${window.location.host}/api`
+        : 'http://localhost:3001/api';
+      
       // Start the request - this will trigger the SSE progress updates
-      const response = await fetch('http://localhost:3001/api/ats/analyze', {
+      const response = await fetch(`${apiBaseUrl}/ats/analyze`, {
         method: 'POST',
         body: formData
       });

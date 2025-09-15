@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+import { getApiBaseUrl } from './api-utils';
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   private getAuthHeaders() {
