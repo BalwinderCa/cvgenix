@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +34,8 @@ interface SharedResumeData {
   certifications: any[];
   languages: any[];
   achievements: any[];
+  socialLinks: any[];
+  customSections: any[];
   template: string;
   createdAt: string;
   updatedAt: string;
@@ -301,7 +304,7 @@ export default function SharedResumePage() {
         <div className="text-center mt-8 p-4 bg-gray-50 rounded-lg">
           <p className="text-sm text-muted-foreground">
             This resume was shared using CVGenix - Create your own professional resume at{' '}
-            <a href="/" className="text-primary hover:underline">cvgenix.com</a>
+            <Link href="/" className="text-primary hover:underline">cvgenix.com</Link>
           </p>
         </div>
       </div>
