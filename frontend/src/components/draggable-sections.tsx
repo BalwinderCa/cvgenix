@@ -81,7 +81,7 @@ export function DraggableSections({ sections, onSectionsChange, onSectionToggle 
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />

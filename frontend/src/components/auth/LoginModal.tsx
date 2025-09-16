@@ -85,7 +85,7 @@ export default function LoginModal({ open, onOpenChange, onSwitchToSignup }: Log
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md md:max-w-lg">
         <DialogHeader>
           <DialogTitle>Welcome Back</DialogTitle>
           <DialogDescription>

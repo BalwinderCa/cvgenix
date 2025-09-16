@@ -124,7 +124,7 @@ export function TemplateSelector({
           <Eye className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] max-h-[80vh] overflow-y-auto sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5" />

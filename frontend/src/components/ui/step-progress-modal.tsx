@@ -291,7 +291,7 @@ export function StepProgressModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={false}>
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md md:max-w-lg" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="text-center text-lg font-semibold">
             Analyzing Your Resume

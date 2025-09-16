@@ -57,7 +57,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
+    // Only load data if we're actually on the dashboard page
+    if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+      loadDashboardData();
+    }
   }, []);
 
   const loadDashboardData = async () => {
@@ -79,19 +82,41 @@ export default function DashboardPage() {
       if (resumesResponse.ok) {
         const resumesData = await resumesResponse.json();
         setResumes(resumesData);
+      } else {
+        console.error('Failed to load resumes:', resumesResponse.status);
       }
 
-      // Load user stats
-      const statsResponse = await fetch('http://localhost:3001/api/users/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Load user stats - only if the endpoint exists
+      try {
+        const statsResponse = await fetch('http://localhost:3001/api/users/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData);
+        } else if (statsResponse.status === 404) {
+          // Endpoint doesn't exist, set default stats
+          console.warn('User stats endpoint not found, using default values');
+          setStats({
+            totalResumes: resumes.length,
+            totalDownloads: 0,
+            atsScore: 0,
+            lastActivity: new Date().toISOString()
+          });
+        }
+      } catch (statsError) {
+        console.warn('User stats endpoint not available:', statsError);
+        // Set default stats if endpoint doesn't exist
+        setStats({
+          totalResumes: resumes.length,
+          totalDownloads: 0,
+          atsScore: 0,
+          lastActivity: new Date().toISOString()
+        });
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
