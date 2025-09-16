@@ -1,446 +1,229 @@
-const express = require('express')
-const { body, validationResult } = require('express-validator')
-const auth = require('../middleware/auth')
-const Resume = require('../models/Resume')
-const ResumeComment = require('../models/ResumeComment')
-const { v4: uuidv4 } = require('uuid')
+const express = require('express');
+const router = express.Router();
+const Resume = require('../models/Resume');
+const auth = require('../middleware/auth');
+const loggerService = require('../services/loggerService');
 
-const router = express.Router()
-
-// @route   POST /api/resume-sharing/:id/toggle-visibility
-// @desc    Toggle resume public visibility
-// @access  Private
-router.post('/:id/toggle-visibility', auth, async (req, res) => {
+// Create a shareable link for a resume
+router.post('/', auth, async (req, res) => {
   try {
-    const resume = await Resume.findById(req.params.id)
+    const { resumeId, isPublic, password, expiresIn, allowDownload, allowComments } = req.body;
+    const userId = req.user.id;
 
+    // Find the resume
+    const resume = await Resume.findOne({ _id: resumeId, user: userId });
     if (!resume) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Resume not found' 
-      })
+      return res.status(404).json({ error: 'Resume not found' });
     }
 
-    // Check if user owns the resume
-    if (resume.user.toString() !== req.user.id) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized' 
-      })
-    }
-
-    // Toggle visibility
-    resume.isPublic = !resume.isPublic
-    if (resume.isPublic && !resume.shareToken) {
-      resume.shareToken = require('crypto').randomBytes(16).toString('hex')
-    } else if (!resume.isPublic) {
-      resume.shareToken = undefined
-    }
-
-    await resume.save()
-
-    res.json({
-      success: true,
-      data: {
-        isPublic: resume.isPublic,
-        shareToken: resume.shareToken,
-        shareUrl: resume.isPublic ? 
-          `${process.env.FRONTEND_URL}/resume/shared/${resume.shareToken}` : null
-      }
-    })
-  } catch (error) {
-    console.error('Error toggling resume visibility:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   GET /api/resume-sharing/public/:token
-// @desc    Get public resume by share token
-// @access  Public
-router.get('/public/:token', async (req, res) => {
-  try {
-    const resume = await Resume.findOne({ shareToken: req.params.token })
-      .populate('user', 'firstName lastName email')
-      .populate('template', 'name category html css config')
-
-    if (!resume) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Resume not found' 
-      })
-    }
-
-    if (!resume.isPublic) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Resume not found' 
-      })
-    }
-
-    res.json({
-      success: true,
-      data: resume
-    })
-  } catch (error) {
-    console.error('Error fetching public resume:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   POST /api/resume-sharing/:id/comments
-// @desc    Add comment to resume
-// @access  Public (for public resumes) or Private (for owned resumes)
-router.post('/:id/comments', [
-  body('content').notEmpty().withMessage('Comment content is required'),
-  body('type').isIn(['comment', 'suggestion', 'question', 'praise']).withMessage('Invalid comment type'),
-  body('position.section').notEmpty().withMessage('Section is required'),
-  body('position.element').notEmpty().withMessage('Element is required')
-], async (req, res) => {
-  const errors = validationResult(req)
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false,
-      message: 'Validation Error',
-      errors: errors.array() 
-    })
-  }
-
-  try {
-    const resume = await Resume.findById(req.params.id)
-
-    if (!resume) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Resume not found' 
-      })
-    }
-
-    // Check if resume is public or user owns it
-    const isOwner = req.user && resume.user.toString() === req.user.id
-    if (!resume.isPublic && !isOwner) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized' 
-      })
-    }
-
-    // For public resumes, require user authentication for comments
-    if (resume.isPublic && !req.user) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Authentication required to comment on public resumes' 
-      })
-    }
-
-    const comment = new ResumeComment({
-      resume: resume._id,
-      user: req.user.id,
-      content: req.body.content,
-      type: req.body.type || 'comment',
-      position: req.body.position
-    })
-
-    await comment.save()
-    await comment.populate('user', 'firstName lastName email')
-
-    res.status(201).json({
-      success: true,
-      data: comment
-    })
-  } catch (error) {
-    console.error('Error adding comment:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   GET /api/resume-sharing/:id/comments
-// @desc    Get comments for resume
-// @access  Public (for public resumes) or Private (for owned resumes)
-router.get('/:id/comments', async (req, res) => {
-  try {
-    const resume = await Resume.findById(req.params.id)
-
-    if (!resume) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Resume not found' 
-      })
-    }
-
-    // Check if resume is public or user owns it
-    const isOwner = req.user && resume.user.toString() === req.user.id
-    if (!resume.isPublic && !isOwner) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized' 
-      })
-    }
-
-    const comments = await ResumeComment.find({ resume: resume._id })
-      .populate('user', 'firstName lastName email')
-      .populate('replies.user', 'firstName lastName email')
-      .sort({ createdAt: -1 })
-
-    res.json({
-      success: true,
-      data: comments
-    })
-  } catch (error) {
-    console.error('Error fetching comments:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   POST /api/resume-sharing/comments/:commentId/reply
-// @desc    Reply to a comment
-// @access  Private
-router.post('/comments/:commentId/reply', [
-  auth,
-  body('content').notEmpty().withMessage('Reply content is required')
-], async (req, res) => {
-  const errors = validationResult(req)
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false,
-      message: 'Validation Error',
-      errors: errors.array() 
-    })
-  }
-
-  try {
-    const comment = await ResumeComment.findById(req.params.commentId)
-      .populate('resume')
-
-    if (!comment) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Comment not found' 
-      })
-    }
-
-    // Check if user can reply (owner of resume or original commenter)
-    const resume = comment.resume
-    const isResumeOwner = resume.user.toString() === req.user.id
-    const isOriginalCommenter = comment.user.toString() === req.user.id
-
-    if (!isResumeOwner && !isOriginalCommenter) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized to reply to this comment' 
-      })
-    }
-
-    const reply = {
-      user: req.user.id,
-      content: req.body.content
-    }
-
-    comment.replies.push(reply)
-    await comment.save()
-
-    // Populate the new reply
-    await comment.populate('replies.user', 'firstName lastName email')
-
-    res.json({
-      success: true,
-      data: comment.replies[comment.replies.length - 1]
-    })
-  } catch (error) {
-    console.error('Error replying to comment:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   PUT /api/resume-sharing/comments/:commentId/status
-// @desc    Update comment status (resolve/dismiss)
-// @access  Private (resume owner only)
-router.put('/comments/:commentId/status', [
-  auth,
-  body('status').isIn(['pending', 'resolved', 'dismissed']).withMessage('Invalid status')
-], async (req, res) => {
-  const errors = validationResult(req)
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false,
-      message: 'Validation Error',
-      errors: errors.array() 
-    })
-  }
-
-  try {
-    const comment = await ResumeComment.findById(req.params.commentId)
-      .populate('resume')
-
-    if (!comment) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Comment not found' 
-      })
-    }
-
-    // Check if user owns the resume
-    const resume = comment.resume
-    if (resume.user.toString() !== req.user.id) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized' 
-      })
-    }
-
-    comment.status = req.body.status
-    comment.isResolved = req.body.status === 'resolved'
+    // Generate unique share ID
+    const shareId = require('crypto').randomBytes(16).toString('hex');
     
-    if (req.body.status === 'resolved') {
-      comment.resolvedBy = req.user.id
-      comment.resolvedAt = new Date()
-    }
-
-    await comment.save()
-
-    res.json({
-      success: true,
-      data: comment
-    })
-  } catch (error) {
-    console.error('Error updating comment status:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   DELETE /api/resume-sharing/comments/:commentId
-// @desc    Delete a comment
-// @access  Private (comment owner or resume owner)
-router.delete('/comments/:commentId', auth, async (req, res) => {
-  try {
-    const comment = await ResumeComment.findById(req.params.commentId)
-      .populate('resume')
-
-    if (!comment) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Comment not found' 
-      })
-    }
-
-    // Check if user can delete (owner of resume or original commenter)
-    const resume = comment.resume
-    const isResumeOwner = resume.user.toString() === req.user.id
-    const isOriginalCommenter = comment.user.toString() === req.user.id
-
-    if (!isResumeOwner && !isOriginalCommenter) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized to delete this comment' 
-      })
-    }
-
-    await comment.deleteOne()
-
-    res.json({
-      success: true,
-      message: 'Comment deleted successfully'
-    })
-  } catch (error) {
-    console.error('Error deleting comment:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
-
-// @route   GET /api/resume-sharing/:id/analytics
-// @desc    Get sharing analytics for resume
-// @access  Private (resume owner only)
-router.get('/:id/analytics', auth, async (req, res) => {
-  try {
-    const resume = await Resume.findById(req.params.id)
-
-    if (!resume) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Resume not found' 
-      })
-    }
-
-    // Check if user owns the resume
-    if (resume.user.toString() !== req.user.id) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Not authorized' 
-      })
-    }
-
-    // Get comment statistics
-    const commentStats = await ResumeComment.aggregate([
-      { $match: { resume: resume._id } },
-      {
-        $group: {
-          _id: '$type',
-          count: { $sum: 1 }
-        }
+    // Calculate expiration date
+    let expiresAt = null;
+    if (expiresIn !== 'never') {
+      const now = new Date();
+      switch (expiresIn) {
+        case '1day':
+          expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          break;
+        case '7days':
+          expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          break;
       }
-    ])
+    }
 
-    // Get recent comments
-    const recentComments = await ResumeComment.find({ resume: resume._id })
-      .populate('user', 'firstName lastName email')
-      .sort({ createdAt: -1 })
-      .limit(10)
+    // Create share data
+    const shareData = {
+      shareId,
+      resumeId,
+      userId,
+      isPublic,
+      password: password || null,
+      expiresAt,
+      allowDownload,
+      allowComments,
+      viewCount: 0,
+      createdAt: new Date(),
+      lastViewedAt: null
+    };
 
-    // Get comment activity over time
-    const commentActivity = await ResumeComment.aggregate([
-      { $match: { resume: resume._id } },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
-          },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: -1 } },
-      { $limit: 30 }
-    ])
+    // Store share data in resume document
+    resume.sharing = shareData;
+    await resume.save();
+
+    // Generate share URL
+    const shareUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/shared-resume/${shareId}`;
+
+    loggerService.info('Resume share link created', { 
+      userId, 
+      resumeId, 
+      shareId,
+      isPublic,
+      hasPassword: !!password
+    });
 
     res.json({
       success: true,
       data: {
-        isPublic: resume.isPublic,
-        shareToken: resume.shareToken,
-        shareUrl: resume.isPublic ? 
-          `${process.env.FRONTEND_URL}/resume/shared/${resume.shareToken}` : null,
-        commentStats,
-        recentComments,
-        commentActivity,
-        totalComments: await ResumeComment.countDocuments({ resume: resume._id })
+        id: shareId,
+        url: shareUrl,
+        password: password || null,
+        isPublic,
+        viewCount: 0,
+        createdAt: shareData.createdAt,
+        expiresAt: shareData.expiresAt
       }
-    })
-  } catch (error) {
-    console.error('Error fetching analytics:', error)
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    })
-  }
-})
+    });
 
-module.exports = router
+  } catch (error) {
+    loggerService.error('Error creating resume share link:', error);
+    res.status(500).json({ error: 'Failed to create share link' });
+  }
+});
+
+// Get shared resume by share ID
+router.get('/:shareId', async (req, res) => {
+  try {
+    const { shareId } = req.params;
+    const { password } = req.query;
+
+    // Find resume with sharing data
+    const resume = await Resume.findOne({ 'sharing.shareId': shareId });
+    if (!resume) {
+      return res.status(404).json({ error: 'Shared resume not found' });
+    }
+
+    const sharing = resume.sharing;
+    
+    // Check if link has expired
+    if (sharing.expiresAt && new Date() > sharing.expiresAt) {
+      return res.status(410).json({ error: 'Share link has expired' });
+    }
+
+    // Check password if required
+    if (!sharing.isPublic && sharing.password) {
+      if (!password || password !== sharing.password) {
+        return res.status(401).json({ error: 'Password required' });
+      }
+    }
+
+    // Update view count and last viewed
+    resume.sharing.viewCount += 1;
+    resume.sharing.lastViewedAt = new Date();
+    await resume.save();
+
+    // Return resume data (without sensitive information)
+    const publicResumeData = {
+      id: resume._id,
+      title: resume.title || 'Resume',
+      personalInfo: resume.personalInfo,
+      experience: resume.experience,
+      education: resume.education,
+      skills: resume.skills,
+      projects: resume.projects,
+      certifications: resume.certifications,
+      languages: resume.languages,
+      achievements: resume.achievements,
+      template: resume.template || 'modern',
+      createdAt: resume.createdAt,
+      updatedAt: resume.updatedAt,
+      sharing: {
+        allowDownload: sharing.allowDownload,
+        allowComments: sharing.allowComments,
+        viewCount: sharing.viewCount
+      }
+    };
+
+    loggerService.info('Shared resume accessed', { 
+      shareId, 
+      viewCount: sharing.viewCount,
+      hasPassword: !!sharing.password
+    });
+
+    res.json({
+      success: true,
+      data: publicResumeData
+    });
+
+  } catch (error) {
+    loggerService.error('Error accessing shared resume:', error);
+    res.status(500).json({ error: 'Failed to access shared resume' });
+  }
+});
+
+// Get sharing statistics for a resume
+router.get('/stats/:resumeId', auth, async (req, res) => {
+  try {
+    const { resumeId } = req.params;
+    const userId = req.user.id;
+
+    const resume = await Resume.findOne({ _id: resumeId, user: userId });
+    if (!resume) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    if (!resume.sharing) {
+      return res.json({
+        success: true,
+        data: {
+          isShared: false,
+          stats: null
+        }
+      });
+    }
+
+    const stats = {
+      isShared: true,
+      shareId: resume.sharing.shareId,
+      viewCount: resume.sharing.viewCount,
+      createdAt: resume.sharing.createdAt,
+      lastViewedAt: resume.sharing.lastViewedAt,
+      expiresAt: resume.sharing.expiresAt,
+      isExpired: resume.sharing.expiresAt ? new Date() > resume.sharing.expiresAt : false
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    loggerService.error('Error getting sharing stats:', error);
+    res.status(500).json({ error: 'Failed to get sharing statistics' });
+  }
+});
+
+// Delete share link
+router.delete('/:resumeId', auth, async (req, res) => {
+  try {
+    const { resumeId } = req.params;
+    const userId = req.user.id;
+
+    const resume = await Resume.findOne({ _id: resumeId, user: userId });
+    if (!resume) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    if (resume.sharing) {
+      resume.sharing = undefined;
+      await resume.save();
+      
+      loggerService.info('Resume share link deleted', { userId, resumeId });
+    }
+
+    res.json({
+      success: true,
+      message: 'Share link deleted successfully'
+    });
+
+  } catch (error) {
+    loggerService.error('Error deleting share link:', error);
+    res.status(500).json({ error: 'Failed to delete share link' });
+  }
+});
+
+module.exports = router;

@@ -1659,3 +1659,196 @@
   environment: 'development',
   timestamp: '2025-09-15 02:52:44'
 }
+{
+  error: Error: listen EADDRINUSE: address already in use :::3001
+      at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+      at listenInCluster (node:net:1997:12)
+      at Server.listen (node:net:2102:7)
+      at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:174:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+    code: 'EADDRINUSE',
+    errno: -48,
+    syscall: 'listen',
+    address: '::',
+    port: 3001
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use :::3001\n' +
+    'Error: listen EADDRINUSE: address already in use :::3001\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n' +
+    '    at listenInCluster (node:net:1997:12)\n' +
+    '    at Server.listen (node:net:2102:7)\n' +
+    '    at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:174:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: 'Error: listen EADDRINUSE: address already in use :::3001\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n' +
+    '    at listenInCluster (node:net:1997:12)\n' +
+    '    at Server.listen (node:net:2102:7)\n' +
+    '    at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:174:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  exception: true,
+  date: 'Mon Sep 15 2025 21:36:00 GMT-0600 (Central Standard Time)',
+  process: {
+    pid: 7410,
+    uid: 502,
+    gid: 20,
+    cwd: '/Users/mac/Downloads/Pdf maker/server',
+    execPath: '/usr/local/Cellar/node/24.6.0/bin/node',
+    version: 'v24.6.0',
+    argv: [
+      '/usr/local/Cellar/node/24.6.0/bin/node',
+      '/Users/mac/Downloads/Pdf maker/server/index.js'
+    ],
+    memoryUsage: {
+      rss: 213225472,
+      heapTotal: 217395200,
+      heapUsed: 78367952,
+      external: 22290440,
+      arrayBuffers: 18780455
+    }
+  },
+  os: {
+    loadavg: [ 3.42919921875, 4.78173828125, 5.16455078125 ],
+    uptime: 4046
+  },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1940,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1997,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'Server.listen',
+      line: 2102,
+      method: 'listen',
+      native: false
+    },
+    {
+      column: 10,
+      file: '/Users/mac/Downloads/Pdf maker/server/index.js',
+      function: 'startServer',
+      line: 174,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'resume-builder-api',
+  environment: 'development',
+  timestamp: '2025-09-15 21:36:00'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use :::3001
+      at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+      at listenInCluster (node:net:1997:12)
+      at Server.listen (node:net:2102:7)
+      at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:174:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+    code: 'EADDRINUSE',
+    errno: -48,
+    syscall: 'listen',
+    address: '::',
+    port: 3001
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use :::3001\n' +
+    'Error: listen EADDRINUSE: address already in use :::3001\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n' +
+    '    at listenInCluster (node:net:1997:12)\n' +
+    '    at Server.listen (node:net:2102:7)\n' +
+    '    at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:174:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: 'Error: listen EADDRINUSE: address already in use :::3001\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n' +
+    '    at listenInCluster (node:net:1997:12)\n' +
+    '    at Server.listen (node:net:2102:7)\n' +
+    '    at startServer (/Users/mac/Downloads/Pdf maker/server/index.js:174:10)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  exception: true,
+  date: 'Tue Sep 16 2025 01:37:19 GMT-0600 (Central Standard Time)',
+  process: {
+    pid: 85115,
+    uid: 502,
+    gid: 20,
+    cwd: '/Users/mac/Downloads/Pdf maker/server',
+    execPath: '/usr/local/Cellar/node/24.6.0/bin/node',
+    version: 'v24.6.0',
+    argv: [
+      '/usr/local/Cellar/node/24.6.0/bin/node',
+      '/Users/mac/Downloads/Pdf maker/server/index.js'
+    ],
+    memoryUsage: {
+      rss: 192536576,
+      heapTotal: 204550144,
+      heapUsed: 83116136,
+      external: 22294318,
+      arrayBuffers: 18784333
+    }
+  },
+  os: { loadavg: [ 7.56787109375, 5.88671875, 5.0390625 ], uptime: 18525 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1940,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1997,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'Server.listen',
+      line: 2102,
+      method: 'listen',
+      native: false
+    },
+    {
+      column: 10,
+      file: '/Users/mac/Downloads/Pdf maker/server/index.js',
+      function: 'startServer',
+      line: 174,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'resume-builder-api',
+  environment: 'development',
+  timestamp: '2025-09-16 01:37:19'
+}

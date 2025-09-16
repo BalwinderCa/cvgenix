@@ -77,7 +77,7 @@ router.get('/:id', auth, async (req, res) => {
 router.post('/', [
   auth,
   [
-    body('templateId').isMongoId().withMessage('Valid template ID is required'),
+    body('templateId').notEmpty().withMessage('Template ID is required'),
     body('personalInfo.firstName').notEmpty().withMessage('First name is required'),
     body('personalInfo.lastName').notEmpty().withMessage('Last name is required'),
     body('personalInfo.email').isEmail().withMessage('Valid email is required')
@@ -91,23 +91,53 @@ router.post('/', [
   try {
     const { templateId, ...resumeData } = req.body
 
-    // Verify template exists
-    const template = await Template.findById(templateId)
-    if (!template) {
-      return res.status(404).json({ message: 'Template not found' })
+    // Handle both MongoDB ObjectId and file-based template names
+    let template = null
+    let templateReference = null
+
+    // Check if templateId is a MongoDB ObjectId (24 hex characters)
+    if (/^[0-9a-fA-F]{24}$/.test(templateId)) {
+      // It's a MongoDB ObjectId, find the template in database
+      template = await Template.findById(templateId)
+      if (!template) {
+        return res.status(404).json({ message: 'Template not found' })
+      }
+      templateReference = templateId
+    } else {
+      // It's a file-based template name, validate it exists
+      const availableTemplates = resumePdfService.getAvailableTemplates()
+      const fileTemplate = availableTemplates.find(t => t.id === templateId)
+      
+      if (!fileTemplate) {
+        return res.status(404).json({ message: 'Template not found' })
+      }
+      
+      // For file-based templates, we'll store the template name
+      // and handle it in the PDF generation service
+      templateReference = templateId
     }
 
     // Create new resume
     const resume = new Resume({
       user: req.user.id,
-      template: templateId,
+      template: templateReference,
       ...resumeData
     })
 
     await resume.save()
 
-    // Populate template info
-    await resume.populate('template', 'name category thumbnail')
+    // If we have a database template, populate it
+    if (template) {
+      await resume.populate('template', 'name category thumbnail')
+    } else {
+      // For file-based templates, add template info manually
+      resume.template = {
+        _id: templateId,
+        name: templateId.charAt(0).toUpperCase() + templateId.slice(1),
+        category: 'Professional',
+        thumbnail: `/templates/${templateId}-preview.png`
+      }
+    }
 
     res.status(201).json(resume)
   } catch (error) {

@@ -48,10 +48,10 @@ const adminRoutes = require('./routes/admin')
 const simpleATSRoutes = require('./routes/simpleATS')
 const atsRoutes = require('./routes/ats')
 const fileRoutes = require('./routes/files')
+const resumeSharingRoutes = require('./routes/resumeSharing')
 const emailRoutes = require('./routes/emails')
 const dashboardRoutes = require('./routes/dashboard')
 const coverLetterRoutes = require('./routes/coverLetters')
-const resumeSharingRoutes = require('./routes/resumeSharing')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -135,10 +135,10 @@ app.use('/api/emails', require('./routes/emails')) // Original email routes
 app.use('/api/dashboard', require('./routes/dashboard'))
 app.use('/api/payments', require('./routes/payments'))
 app.use('/api/cover-letters', coverLetterRoutes)
-app.use('/api/resume-sharing', resumeSharingRoutes)
 app.use('/api/analytics', require('./routes/analytics'))
 app.use('/api/jobs', require('./routes/jobMatching'))
 app.use('/api/resume-scoring', require('./routes/resumeScoring'))
+app.use('/api/resumes/sharing', resumeSharingRoutes) // Resume sharing routes
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
