@@ -22,10 +22,10 @@ export function useAutoSave({
   onSaveSuccess,
   onSaveError
 }: UseAutoSaveOptions) {
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const lastSavedDataRef = useRef<string>();
-  const isSavingRef = useRef(false);
-  const saveAttemptsRef = useRef(0);
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const lastSavedDataRef = useRef<string | undefined>(undefined);
+  const isSavingRef = useRef<boolean>(false);
+  const saveAttemptsRef = useRef<number>(0);
   const maxRetries = 3;
 
   // Serialize data for comparison
