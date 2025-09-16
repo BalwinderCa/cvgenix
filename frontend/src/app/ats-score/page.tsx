@@ -224,25 +224,25 @@ export default function ATSScorePage() {
         <div className="max-w-6xl mx-auto">
           
           {/* Header */}
-          <div className="text-center mb-16 mt-15">
+          <div className="text-center mb-8 sm:mb-16 mt-8 sm:mt-15">
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium mb-6">
               AI-Powered Analysis
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
               ATS Resume Analyzer
             </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto px-4">
               Get instant AI-powered analysis of your resume's ATS compatibility with detailed insights and actionable recommendations
             </p>
           </div>
 
           {/* Main Content - Side by Side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 mb-8">
             
             {/* Left Side - How It Works */}
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">How It Works</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">How It Works</h2>
                 <div className="relative">
                   {/* Timeline line with gradient */}
                  
@@ -413,19 +413,19 @@ export default function ATSScorePage() {
           </div> */}
 
           {/* Privacy & Security Section */}
-          <div className="mb-8 mt-22">
+          <div className="mb-8 mt-16 sm:mt-22">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Privacy & Security</h2>
-              <p className="text-gray-600 max-w-2xl mx-auto">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Privacy & Security</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto px-4">
                 Your data privacy and security are our top priorities
               </p>
             </div>
             
             <Card className="border border-gray-200 shadow-lg">
-              <CardContent className="px-8 py-8">
+              <CardContent className="px-4 sm:px-8 py-6 sm:py-8">
                 <div className="max-w-4xl mx-auto">
                   {/* Security Badges */}
-                  <div className="flex flex-wrap justify-center gap-4 mb-8">
+                  <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
                     <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
                       <CheckCircle className="w-4 h-4" />
                       <span>No Data Storage</span>

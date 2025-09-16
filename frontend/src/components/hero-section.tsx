@@ -151,7 +151,7 @@ export default function HeroSection({
       <div className="w-full max-w-full relative z-10">
         <div className="relative container mx-auto py-16 md:py-24">
           
-          <div className="relative z-10 flex w-full flex-col-reverse items-stretch gap-10 md:flex-row md:items-center md:gap-16 lg:gap-20">
+          <div className="relative z-10 flex w-full flex-col items-stretch gap-10 md:flex-row md:items-center md:gap-16 lg:gap-20">
             <div className="min-w-0 md:basis-1/2">
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 shadow-sm backdrop-blur-sm">
@@ -182,11 +182,11 @@ export default function HeroSection({
                     Smart section guidance and tips
                   </li>
                 </ul>
-                <div className="flex flex-wrap gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   {isAuthenticated ? (
                     <Link 
                       href={primaryHref} 
-                      className="inline-flex items-center justify-center w-[300px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary"
+                      className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary"
                       aria-label={primaryLabel}>
                       <div style={{
                         position: 'absolute',
@@ -202,7 +202,7 @@ export default function HeroSection({
                     </Link>
                   ) : (
                     <button
-                      className="inline-flex items-center justify-center w-[300px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary"
+                      className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary"
                       onClick={() => setSignupModalOpen(true)}
                       aria-label={primaryLabel}>
                       <div style={{
@@ -222,7 +222,7 @@ export default function HeroSection({
                   {secondaryHref ?
                   <Link
                     href={secondaryHref}
-                    className="inline-flex items-center justify-center w-[300px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20"
                     style={{
                       height: '48px',
                       paddingLeft: '24px',
@@ -253,7 +253,7 @@ export default function HeroSection({
                     </Link> :
 
                   <button
-                    className="inline-flex items-center justify-center w-[300px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20"
                     style={{
                       height: '48px',
                       paddingLeft: '24px',

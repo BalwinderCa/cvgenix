@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   FileText, 
   Download, 
@@ -17,7 +23,9 @@ import {
   User,
   Calendar,
   TrendingUp,
-  Award
+  Award,
+  Settings,
+  LogOut
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -165,6 +173,13 @@ export default function DashboardPage() {
     });
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    toast.success('Logged out successfully');
+    router.push('/');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -179,19 +194,35 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
             <p className="text-muted-foreground">Manage your resumes and track your progress</p>
           </div>
-          <Button onClick={createNewResume}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Resume
-          </Button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Button onClick={createNewResume} className="flex-1 sm:flex-none">
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Resume
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="shrink-0 h-10 w-10">
+                  <Settings className="h-4 w-4" />
+                  <span className="sr-only">Open settings menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Resumes</CardTitle>
@@ -273,18 +304,18 @@ export default function DashboardPage() {
                 {resumes.map((resume) => (
                   <div
                     key={resume._id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                         <FileText className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
-                        <h3 className="font-semibold">{resume.title}</h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold truncate">{resume.title}</h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                           <span>Created: {formatDate(resume.createdAt)}</span>
-                          <span>Updated: {formatDate(resume.updatedAt)}</span>
-                          <Badge variant={resume.status === 'published' ? 'default' : 'secondary'}>
+                          <span className="hidden sm:inline">Updated: {formatDate(resume.updatedAt)}</span>
+                          <Badge variant={resume.status === 'published' ? 'default' : 'secondary'} className="w-fit">
                             {resume.status}
                           </Badge>
                         </div>
@@ -295,23 +326,28 @@ export default function DashboardPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => editResume(resume._id)}
+                        className="flex-1 sm:flex-none"
                       >
                         <Edit className="w-4 h-4" />
+                        <span className="ml-2 sm:hidden">Edit</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => downloadResume(resume._id)}
+                        className="flex-1 sm:flex-none"
                       >
                         <Download className="w-4 h-4" />
+                        <span className="ml-2 sm:hidden">Download</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => deleteResume(resume._id)}
-                        className="text-destructive hover:text-destructive"
+                        className="text-destructive hover:text-destructive flex-1 sm:flex-none"
                       >
                         <Trash2 className="w-4 h-4" />
+                        <span className="ml-2 sm:hidden">Delete</span>
                       </Button>
                     </div>
                   </div>

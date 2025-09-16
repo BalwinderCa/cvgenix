@@ -752,8 +752,8 @@ export default function ResumeBuilderPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid lg:grid-cols-2 gap-16">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
           {/* Form Section */}
           <div className="space-y-8 relative">
 
@@ -765,7 +765,7 @@ export default function ResumeBuilderPage() {
                   <p className="text-sm text-gray-600">We'll use this information to help employers reach out to you.</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">First Name</Label>
                       <Input
@@ -791,7 +791,7 @@ export default function ResumeBuilderPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
                       <Input
@@ -829,7 +829,7 @@ export default function ResumeBuilderPage() {
                       }))}
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="city">City</Label>
                       <Input
@@ -864,7 +864,7 @@ export default function ResumeBuilderPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="linkedin">LinkedIn</Label>
                       <Input
@@ -923,7 +923,7 @@ export default function ResumeBuilderPage() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <Label>Company</Label>
                             <Input
@@ -939,7 +939,7 @@ export default function ResumeBuilderPage() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                           <div>
                             <Label>Start Date</Label>
                             <Input
@@ -1066,7 +1066,7 @@ export default function ResumeBuilderPage() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <Label>Institution</Label>
                             <Input
@@ -1082,7 +1082,7 @@ export default function ResumeBuilderPage() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                           <div>
                             <Label>Field of Study</Label>
                             <Input
@@ -1098,7 +1098,7 @@ export default function ResumeBuilderPage() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                           <div>
                             <Label>Start Date</Label>
                             <Input
@@ -1162,7 +1162,7 @@ export default function ResumeBuilderPage() {
                           </Button>
                         </div>
                         <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label className="text-sm font-medium text-gray-700">Skill Name</Label>
                               <Input

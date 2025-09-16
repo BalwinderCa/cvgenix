@@ -87,7 +87,7 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
 
           {/* Center: Main Nav */}
           <nav
-            className="flex items-center"
+            className="hidden sm:flex items-center"
             aria-label="Primary">
 
             <ul className="flex items-center gap-4">
@@ -162,7 +162,7 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
                   variant="ghost"
                   size="icon"
                   aria-label="Open navigation menu"
-                  className="hidden">
+                  className="sm:hidden">
 
                   <Menu className="h-5 w-5" aria-hidden="true" />
                 </Button>
