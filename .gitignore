@@ -48,6 +48,9 @@ next-env.d.ts
 *.log
 server/logs/
 deploy.log
+# audit files
+*.audit.json
+server/logs/*.audit.json
 
 # temp files
 server/temp/
