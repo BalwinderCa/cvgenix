@@ -57,7 +57,7 @@ export default function ProfilePage() {
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [creditPlans, setCreditPlans] = useState([]);
+  const [creditPlans, setCreditPlans] = useState<any[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [formData, setFormData] = useState({
