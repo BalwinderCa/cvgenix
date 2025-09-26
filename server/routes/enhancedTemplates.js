@@ -2,8 +2,131 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const Template = require('../models/Template');
 const auth = require('../middleware/auth');
+const handlebars = require('handlebars');
+
+// Register Handlebars helpers
+handlebars.registerHelper('formatDate', function(dateString, format = 'YYYY-MM') {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString; // Return original if invalid date
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1; // Months are 0-indexed
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+                      "July", "August", "September", "October", "November", "December"];
+
+  if (format === 'MMMM YYYY') {
+    return `${monthNames[date.getMonth()]} ${year}`;
+  }
+  return `${year}-${month.toString().padStart(2, '0')}`;
+});
+
+handlebars.registerHelper('eq', function(arg1, arg2, options) {
+  // If options is provided and has fn method, it's a block helper
+  if (options && typeof options.fn === 'function') {
+    return (arg1 == arg2) ? options.fn(this) : options.inverse(this);
+  }
+  // Otherwise, it's a simple comparison helper
+  return arg1 == arg2;
+});
+
+handlebars.registerHelper('mod', function(a, b) {
+  return a % b === 0;
+});
+
+handlebars.registerHelper('unless', function(condition, options) {
+  return !condition ? options.fn(this) : options.inverse(this);
+});
+
+handlebars.registerHelper('times', function(n, options) {
+  let result = '';
+  for (let i = 0; i < n; i++) {
+    result += options.fn({ ...this, index: i });
+  }
+  return result;
+});
+
+handlebars.registerHelper('lt', function(a, b) {
+  return a < b;
+});
+
+handlebars.registerHelper('gte', function(a, b) {
+  return a >= b;
+});
 
 const router = express.Router();
+
+// @route   GET /api/templates
+// @desc    Get all active templates with optional filtering
+// @access  Public
+router.get('/', [
+  query('category').optional().isIn(['Professional', 'Creative', 'Minimalist', 'Modern', 'Classic', 'Executive']),
+  query('isPremium').optional().isBoolean(),
+  query('isPopular').optional().isBoolean(),
+  query('isNewTemplate').optional().isBoolean(),
+  query('search').optional().isString(),
+  query('limit').optional().isInt({ min: 1, max: 100 }),
+  query('page').optional().isInt({ min: 1 })
+], async (req, res) => {
+  const errors = validationResult(req)
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() })
+  }
+
+  try {
+    const {
+      category,
+      isPremium,
+      isPopular,
+      isNewTemplate,
+      search,
+      limit = 20,
+      page = 1
+    } = req.query
+
+    // Build filter object
+    const filter = { isActive: true }
+
+    if (category) filter.category = category
+    if (isPremium !== undefined) filter.isPremium = isPremium === 'true'
+    if (isPopular !== undefined) filter.isPopular = isPopular === 'true'
+    if (isNewTemplate !== undefined) filter.isNewTemplate = isNewTemplate === 'true'
+
+    // Search functionality
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ]
+    }
+
+    // Calculate pagination
+    const skip = (page - 1) * limit
+
+    // Execute query
+    const templates = await Template.find(filter)
+      .select('name description category thumbnail tags isPremium isPopular isNewTemplate usageCount rating')
+      .sort({ isPopular: -1, isNewTemplate: -1, usageCount: -1, createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip)
+
+    // Get total count for pagination
+    const total = await Template.countDocuments(filter)
+
+    res.json({
+      templates,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(total / limit),
+        hasNext: skip + templates.length < total,
+        hasPrev: page > 1
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching templates:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
 
 // @route   GET /api/templates/enhanced
 // @desc    Get templates with enhanced filtering and sorting
@@ -164,6 +287,234 @@ router.get('/recommendations', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/templates/categories
+// @desc    Get all template categories with counts
+// @access  Public
+router.get('/categories', async (req, res) => {
+  try {
+    const categories = await Template.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+          avgRating: { $avg: '$rating.average' },
+          totalUsage: { $sum: '$usageCount' }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: categories
+    });
+
+  } catch (error) {
+    console.error('Error getting template categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/templates/:id
+// @desc    Get template by ID
+// @access  Public
+router.get('/:id', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id)
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    if (!template.isActive) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    res.json(template)
+  } catch (error) {
+    console.error('Error fetching template:', error)
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// @route   GET /api/templates/:id/preview
+// @desc    Get template preview with sample data
+// @access  Public
+router.get('/:id/preview', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id)
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    if (!template.isActive) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    // Use template's own sample data
+    const sampleData = template.sampleData || {
+      personalInfo: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@email.com',
+        phone: '+1 (555) 123-4567',
+        address: '123 Main Street',
+        city: 'New York',
+        province: 'NY',
+        postalCode: '10001',
+        linkedin: 'linkedin.com/in/johndoe',
+        website: 'johndoe.com',
+        summary: 'Experienced software engineer with 5+ years of expertise in full-stack development, cloud architecture, and team leadership. Passionate about building scalable applications and mentoring junior developers.'
+      },
+      experience: [],
+      education: [],
+      skills: [],
+      languages: [],
+      certifications: [],
+      socialLinks: [],
+      customSections: []
+    }
+
+    // Generate HTML with sample data
+    const handlebars = require('handlebars')
+    const compiledTemplate = handlebars.compile(template.html)
+    const htmlContent = compiledTemplate(sampleData)
+
+    // Combine with CSS
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Preview - ${template.name}</title>
+    <style>${template.css}</style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`
+
+    res.setHeader('Content-Type', 'text/html')
+    res.send(fullHtml)
+  } catch (error) {
+    console.error('Error generating template preview:', error)
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// @route   POST /api/templates/:id/preview
+// @desc    Generate template preview with custom data
+// @access  Public
+router.post('/:id/preview', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id)
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    if (!template.isActive) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    // Use provided data or fallback to template-specific sample data
+    const userData = req.body || template.sampleData || {
+      personalInfo: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@email.com',
+        phone: '+1 (555) 123-4567',
+        address: '123 Main Street',
+        city: 'New York',
+        province: 'NY',
+        postalCode: '10001',
+        linkedin: 'linkedin.com/in/johndoe',
+        website: 'johndoe.com',
+        summary: 'Experienced software engineer with 5+ years of expertise in full-stack development, cloud architecture, and team leadership. Passionate about building scalable applications and mentoring junior developers.'
+      },
+      experience: [
+        {
+          id: 'exp1',
+          company: 'Tech Solutions Inc.',
+          position: 'Senior Software Engineer',
+          startDate: '2022-01',
+          endDate: '2024-12',
+          current: true,
+          description: 'Lead development of microservices architecture and mentor junior developers.',
+          achievements: [
+            'Improved system performance by 40% through optimization',
+            'Led a team of 5 developers on critical projects',
+            'Implemented CI/CD pipeline reducing deployment time by 60%'
+          ]
+        }
+      ],
+      education: [
+        {
+          id: 'edu1',
+          institution: 'University of Technology',
+          degree: 'Bachelor of Science',
+          field: 'Computer Science',
+          startDate: '2016-09',
+          endDate: '2020-05',
+          gpa: '3.8'
+        }
+      ],
+      skills: [
+        { id: 'skill1', name: 'JavaScript', level: 'Expert', category: 'Technical Skills' },
+        { id: 'skill2', name: 'React', level: 'Advanced', category: 'Technical Skills' },
+        { id: 'skill3', name: 'Node.js', level: 'Advanced', category: 'Technical Skills' }
+      ],
+      languages: [
+        { id: 'lang1', language: 'English', proficiency: 'Native' }
+      ],
+      certifications: [],
+      socialLinks: [],
+      customSections: []
+    }
+
+    // Generate HTML with user data
+    const compiledTemplate = handlebars.compile(template.html)
+    const htmlContent = compiledTemplate(userData)
+
+    // Combine with CSS
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Preview - ${template.name}</title>
+    <style>${template.css}</style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`
+
+    res.setHeader('Content-Type', 'text/html')
+    res.send(fullHtml)
+  } catch (error) {
+    console.error('Error generating template preview:', error)
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // @route   POST /api/templates/compare
 // @desc    Compare multiple templates
 // @access  Public
@@ -284,39 +635,6 @@ router.get('/:id/analytics', async (req, res) => {
   }
 });
 
-// @route   GET /api/templates/categories
-// @desc    Get all template categories with counts
-// @access  Public
-router.get('/categories', async (req, res) => {
-  try {
-    const categories = await Template.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 },
-          avgRating: { $avg: '$rating.average' },
-          totalUsage: { $sum: '$usageCount' }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
-
-    res.json({
-      success: true,
-      data: categories
-    });
-
-  } catch (error) {
-    console.error('Error getting template categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
-
 // Helper functions
 function getIndustryFromCategory(category) {
   const industryMap = {
@@ -411,56 +729,5 @@ function getRecommendationReason(template, { industry, experience, role }) {
   
   return reasons.join(', ') || 'Great match for your profile';
 }
-
-// @route   GET /api/templates
-// @desc    Get all templates (basic endpoint for backward compatibility)
-// @access  Public
-router.get('/', async (req, res) => {
-  try {
-    const { page = 1, limit = 20, category, search } = req.query;
-    
-    // Build filter
-    const filter = {};
-    if (category && category !== 'all') {
-      filter.category = category;
-    }
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
-      ];
-    }
-
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Execute query
-    const templates = await Template.find(filter)
-      .sort({ isPopular: -1, usageCount: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
-
-    // Get total count
-    const totalCount = await Template.countDocuments(filter);
-    const totalPages = Math.ceil(totalCount / parseInt(limit));
-
-    res.json({
-      templates,
-      pagination: {
-        current: parseInt(page),
-        total: totalPages,
-        hasNext: parseInt(page) < totalPages,
-        hasPrev: parseInt(page) > 1,
-        totalCount
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching templates:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 module.exports = router;

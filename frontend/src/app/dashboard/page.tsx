@@ -28,6 +28,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { toast } from 'sonner';
+import NavigationHeader from '@/components/navigation-header';
 
 interface Resume {
   _id: string;
@@ -218,7 +219,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
+      <NavigationHeader />
+      <main className="pt-16">
+        <div className="container mx-auto py-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
@@ -381,7 +384,8 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

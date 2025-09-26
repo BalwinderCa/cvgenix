@@ -102,6 +102,237 @@ router.get('/:id', async (req, res) => {
   }
 })
 
+// @route   GET /api/templates/:id/preview
+// @desc    Get template preview with sample data
+// @access  Public
+router.get('/:id/preview', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id)
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    if (!template.isActive) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    // Sample data for preview
+    const sampleData = {
+      personalInfo: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@email.com',
+        phone: '+1 (555) 123-4567',
+        address: '123 Main Street',
+        city: 'New York',
+        province: 'NY',
+        postalCode: '10001',
+        linkedin: 'linkedin.com/in/johndoe',
+        website: 'johndoe.com',
+        summary: 'Experienced software engineer with 5+ years of expertise in full-stack development, cloud architecture, and team leadership. Passionate about building scalable applications and mentoring junior developers.'
+      },
+      experience: [
+        {
+          id: 'exp1',
+          company: 'Tech Solutions Inc.',
+          position: 'Senior Software Engineer',
+          startDate: '2022-01',
+          endDate: '2024-12',
+          current: true,
+          description: 'Lead development of microservices architecture and mentor junior developers.',
+          achievements: [
+            'Improved system performance by 40% through optimization',
+            'Led a team of 5 developers on critical projects',
+            'Implemented CI/CD pipeline reducing deployment time by 60%'
+          ]
+        },
+        {
+          id: 'exp2',
+          company: 'StartupXYZ',
+          position: 'Full Stack Developer',
+          startDate: '2020-06',
+          endDate: '2021-12',
+          current: false,
+          description: 'Developed web applications using React, Node.js, and PostgreSQL.',
+          achievements: [
+            'Built responsive web applications serving 10,000+ users',
+            'Collaborated with design team to implement user-friendly interfaces',
+            'Reduced bug reports by 30% through improved testing practices'
+          ]
+        }
+      ],
+      education: [
+        {
+          id: 'edu1',
+          institution: 'University of Technology',
+          degree: 'Bachelor of Science',
+          field: 'Computer Science',
+          startDate: '2016-09',
+          endDate: '2020-05',
+          gpa: '3.8'
+        }
+      ],
+      skills: [
+        { id: 'skill1', name: 'JavaScript', level: 'Expert', category: 'Technical Skills' },
+        { id: 'skill2', name: 'React', level: 'Advanced', category: 'Technical Skills' },
+        { id: 'skill3', name: 'Node.js', level: 'Advanced', category: 'Technical Skills' },
+        { id: 'skill4', name: 'Python', level: 'Intermediate', category: 'Technical Skills' },
+        { id: 'skill5', name: 'Project Management', level: 'Advanced', category: 'Soft Skills' },
+        { id: 'skill6', name: 'Team Leadership', level: 'Advanced', category: 'Soft Skills' }
+      ],
+      languages: [
+        { id: 'lang1', language: 'English', proficiency: 'Native' },
+        { id: 'lang2', language: 'Spanish', proficiency: 'Intermediate' }
+      ],
+      certifications: [
+        {
+          id: 'cert1',
+          name: 'AWS Certified Solutions Architect',
+          issuer: 'Amazon Web Services',
+          date: '2023-03',
+          url: 'https://aws.amazon.com/certification/'
+        }
+      ],
+      socialLinks: [
+        { id: 'social1', platform: 'GitHub', url: 'https://github.com/johndoe' },
+        { id: 'social2', platform: 'LinkedIn', url: 'https://linkedin.com/in/johndoe' }
+      ],
+      customSections: []
+    }
+
+    // Generate HTML with sample data
+    const handlebars = require('handlebars')
+    const compiledTemplate = handlebars.compile(template.html)
+    const htmlContent = compiledTemplate(sampleData)
+
+    // Combine with CSS
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Preview - ${template.name}</title>
+    <style>${template.css}</style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`
+
+    res.setHeader('Content-Type', 'text/html')
+    res.send(fullHtml)
+  } catch (error) {
+    console.error('Error generating template preview:', error)
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// @route   POST /api/templates/:id/preview
+// @desc    Generate template preview with custom data
+// @access  Public
+router.post('/:id/preview', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id)
+
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    if (!template.isActive) {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+
+    // Use provided data or fallback to sample data
+    const userData = req.body || {
+      personalInfo: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@email.com',
+        phone: '+1 (555) 123-4567',
+        address: '123 Main Street',
+        city: 'New York',
+        province: 'NY',
+        postalCode: '10001',
+        linkedin: 'linkedin.com/in/johndoe',
+        website: 'johndoe.com',
+        summary: 'Experienced software engineer with 5+ years of expertise in full-stack development, cloud architecture, and team leadership. Passionate about building scalable applications and mentoring junior developers.'
+      },
+      experience: [
+        {
+          id: 'exp1',
+          company: 'Tech Solutions Inc.',
+          position: 'Senior Software Engineer',
+          startDate: '2022-01',
+          endDate: '2024-12',
+          current: true,
+          description: 'Lead development of microservices architecture and mentor junior developers.',
+          achievements: [
+            'Improved system performance by 40% through optimization',
+            'Led a team of 5 developers on critical projects',
+            'Implemented CI/CD pipeline reducing deployment time by 60%'
+          ]
+        }
+      ],
+      education: [
+        {
+          id: 'edu1',
+          institution: 'University of Technology',
+          degree: 'Bachelor of Science',
+          field: 'Computer Science',
+          startDate: '2016-09',
+          endDate: '2020-05',
+          gpa: '3.8'
+        }
+      ],
+      skills: [
+        { id: 'skill1', name: 'JavaScript', level: 'Expert', category: 'Technical Skills' },
+        { id: 'skill2', name: 'React', level: 'Advanced', category: 'Technical Skills' },
+        { id: 'skill3', name: 'Node.js', level: 'Advanced', category: 'Technical Skills' }
+      ],
+      languages: [
+        { id: 'lang1', language: 'English', proficiency: 'Native' }
+      ],
+      certifications: [],
+      socialLinks: [],
+      customSections: []
+    }
+
+    // Generate HTML with user data
+    const handlebars = require('handlebars')
+    const compiledTemplate = handlebars.compile(template.html)
+    const htmlContent = compiledTemplate(userData)
+
+    // Combine with CSS
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Preview - ${template.name}</title>
+    <style>${template.css}</style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`
+
+    res.setHeader('Content-Type', 'text/html')
+    res.send(fullHtml)
+  } catch (error) {
+    console.error('Error generating template preview:', error)
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Template not found' })
+    }
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // @route   GET /api/templates/categories
 // @desc    Get all template categories with counts
 // @access  Public

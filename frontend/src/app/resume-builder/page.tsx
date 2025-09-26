@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   User, 
   Briefcase, 
@@ -40,6 +41,7 @@ import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
 import FooterSection from '@/components/footer-section';
 import { ResumePreview } from '@/components/resume-preview';
+import { DatabaseResumePreview } from '@/components/database-resume-preview';
 import { TemplateSelector } from '@/components/template-selector';
 import { EnhancedSkillsInput } from '@/components/enhanced-skills-input';
 import { ResumeSharing } from '@/components/resume-sharing';
@@ -159,10 +161,11 @@ export default function ResumeBuilderPage() {
     customSections: []
   });
   const [loading, setLoading] = useState(false);
-  const [currentTemplate, setCurrentTemplate] = useState('modern');
+  const [currentTemplate, setCurrentTemplate] = useState('68d0d4afb43130abbe306950'); // Default to Professional Classic template ID
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState('heading');
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [sections, setSections] = useState([
     { id: 'heading', title: 'Heading', icon: <User className="w-4 h-4" />, enabled: true, order: 0, required: true },
     { id: 'experience', title: 'Work Experience', icon: <Briefcase className="w-4 h-4" />, enabled: true, order: 1, required: true },
@@ -257,7 +260,14 @@ export default function ResumeBuilderPage() {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Save error:', errorData);
-      throw new Error('Failed to save resume');
+      
+      // Handle rate limiting specifically
+      if (response.status === 429) {
+        const retryAfter = errorData.retryAfter || 1;
+        throw new Error(`Rate limited. Please wait ${retryAfter} minute(s) before trying again.`);
+      }
+      
+      throw new Error(errorData.message || 'Failed to save resume');
     }
 
     setLastSaved(new Date());
@@ -267,7 +277,7 @@ export default function ResumeBuilderPage() {
   const { manualSave, hasUnsavedChanges, isSaving } = useAutoSave({
     data: resumeData,
     onSave: saveResumeToServer,
-    interval: 30000, // 30 seconds
+    interval: 60000, // 60 seconds (increased to reduce API calls)
     enabled: true,
     onSaveSuccess: () => {
       // Subtle success feedback
@@ -1892,9 +1902,9 @@ export default function ResumeBuilderPage() {
             {/* Preview Content */}
             <div className="w-full">
               <div className={`bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ${isResumeEmpty() ? 'min-h-[300px]' : ''}`}>
-                <ResumePreview 
+                <DatabaseResumePreview 
                   data={resumeData as any}
-                  template={currentTemplate as 'modern' | 'classic' | 'minimal'}
+                  templateId={currentTemplate}
                 />
               </div>
             </div>
@@ -1902,22 +1912,32 @@ export default function ResumeBuilderPage() {
             {/* Progress Navigation Button */}
             <div className="flex justify-center gap-4">
               {currentTab === 'heading' ? (
-                // For heading section, show only next button with tab name
-                <Button
-                  onClick={() => {
-                    const currentIndex = sections.findIndex(s => s.id === currentTab);
-                    if (currentIndex < sections.length - 1) {
-                      setCurrentTab(sections[currentIndex + 1].id);
-                    }
-                  }}
-                  disabled={currentSectionIndex === sections.length - 1}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4 mr-2" />
-                  Next: {sections[currentSectionIndex + 1]?.title || 'Complete'}
-                </Button>
+                // For heading section, show full preview and next button
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsPreviewModalOpen(true)}
+                    className="px-4 py-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Full Preview
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const currentIndex = sections.findIndex(s => s.id === currentTab);
+                      if (currentIndex < sections.length - 1) {
+                        setCurrentTab(sections[currentIndex + 1].id);
+                      }
+                    }}
+                    disabled={currentSectionIndex === sections.length - 1}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 mr-2" />
+                    Next: {sections[currentSectionIndex + 1]?.title || 'Complete'}
+                  </Button>
+                </>
               ) : (
-                // For other sections, show two buttons
+                // For other sections, show three buttons
                 <>
                   <Button
                     variant="outline"
@@ -1932,6 +1952,14 @@ export default function ResumeBuilderPage() {
                   >
                     <ChevronLeft className="w-4 h-4 mr-2" />
                     Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsPreviewModalOpen(true)}
+                    className="px-4 py-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Full Preview
                   </Button>
                   <Button
                     onClick={() => {
@@ -1952,6 +1980,24 @@ export default function ResumeBuilderPage() {
           </div>
         </div>
       </main>
+      
+      {/* Full Preview Modal */}
+      <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5" />
+              Full Resume Preview
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <DatabaseResumePreview 
+              data={resumeData as any}
+              templateId={currentTemplate}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Footer */}
       <div className="mt-20">

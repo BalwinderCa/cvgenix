@@ -64,8 +64,13 @@ export function useAutoSave({
         console.error('Auto-save failed:', error);
         
         if (attempt < maxRetries) {
-          // Retry with exponential backoff
-          const delay = Math.pow(2, attempt) * 1000;
+          // Check if it's a rate limiting error
+          const isRateLimited = error.message && error.message.includes('Rate limited');
+          
+          // Retry with exponential backoff, longer delay for rate limiting
+          const baseDelay = isRateLimited ? 30000 : 1000; // 30s for rate limit, 1s for other errors
+          const delay = baseDelay * Math.pow(2, attempt - 1);
+          
           setTimeout(() => {
             attemptSave(attempt + 1);
           }, delay);
@@ -73,7 +78,12 @@ export function useAutoSave({
           // Max retries reached
           saveAttemptsRef.current = attempt;
           onSaveError?.(error);
-          toast.error('Failed to save resume. Please try again.', { duration: 4000 });
+          
+          // Show appropriate error message
+          const errorMessage = error.message && error.message.includes('Rate limited') 
+            ? error.message 
+            : 'Failed to save resume. Please try again.';
+          toast.error(errorMessage, { duration: 6000 });
         }
       } finally {
         if (attempt >= maxRetries) {
@@ -122,7 +132,7 @@ export function useAutoSave({
     // Debounce saves to avoid too frequent API calls
     const debounceTimeout = setTimeout(() => {
       saveData();
-    }, 2000); // 2 second debounce
+    }, 5000); // 5 second debounce (increased to reduce API calls)
 
     return () => {
       clearTimeout(debounceTimeout);

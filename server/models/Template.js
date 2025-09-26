@@ -82,6 +82,10 @@ const TemplateSchema = new mongoose.Schema({
       default: 'normal'
     }
   },
+  sampleData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   isPremium: {
     type: Boolean,
     default: false
