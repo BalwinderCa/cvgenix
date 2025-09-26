@@ -54,7 +54,7 @@ export default function LoginPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Login successful!');
-        router.push('/dashboard');
+        router.push('/resume-builder');
       } else {
         setError(data.message || 'Login failed');
       }
@@ -130,7 +130,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
                       >
                         {showPassword ? <EyeOff /> : <Eye />}
                       </button>
@@ -149,7 +149,7 @@ export default function LoginPage() {
                 <div className="mt-6 text-center text-sm">
                   <p className="text-muted-foreground">
                     Don't have an account?{' '}
-                    <Link href="/signup" className="text-primary hover:underline font-medium">
+                    <Link href="/signup" className="text-primary hover:underline font-medium cursor-pointer">
                       Sign up
                     </Link>
                   </p>

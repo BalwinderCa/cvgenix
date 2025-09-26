@@ -75,7 +75,7 @@ export default function SignupPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         toast.success('Account created successfully!');
-        router.push('/dashboard');
+        router.push('/resume-builder');
       } else {
         setError(data.message || 'Registration failed');
       }
@@ -186,7 +186,7 @@ export default function SignupPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
                       >
                         {showPassword ? <EyeOff /> : <Eye />}
                       </button>
@@ -210,7 +210,7 @@ export default function SignupPage() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
                       >
                         {showConfirmPassword ? <EyeOff /> : <Eye />}
                       </button>
@@ -229,7 +229,7 @@ export default function SignupPage() {
                 <div className="mt-6 text-center text-sm">
                   <p className="text-muted-foreground">
                     Already have an account?{' '}
-                    <Link href="/login" className="text-primary hover:underline font-medium">
+                    <Link href="/login" className="text-primary hover:underline font-medium cursor-pointer">
                       Sign in
                     </Link>
                   </p>
@@ -237,11 +237,11 @@ export default function SignupPage() {
 
                 <div className="mt-4 text-xs text-muted-foreground text-center">
                   By creating an account, you agree to our{' '}
-                  <Link href="/terms" className="text-primary hover:underline">
+                  <Link href="/terms" className="text-primary hover:underline cursor-pointer">
                     Terms of Service
                   </Link>{' '}
                   and{' '}
-                  <Link href="/privacy" className="text-primary hover:underline">
+                  <Link href="/privacy" className="text-primary hover:underline cursor-pointer">
                     Privacy Policy
                   </Link>
                 </div>

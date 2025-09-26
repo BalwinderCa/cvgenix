@@ -55,13 +55,6 @@ export default function NotFound() {
           </p>
           <div className="flex flex-wrap gap-2 justify-center">
             <Link 
-              href="/dashboard" 
-              className="text-sm text-primary hover:underline"
-            >
-              Dashboard
-            </Link>
-            <span className="text-muted-foreground">•</span>
-            <Link 
               href="/templates" 
               className="text-sm text-primary hover:underline"
             >

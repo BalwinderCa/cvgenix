@@ -334,7 +334,7 @@ class EnhancedEmailService {
         email: user.email,
         plan: subscriptionData.plan,
         features: subscriptionData.features || [],
-        dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
+        resumeBuilderUrl: `${process.env.FRONTEND_URL}/resume-builder`,
         supportEmail: process.env.SUPPORT_EMAIL || 'support@resumebuilder.com',
         ...options
       });
@@ -576,7 +576,7 @@ class EnhancedEmailService {
             </div>
             
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Go to Dashboard</a>
+              <a href="${process.env.FRONTEND_URL}/resume-builder" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Build Resume</a>
             </div>
           </div>
           
@@ -624,7 +624,7 @@ class EnhancedEmailService {
             </div>
             
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">View in Dashboard</a>
+              <a href="${process.env.FRONTEND_URL}/resume-builder" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Build Resume</a>
             </div>
           </div>
           
@@ -747,7 +747,7 @@ class EnhancedEmailService {
           <li>{{this}}</li>
           {{/each}}
         </ul>
-        <p><a href="{{dashboardUrl}}">Access Your Dashboard</a></p>
+        <p><a href="{{resumeBuilderUrl}}">Build Your Resume</a></p>
       </body>
       </html>
     `;

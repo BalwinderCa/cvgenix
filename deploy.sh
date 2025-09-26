@@ -9,9 +9,9 @@ set -u  # Exit on undefined variables
 # Configuration
 SERVER_IP="72.14.179.145"
 SERVER_USER="root"
-SERVER_PATH="/var/www/resume-builder-platform"
+SERVER_PATH="/var/www/cvgenix"
 DOMAIN="cvgenix.com"
-GITHUB_REPO="https://github.com/BalwinderCa/resume-builder-platform.git"
+GITHUB_REPO="https://github.com/BalwinderCa/cvgenixgit"
 LOG_FILE="deploy.log"
 MAX_RETRIES=3
 HEALTH_CHECK_TIMEOUT=30

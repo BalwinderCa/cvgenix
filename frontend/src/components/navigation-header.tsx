@@ -133,9 +133,9 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="flex items-center gap-2">
+                      <Link href="/profile" className="flex items-center gap-2">
                         <User className="h-4 w-4" />
-                        Dashboard
+                        Profile
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2">
@@ -239,11 +239,11 @@ export default function NavigationHeader({ className }: NavigationHeaderProps) {
                       <>
                         <SheetClose asChild>
                           <Link
-                            href="/dashboard"
+                            href="/profile"
                             onClick={() => setOpen(false)}
                             className="flex items-center gap-2 px-2 py-3 rounded-md hover:bg-muted/70 text-foreground/90">
                             <User className="h-4 w-4" />
-                            <span className="text-base font-medium">Dashboard</span>
+                            <span className="text-base font-medium">Profile</span>
                           </Link>
                         </SheetClose>
                         <Button

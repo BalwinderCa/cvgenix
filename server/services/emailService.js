@@ -422,7 +422,7 @@ class EmailService {
         lastName: user.lastName,
         email: user.email,
         plan: plan,
-        dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
+        resumeBuilderUrl: `${process.env.FRONTEND_URL}/resume-builder`,
         helpUrl: `${process.env.FRONTEND_URL}/help`,
         unsubscribeUrl: `${process.env.FRONTEND_URL}/unsubscribe`,
         supportUrl: `${process.env.FRONTEND_URL}/contact`,
@@ -454,7 +454,7 @@ class EmailService {
         date: new Date(invoice.created * 1000).toLocaleDateString(),
         invoiceId: invoice.id,
         paymentMethod: invoice.payment_intent?.payment_method?.type || 'Card',
-        dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
+        resumeBuilderUrl: `${process.env.FRONTEND_URL}/resume-builder`,
         supportUrl: `${process.env.FRONTEND_URL}/contact`,
         siteName: process.env.SITE_NAME || 'ResumeAI Pro',
         siteUrl: process.env.SITE_URL || 'http://localhost:3001'
@@ -483,7 +483,7 @@ class EmailService {
         amount: (invoice.amount_due / 100).toFixed(2),
         date: new Date(invoice.created * 1000).toLocaleDateString(),
         invoiceId: invoice.id,
-        dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
+        resumeBuilderUrl: `${process.env.FRONTEND_URL}/resume-builder`,
         billingUrl: `${process.env.FRONTEND_URL}/billing`,
         supportUrl: `${process.env.FRONTEND_URL}/contact`,
         siteName: process.env.SITE_NAME || 'ResumeAI Pro',
@@ -510,7 +510,7 @@ class EmailService {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        dashboardUrl: `${process.env.FRONTEND_URL}/dashboard`,
+        resumeBuilderUrl: `${process.env.FRONTEND_URL}/resume-builder`,
         supportUrl: `${process.env.FRONTEND_URL}/contact`,
         resubscribeUrl: `${process.env.FRONTEND_URL}/pricing`,
         siteName: process.env.SITE_NAME || 'ResumeAI Pro',
@@ -550,7 +550,7 @@ class EmailService {
             <h2>Hello {{firstName}} {{lastName}}!</h2>
             <p>🎉 Congratulations! You've successfully upgraded to our <strong>{{plan.name}} plan</strong>.</p>
             <p>Your subscription is now active and you have access to all premium features.</p>
-            <a href="{{dashboardUrl}}" class="cta-button">Access Your Dashboard</a>
+            <a href="{{resumeBuilderUrl}}" class="cta-button">Build Your Resume</a>
             <p>Best regards,<br>The {{siteName}} Team</p>
           </div>
         </div>

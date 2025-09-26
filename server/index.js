@@ -50,7 +50,6 @@ const atsRoutes = require('./routes/ats')
 const fileRoutes = require('./routes/files')
 const resumeSharingRoutes = require('./routes/resumeSharing')
 const emailRoutes = require('./routes/emails')
-const dashboardRoutes = require('./routes/dashboard')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -131,7 +130,6 @@ app.use('/api/progress', require('./routes/progress')) // Simple progress tracki
 app.use('/api/ai', require('./routes/ai')) // AI services routes
 app.use('/api/files', security.fileUploadSecurity, require('./routes/files')) // File upload security
 app.use('/api/emails', require('./routes/emails')) // Original email routes
-app.use('/api/dashboard', require('./routes/dashboard'))
 app.use('/api/payments', require('./routes/payments'))
 app.use('/api/analytics', require('./routes/analytics'))
 app.use('/api/jobs', require('./routes/jobMatching'))

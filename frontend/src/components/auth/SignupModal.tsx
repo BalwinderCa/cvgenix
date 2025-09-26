@@ -118,7 +118,7 @@ export default function SignupModal({ open, onOpenChange, onSwitchToLogin }: Sig
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md md:max-w-lg">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] !max-w-md">
         <DialogHeader>
           <DialogTitle>Create Account</DialogTitle>
           <DialogDescription>
@@ -202,7 +202,7 @@ export default function SignupModal({ open, onOpenChange, onSwitchToLogin }: Sig
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 {showPassword ? <EyeOff /> : <Eye />}
               </button>
@@ -226,7 +226,7 @@ export default function SignupModal({ open, onOpenChange, onSwitchToLogin }: Sig
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 {showConfirmPassword ? <EyeOff /> : <Eye />}
               </button>
@@ -251,7 +251,7 @@ export default function SignupModal({ open, onOpenChange, onSwitchToLogin }: Sig
                 onOpenChange(false);
                 onSwitchToLogin();
               }}
-              className="text-primary hover:underline font-medium"
+              className="text-primary hover:underline font-medium cursor-pointer"
             >
               Sign in
             </button>

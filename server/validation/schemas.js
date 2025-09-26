@@ -6,7 +6,7 @@ const patterns = {
   password: Joi.string().min(6).max(128).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).messages({
     'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, and one number'
   }),
-  name: Joi.string().min(2).max(50).pattern(/^[a-zA-Z\s\-']+$/).trim(),
+  name: Joi.string().min(2).max(50).pattern(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/).trim(),
   objectId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/),
   phone: Joi.string().pattern(/^[\+]?[1-9][\d]{0,15}$/).optional(),
   url: Joi.string().uri(),

@@ -67,6 +67,50 @@ class PaymentService {
         }
       }
     };
+
+    // Credit purchase plans
+    this.creditPlans = {
+      starter: {
+        id: 'starter_credits',
+        name: 'Starter Pack',
+        price: 4.99,
+        credits: 10,
+        description: 'Perfect for getting started',
+        features: [
+          '10 Resume Credits',
+          '10 ATS Analysis Credits',
+          'Basic Templates'
+        ]
+      },
+      popular: {
+        id: 'popular_credits',
+        name: 'Popular Pack',
+        price: 9.99,
+        credits: 25,
+        description: 'Most popular choice',
+        features: [
+          '25 Resume Credits',
+          '25 ATS Analysis Credits',
+          'All Templates',
+          'Priority Support'
+        ],
+        popular: true
+      },
+      professional: {
+        id: 'professional_credits',
+        name: 'Professional Pack',
+        price: 19.99,
+        credits: 60,
+        description: 'For professionals',
+        features: [
+          '60 Resume Credits',
+          '60 ATS Analysis Credits',
+          'All Templates',
+          'Priority Support',
+          'Custom Branding'
+        ]
+      }
+    };
   }
 
   // Create Stripe customer
@@ -510,6 +554,72 @@ class PaymentService {
   // Get available plans
   getPlans() {
     return this.plans;
+  }
+
+  // Get credit plans
+  getCreditPlans() {
+    return Object.values(this.creditPlans);
+  }
+
+  // Create credit checkout session
+  async createCreditCheckoutSession(planId, userId, successUrl, cancelUrl) {
+    try {
+      const plan = this.creditPlans[planId];
+      if (!plan) {
+        return { success: false, error: 'Invalid plan' };
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return { success: false, error: 'User not found' };
+      }
+
+      // Create or get Stripe customer
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await this.createCustomer(user);
+        if (!customer.success) {
+          return customer;
+        }
+        customerId = customer.customerId;
+      }
+
+      const session = await this.stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: plan.name,
+                description: plan.description,
+              },
+              unit_amount: Math.round(plan.price * 100), // Convert to cents
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          userId: userId,
+          planId: planId,
+          credits: plan.credits,
+          type: 'credit_purchase'
+        },
+      });
+
+      return {
+        success: true,
+        sessionId: session.id,
+        url: session.url
+      };
+    } catch (error) {
+      console.error('Create credit checkout session error:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // Get user's current plan

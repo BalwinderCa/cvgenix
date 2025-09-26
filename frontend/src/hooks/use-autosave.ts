@@ -65,7 +65,7 @@ export function useAutoSave({
         
         if (attempt < maxRetries) {
           // Check if it's a rate limiting error
-          const isRateLimited = error.message && error.message.includes('Rate limited');
+          const isRateLimited = error instanceof Error && error.message && error.message.includes('Rate limited');
           
           // Retry with exponential backoff, longer delay for rate limiting
           const baseDelay = isRateLimited ? 30000 : 1000; // 30s for rate limit, 1s for other errors
@@ -80,7 +80,7 @@ export function useAutoSave({
           onSaveError?.(error);
           
           // Show appropriate error message
-          const errorMessage = error.message && error.message.includes('Rate limited') 
+          const errorMessage = error instanceof Error && error.message && error.message.includes('Rate limited') 
             ? error.message 
             : 'Failed to save resume. Please try again.';
           toast.error(errorMessage, { duration: 6000 });

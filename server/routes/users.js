@@ -91,42 +91,37 @@ router.delete('/profile', auth, async (req, res) => {
   }
 })
 
-// @route   GET /api/users/dashboard
-// @desc    Get user dashboard data
+// @route   GET /api/users/stats
+// @desc    Get user statistics
 // @access  Private
-router.get('/dashboard', auth, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
-    // Get user's resumes
-    const resumes = await Resume.find({ user: req.user.id })
-      .populate('template', 'name category thumbnail')
-      .sort({ updatedAt: -1 })
-      .limit(5)
+    const userId = req.user.id
 
     // Get resume statistics
-    const totalResumes = await Resume.countDocuments({ user: req.user.id })
-    const publicResumes = await Resume.countDocuments({ user: req.user.id, isPublic: true })
+    const totalResumes = await Resume.countDocuments({ user: userId })
+    const publicResumes = await Resume.countDocuments({ user: userId, isPublic: true })
+    const privateResumes = totalResumes - publicResumes
+    
+    // Get recent resumes (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     const recentResumes = await Resume.countDocuments({ 
-      user: req.user.id, 
-      updatedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      user: userId, 
+      createdAt: { $gte: thirtyDaysAgo }
     })
-
-    // Get user's subscription info
-    const user = await User.findById(req.user.id).select('subscription')
 
     res.json({
-      recentResumes: resumes,
-      stats: {
-        totalResumes,
-        publicResumes,
-        recentResumes
-      },
-      subscription: user.subscription
+      totalResumes,
+      publicResumes,
+      privateResumes,
+      recentResumes
     })
   } catch (error) {
-    console.error('Error fetching dashboard data:', error)
+    console.error('Error fetching user stats:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })
+
 
 // @route   GET /api/users/resumes
 // @desc    Get all user resumes with pagination

@@ -730,7 +730,7 @@ export default function ResumeBuilderPage() {
                   <React.Fragment key={section.id}>
                     <button
                       onClick={() => setCurrentTab(section.id)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap group ${
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap group cursor-pointer ${
                         currentTab === section.id
                           ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'

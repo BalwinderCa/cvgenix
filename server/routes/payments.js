@@ -25,6 +25,25 @@ router.get('/plans', (req, res) => {
   }
 });
 
+// @route   GET /api/payments/credit-plans
+// @desc    Get available credit purchase plans
+// @access  Public
+router.get('/credit-plans', (req, res) => {
+  try {
+    const plans = paymentService.getCreditPlans();
+    res.json({
+      success: true,
+      data: plans
+    });
+  } catch (error) {
+    console.error('Get credit plans error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get credit plans'
+    });
+  }
+});
+
 // @route   GET /api/payments/user-plan
 // @desc    Get user's current plan
 // @access  Private
@@ -336,6 +355,48 @@ router.post('/create-payment-intent', [
     res.status(500).json({
       success: false,
       error: 'Failed to create payment intent'
+    });
+  }
+});
+
+// @route   POST /api/payments/create-credit-checkout
+// @desc    Create Stripe checkout session for credit purchase
+// @access  Private
+router.post('/create-credit-checkout', [
+  auth,
+  body('planId', 'Plan ID is required').notEmpty(),
+  body('successUrl', 'Success URL is required').isURL(),
+  body('cancelUrl', 'Cancel URL is required').isURL()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      });
+    }
+
+    const { planId, successUrl, cancelUrl } = req.body;
+
+    const result = await paymentService.createCreditCheckoutSession(
+      planId,
+      req.user.id,
+      successUrl,
+      cancelUrl
+    );
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Create credit checkout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create credit checkout session'
     });
   }
 });

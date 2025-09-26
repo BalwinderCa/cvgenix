@@ -85,7 +85,7 @@ export default function LoginModal({ open, onOpenChange, onSwitchToSignup }: Log
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md md:max-w-lg">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] !max-w-md">
         <DialogHeader>
           <DialogTitle>Welcome Back</DialogTitle>
           <DialogDescription>
@@ -134,7 +134,7 @@ export default function LoginModal({ open, onOpenChange, onSwitchToSignup }: Log
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 {showPassword ? <EyeOff /> : <Eye />}
               </button>
@@ -159,7 +159,7 @@ export default function LoginModal({ open, onOpenChange, onSwitchToSignup }: Log
                 onOpenChange(false);
                 onSwitchToSignup();
               }}
-              className="text-primary hover:underline font-medium"
+              className="text-primary hover:underline font-medium cursor-pointer"
             >
               Sign up
             </button>
