@@ -373,7 +373,7 @@ router.post('/send-payment-confirmation',
  *                 properties:
  *                   type:
  *                     type: string
- *                     enum: [summary, experience, skills, cover_letter]
+ *                     enum: [summary, experience, skills]
  *                     example: "summary"
  *                   content:
  *                     type: string

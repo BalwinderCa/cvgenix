@@ -630,46 +630,6 @@ const swaggerDefinition = {
         }
       },
       
-      // Cover letter schemas
-      CoverLetter: {
-        type: 'object',
-        properties: {
-          id: {
-            type: 'string',
-            example: '507f1f77bcf86cd799439011'
-          },
-          title: {
-            type: 'string',
-            example: 'Software Engineer Application'
-          },
-          company: {
-            type: 'string',
-            example: 'Tech Corp'
-          },
-          position: {
-            type: 'string',
-            example: 'Senior Software Engineer'
-          },
-          content: {
-            type: 'string',
-            example: 'Dear Hiring Manager, I am writing to express my interest...'
-          },
-          template: {
-            type: 'string',
-            example: '507f1f77bcf86cd799439011'
-          },
-          createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2025-09-13T09:00:00.000Z'
-          },
-          updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2025-09-13T09:00:00.000Z'
-          }
-        }
-      },
       
       // ATS schemas
       ATSAnalysis: {

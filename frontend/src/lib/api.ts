@@ -104,46 +104,6 @@ class ApiService {
     return response.json();
   }
 
-  // Cover letter endpoints
-  async getCoverLetters() {
-    const response = await fetch(`${API_BASE_URL}/cover-letters`, {
-      headers: this.getAuthHeaders()
-    });
-    return response.json();
-  }
-
-  async saveCoverLetter(coverLetterData: any) {
-    const response = await fetch(`${API_BASE_URL}/cover-letters`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(coverLetterData)
-    });
-    return response.json();
-  }
-
-  async updateCoverLetter(coverLetterId: string, coverLetterData: any) {
-    const response = await fetch(`${API_BASE_URL}/cover-letters/${coverLetterId}`, {
-      method: 'PUT',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(coverLetterData)
-    });
-    return response.json();
-  }
-
-  async deleteCoverLetter(coverLetterId: string) {
-    const response = await fetch(`${API_BASE_URL}/cover-letters/${coverLetterId}`, {
-      method: 'DELETE',
-      headers: this.getAuthHeaders()
-    });
-    return response.json();
-  }
-
-  async exportCoverLetterToPDF(coverLetterId: string) {
-    const response = await fetch(`${API_BASE_URL}/cover-letters/${coverLetterId}/export/pdf`, {
-      headers: this.getAuthHeaders()
-    });
-    return response.blob();
-  }
 
   // User endpoints
   async getUserStats() {

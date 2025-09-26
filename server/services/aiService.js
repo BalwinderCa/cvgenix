@@ -102,9 +102,6 @@ class AIService {
         case 'skills':
           result = await this.generateSkills(data, options);
           break;
-        case 'cover_letter':
-          result = await this.generateCoverLetter(data, options);
-          break;
         case 'ats_optimization':
           result = await this.optimizeForATS(data, options);
           break;
@@ -232,39 +229,6 @@ Generate only the skills section, no additional formatting.`;
     }
   }
 
-  /**
-   * Generate cover letter
-   */
-  async generateCoverLetter(data, options = {}) {
-    const { jobDescription, company, role, resumeData } = data;
-    const { provider = 'openai', tone = 'professional', length = 'medium' } = options;
-
-    const prompt = `Generate a professional cover letter:
-
-Job Description: ${jobDescription}
-Company: ${company}
-Role: ${role}
-Resume Data: ${JSON.stringify(resumeData, null, 2)}
-
-Requirements:
-- ${length} length (short: 1 paragraph, medium: 2-3 paragraphs, long: 4-5 paragraphs)
-- ${tone} tone
-- Address specific requirements from job description
-- Highlight relevant experience and skills
-- Show enthusiasm for the role and company
-- Professional formatting
-- No placeholders or generic content
-
-Generate the complete cover letter with proper formatting.`;
-
-    if (provider === 'anthropic' && this.anthropic) {
-      return await this.callAnthropic(prompt, 'cover_letter');
-    } else if (this.openai) {
-      return await this.callOpenAI(prompt, 'cover_letter');
-    } else {
-      throw new Error('No AI service available');
-    }
-  }
 
   /**
    * Optimize resume for ATS

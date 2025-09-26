@@ -51,7 +51,6 @@ const fileRoutes = require('./routes/files')
 const resumeSharingRoutes = require('./routes/resumeSharing')
 const emailRoutes = require('./routes/emails')
 const dashboardRoutes = require('./routes/dashboard')
-const coverLetterRoutes = require('./routes/coverLetters')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -134,7 +133,6 @@ app.use('/api/files', security.fileUploadSecurity, require('./routes/files')) //
 app.use('/api/emails', require('./routes/emails')) // Original email routes
 app.use('/api/dashboard', require('./routes/dashboard'))
 app.use('/api/payments', require('./routes/payments'))
-app.use('/api/cover-letters', coverLetterRoutes)
 app.use('/api/analytics', require('./routes/analytics'))
 app.use('/api/jobs', require('./routes/jobMatching'))
 app.use('/api/resume-scoring', require('./routes/resumeScoring'))

@@ -90,7 +90,6 @@ export default function HelpPage() {
   const quickLinks = [
     { title: "Resume Templates", description: "Browse our collection of professional templates", href: "/", icon: <FileText className="w-4 h-4" /> },
     { title: "ATS Score Checker", description: "Analyze your resume's ATS compatibility", href: "/ats-score", icon: <Shield className="w-4 h-4" /> },
-    { title: "Cover Letter Builder", description: "Create professional cover letters", href: "/cover-letter", icon: <MessageCircle className="w-4 h-4" /> },
     { title: "Contact Support", description: "Get help from our support team", href: "/contact", icon: <MessageCircle className="w-4 h-4" /> }
   ];
 

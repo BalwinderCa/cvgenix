@@ -115,7 +115,7 @@ export default function TermsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  You retain ownership of the content you create using our Service (your resume, cover letters, etc.). However, by using our Service, 
+                  You retain ownership of the content you create using our Service (your resume, etc.). However, by using our Service, 
                   you grant us a limited license to store, process, and display your content as necessary to provide the Service.
                 </p>
                 <p className="text-muted-foreground">

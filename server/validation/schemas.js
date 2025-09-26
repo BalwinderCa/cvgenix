@@ -274,31 +274,6 @@ const templateSchemas = {
   })
 };
 
-// Cover letter schemas
-const coverLetterSchemas = {
-  create: Joi.object({
-    title: Joi.string().min(1).max(100).required(),
-    company: Joi.string().min(1).max(100).required(),
-    position: Joi.string().min(1).max(100).required(),
-    content: Joi.string().min(100).max(5000).required(),
-    template: patterns.objectId.optional()
-  }),
-
-  update: Joi.object({
-    title: Joi.string().min(1).max(100).optional(),
-    company: Joi.string().min(1).max(100).optional(),
-    position: Joi.string().min(1).max(100).optional(),
-    content: Joi.string().min(100).max(5000).optional(),
-    template: patterns.objectId.optional()
-  }),
-
-  query: Joi.object({
-    page: patterns.pagination.page,
-    limit: patterns.pagination.limit,
-    sort: patterns.sort,
-    search: Joi.string().max(100).optional()
-  })
-};
 
 // File upload schemas
 const fileSchemas = {
@@ -345,7 +320,6 @@ module.exports = {
   userSchemas,
   resumeSchemas,
   templateSchemas,
-  coverLetterSchemas,
   fileSchemas,
   adminSchemas
 };
