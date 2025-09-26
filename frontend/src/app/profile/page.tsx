@@ -348,7 +348,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCreditPurchase = async (planId) => {
+  const handleCreditPurchase = async (planId: string) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:3001/api/payments/create-credit-checkout', {
