@@ -1029,7 +1029,7 @@ export default function ProfilePage() {
                       </div>
                       
                       <ul className="text-sm text-muted-foreground mb-6 space-y-2">
-                        {plan.features.map((feature, index) => (
+                        {plan.features.map((feature: string, index: number) => (
                           <li key={index} className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
                             {feature}
