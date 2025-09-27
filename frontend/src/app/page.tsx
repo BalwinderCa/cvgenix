@@ -15,21 +15,21 @@ export default function Page() {
   return (
     <>
       <NavigationHeader />
-      <main className="pt-16">
+      <main className="pt-16 min-h-screen bg-background">
         {/* Hero */}
-        <div id="top" className="bg-background">
+        <div id="top" className="bg-transparent">
           <HeroSection primaryHref="#get-started" secondaryHref="#templates" />
         </div>
 
         {/* Templates Showcase */}
-        <section id="templates" className="bg-background">
+        <section id="templates" className="bg-transparent">
           <div className="container py-16 md:py-20">
             <TemplatesShowcase />
           </div>
         </section>
 
         {/* Features */}
-        <section id="features" className="bg-background">
+        <section id="features" className="bg-transparent">
           <div className="container py-16 md:py-20">
             <FeaturesSection
               title="Why choose CVGenix"
@@ -39,7 +39,7 @@ export default function Page() {
         </section>
 
         {/* ATS Analyzer */}
-        <section id="ats" className="bg-gradient-to-br from-background via-background to-primary/5">
+        <section id="ats" className="bg-transparent">
           <div className="container py-20 md:py-24">
             <div className="text-center mb-16">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary mb-6">

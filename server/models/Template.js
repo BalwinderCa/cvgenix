@@ -37,6 +37,10 @@ const TemplateSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  inlineStyles: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   config: {
     sections: [{
       name: {

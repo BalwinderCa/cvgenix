@@ -15,10 +15,15 @@ import {
   Eye,
   Download,
   Star,
-  Clock
+  Clock,
+  Sparkles,
+  Palette,
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import SignupModal from '@/components/auth/SignupModal';
+import NavigationHeader from '@/components/navigation-header';
+import FooterSection from '@/components/footer-section';
 
 interface Template {
   _id: string;
@@ -32,7 +37,7 @@ interface Template {
   isPremium: boolean;
   createdAt: string;
   downloads: number;
-  rating: number;
+  rating: number | { average: number; count: number };
 }
 
 export default function TemplatesPage() {
@@ -42,11 +47,8 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedIndustry, setSelectedIndustry] = useState('all');
-  const [signupModalOpen, setSignupModalOpen] = useState(false);
 
   const categories = ['all', 'modern', 'classic', 'minimal', 'creative'];
-  const industries = ['all', 'technology', 'finance', 'healthcare', 'education', 'marketing', 'design'];
 
   useEffect(() => {
     loadTemplates();
@@ -54,7 +56,7 @@ export default function TemplatesPage() {
 
   useEffect(() => {
     filterTemplates();
-  }, [templates, searchQuery, selectedCategory, selectedIndustry]);
+  }, [templates, searchQuery, selectedCategory]);
 
   const loadTemplates = async () => {
     try {
@@ -143,8 +145,7 @@ export default function TemplatesPage() {
     if (searchQuery) {
       filtered = filtered.filter(template =>
         template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.industry.toLowerCase().includes(searchQuery.toLowerCase())
+        template.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -153,21 +154,11 @@ export default function TemplatesPage() {
       filtered = filtered.filter(template => template.category === selectedCategory);
     }
 
-    // Industry filter
-    if (selectedIndustry !== 'all') {
-      filtered = filtered.filter(template => template.industry === selectedIndustry);
-    }
-
     setFilteredTemplates(filtered);
   };
 
   const handleUseTemplate = (templateId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setSignupModalOpen(true);
-      return;
-    }
-
+    // No auth required - directly navigate to resume builder
     router.push(`/resume-builder?template=${templateId}`);
   };
 
@@ -189,30 +180,41 @@ export default function TemplatesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Resume Templates</h1>
-          <p className="text-muted-foreground">
-            Choose from our collection of professionally designed resume templates
+      {/* Navigation */}
+      <NavigationHeader />
+      
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+        {/* Header Section */}
+        <div className="text-center mb-8 sm:mb-16 mt-8 sm:mt-15">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Professional Resume Templates
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Choose from our collection of professionally designed resume templates. 
+            Each template is ATS-optimized and crafted to help you stand out to recruiters.
           </p>
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="mb-12">
+          <div className="max-w-2xl mx-auto mb-8">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="Search templates by name, industry, or style..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-12 text-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Category:</span>
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              <Filter className="h-5 w-5 text-gray-600" />
+              <span className="text-sm font-semibold text-gray-700">Category:</span>
               <div className="flex gap-2">
                 {categories.map(category => (
                   <Button
@@ -220,24 +222,12 @@ export default function TemplatesPage() {
                     variant={selectedCategory === category ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedCategory(category)}
+                    className={selectedCategory === category 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }
                   >
                     {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Industry:</span>
-              <div className="flex gap-2">
-                {industries.map(industry => (
-                  <Button
-                    key={industry}
-                    variant={selectedIndustry === industry ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedIndustry(industry)}
-                  >
-                    {industry.charAt(0).toUpperCase() + industry.slice(1)}
                   </Button>
                 ))}
               </div>
@@ -246,87 +236,75 @@ export default function TemplatesPage() {
         </div>
 
         {/* Templates Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredTemplates.map((template) => (
-            <Card key={template._id} className="group hover:shadow-lg transition-shadow">
-              <div className="relative">
-                <div className="aspect-[3/4] bg-muted rounded-t-lg overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                    <LayoutTemplate className="w-16 h-16 text-muted-foreground" />
+            <Card key={template._id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white cursor-pointer" onClick={() => handleUseTemplate(template._id)}>
+              <div className="relative overflow-hidden">
+                <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl overflow-hidden">
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <Palette className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-sm text-gray-500 font-medium">{template.style}</p>
+                    </div>
                   </div>
                 </div>
                 {template.isPremium && (
-                  <Badge className="absolute top-2 right-2 bg-yellow-500">
+                  <Badge className="absolute top-3 right-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold">
+                    <Star className="w-3 h-3 mr-1" />
                     Premium
                   </Badge>
                 )}
-              </div>
-              
-              <CardContent className="p-4">
-                <div className="mb-3">
-                  <h3 className="font-semibold text-lg mb-1">{template.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {template.description}
-                  </p>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-current" />
-                      {template.rating}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Download className="w-3 h-3" />
-                      {template.downloads}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {template.experience}
-                    </span>
+                {/* Hover overlay with edit button */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200">
+                      Edit this template
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => previewTemplate(template._id)}
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    Preview
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleUseTemplate(template._id)}
-                  >
-                    Use Template
-                  </Button>
-                </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
 
+        {/* No Results */}
         {filteredTemplates.length === 0 && (
-          <div className="text-center py-12">
-            <LayoutTemplate className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">No templates found</h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search criteria or filters
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <LayoutTemplate className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-4">No templates found</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Try adjusting your search criteria or filters to find the perfect template for your resume.
+            </p>
+            <Button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+              }}
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Clear Filters
+            </Button>
+          </div>
+        )}
+
+        {/* Results Count */}
+        {filteredTemplates.length > 0 && (
+          <div className="text-center mt-12">
+            <p className="text-gray-600">
+              Showing {filteredTemplates.length} of {templates.length} templates
             </p>
           </div>
         )}
+      </main>
+
+      {/* Footer */}
+      <div className="mt-20">
+        <FooterSection />
       </div>
 
-      {/* Signup Modal */}
-      <SignupModal
-        open={signupModalOpen}
-        onOpenChange={setSignupModalOpen}
-        onSwitchToLogin={() => {
-          setSignupModalOpen(false);
-          // You could add a login modal here if needed
-        }}
-      />
     </div>
   );
 }

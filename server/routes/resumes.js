@@ -78,9 +78,10 @@ router.post('/', [
   auth,
   [
     body('templateId').notEmpty().withMessage('Template ID is required'),
-    body('personalInfo.firstName').notEmpty().withMessage('First name is required'),
-    body('personalInfo.lastName').notEmpty().withMessage('Last name is required'),
-    body('personalInfo.email').isEmail().withMessage('Valid email is required')
+    // Make personal info validation optional for initial resume creation
+    body('personalInfo.firstName').optional(),
+    body('personalInfo.lastName').optional(),
+    body('personalInfo.email').optional().isEmail().withMessage('Valid email is required if provided')
   ]
 ], async (req, res) => {
   const errors = validationResult(req)

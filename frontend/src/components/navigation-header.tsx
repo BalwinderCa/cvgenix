@@ -34,7 +34,8 @@ export interface NavigationHeaderProps {
 const NAV_ITEMS: NavItem[] = [
 { label: "Homepage", href: "/" },
 { label: "Resume Builder", href: "/resume-builder" },
-{ label: "ATS Score", href: "/ats-score" }];
+{ label: "ATS Score", href: "/ats-score" },
+{ label: "Templates", href: "/templates" }];
 
 
 export default function NavigationHeader({ className }: NavigationHeaderProps) {

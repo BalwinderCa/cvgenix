@@ -19,7 +19,11 @@ const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./config/swagger')
 
 // Set default environment variables if not provided
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-12345'
-process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://resume4me:resume4me123@cluster0.vrkl6u1.mongodb.net/resume4me?retryWrites=true&w=majority'
+// MongoDB Atlas cloud database - no local fallback
+if (!process.env.MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is required. Please set it in your .env file.')
+  process.exit(1)
+}
 process.env.PORT = process.env.PORT || 3001
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
@@ -43,6 +47,7 @@ const realtimeService = new RealtimeService(server)
 const authRoutes = require('./routes/auth')
 const resumeRoutes = require('./routes/resumes')
 const enhancedTemplateRoutes = require('./routes/enhancedTemplates')
+const templateEditorRoutes = require('./routes/templateEditor')
 const userRoutes = require('./routes/users')
 const adminRoutes = require('./routes/admin')
 const simpleATSRoutes = require('./routes/simpleATS')
@@ -122,6 +127,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/resumes', resumeRoutes)
 app.use('/api/templates', enhancedTemplateRoutes) // Enhanced templates routes (includes basic templates)
+app.use('/api/template-editor', templateEditorRoutes) // Template editing and switching routes
 app.use('/api/users', userRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/simple-ats', simpleATSRoutes)
