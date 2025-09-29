@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
 import FooterSection from '@/components/footer-section';
 import { DatabaseResumePreview } from '@/components/database-resume-preview';
+import { DraggableResumePreview } from '@/components/draggable-resume-preview';
 import TemplateSidebar from '@/components/template-sidebar';
 import { useAutoSave } from '@/hooks/use-autosave';
 
@@ -156,6 +157,7 @@ export default function ResumeBuilderPage() {
   const [currentTemplate, setCurrentTemplate] = useState(''); // No template selected initially
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
+  const [isVisualMode, setIsVisualMode] = useState(false);
   const [currentTab, setCurrentTab] = useState('heading');
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [showTemplateSelection, setShowTemplateSelection] = useState(true);
@@ -172,6 +174,7 @@ export default function ResumeBuilderPage() {
     if (templateParam) {
       setCurrentTemplate(templateParam);
       setShowTemplateSelection(false); // Skip template selection if template is specified in URL
+      // Template provided in URL
     }
   }, [searchParams]);
 
@@ -474,7 +477,7 @@ export default function ResumeBuilderPage() {
                   Transform your resume with smart AI analysis.
                 </p>
                 <Button 
-                  onClick={() => setShowUploadModal(true)}
+                  onClick={() => router.push('/konva')}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Upload className="w-4 h-4 mr-2" />
@@ -497,7 +500,7 @@ export default function ResumeBuilderPage() {
                     Continue working on your current resume with all your existing information.
                   </p>
                   <Button 
-                    onClick={handleEditExistingResume}
+                    onClick={() => router.push('/konva')}
                     className="w-full bg-green-600 hover:bg-green-700 text-white"
                   >
                     <Edit className="w-4 h-4 mr-2" />
@@ -522,7 +525,7 @@ export default function ResumeBuilderPage() {
                     our intuitive step-by-step builder.
                   </p>
                   <Button 
-                    onClick={handleStartFresh}
+                    onClick={() => router.push('/konva')}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                   >
                     <FileText className="w-4 h-4 mr-2" />
@@ -596,8 +599,6 @@ export default function ResumeBuilderPage() {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-20">
               {/* Preview Section */}
               <div className="space-y-8">
-                {/* Preview Header */}
-               
                 
                 {/* Preview Content */}
                 <div className="w-full">
@@ -625,12 +626,12 @@ export default function ResumeBuilderPage() {
                       </div>
                     </div>
                   ) : (
-                    <div 
-                      className={`bg-white rounded-2md shadow-xl overflow-hidden ${isResumeEmpty() ? 'min-h-[300px]' : ''}`}
-                      style={{ width: '800px', height: '1000px', margin: '2rem auto 0 auto' }}
-                    >
+                    <div className="w-full">
                       <DatabaseResumePreview 
                         templateId={getValidTemplate(currentTemplate)}
+                        editable={true}
+                        data={resumeData}
+                        className="w-full"
                       />
                     </div>
                   )}
@@ -661,6 +662,7 @@ export default function ResumeBuilderPage() {
           </div>
         </main>
       )}
+
       
       {/* Full Preview Modal */}
       <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
@@ -674,6 +676,8 @@ export default function ResumeBuilderPage() {
           <div className="mt-4">
             <DatabaseResumePreview 
               templateId={getValidTemplate(currentTemplate)}
+              editable={true}
+              data={resumeData}
             />
           </div>
         </DialogContent>

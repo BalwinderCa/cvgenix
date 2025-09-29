@@ -29,17 +29,64 @@ const TemplateSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Legacy fields (for backward compatibility)
   html: {
     type: String,
-    required: true
+    required: false
   },
   css: {
     type: String,
-    required: true
+    required: false
   },
-  inlineStyles: {
+  
+  // New builder framework structure
+  builderData: {
+    components: [{
+      type: {
+        type: String,
+        required: true
+      },
+      tagName: {
+        type: String,
+        default: 'div'
+      },
+      content: {
+        type: String,
+        default: ''
+      },
+      style: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      attributes: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      classes: [{
+        type: String
+      }],
+      components: {
+        type: mongoose.Schema.Types.Mixed,
+        default: []
+      }
+    }],
+    style: {
+      type: String,
+      default: ''
+    }
+  },
+  
+  // Canvas data for visual editor
+  canvasData: {
     type: mongoose.Schema.Types.Mixed,
     default: null
+  },
+  
+  // Template rendering engine type
+  renderEngine: {
+    type: String,
+    enum: ['html', 'builder', 'canvas', 'jsx'],
+    default: 'builder'
   },
   config: {
     sections: [{

@@ -730,4 +730,39 @@ function getRecommendationReason(template, { industry, experience, role }) {
   return reasons.join(', ') || 'Great match for your profile';
 }
 
+// @route   POST /api/templates
+// @desc    Create a new template
+// @access  Public
+router.post('/', async (req, res) => {
+  try {
+    const template = new Template(req.body)
+    await template.save()
+    
+    res.status(201).json({
+      message: 'Template created successfully',
+      template
+    })
+  } catch (error) {
+    console.error('Template creation error:', error)
+    res.status(500).json({ message: 'Failed to create template' })
+  }
+})
+
+// @route   DELETE /api/templates
+// @desc    Delete all templates
+// @access  Public
+router.delete('/', async (req, res) => {
+  try {
+    const result = await Template.deleteMany({})
+    
+    res.json({
+      message: `Deleted ${result.deletedCount} templates successfully`,
+      deletedCount: result.deletedCount
+    })
+  } catch (error) {
+    console.error('Error deleting templates:', error)
+    res.status(500).json({ message: 'Failed to delete templates' })
+  }
+})
+
 module.exports = router;

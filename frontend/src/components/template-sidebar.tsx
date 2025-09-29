@@ -25,6 +25,13 @@ interface Template {
   isPremium: boolean
   rating: number | { average: number; count: number }
   downloadCount: number
+  canvasData?: {
+    elements: any[]
+    stageConfig: {
+      width: number
+      height: number
+    }
+  }
 }
 
 interface TemplateSidebarProps {
@@ -100,6 +107,27 @@ export default function TemplateSidebar({
 
   const getRating = (rating: number | { average: number; count: number }) => {
     return typeof rating === 'number' ? rating : rating.average
+  }
+
+  const generatePreviewFromCanvas = (template: Template) => {
+    if (!template.canvasData || !template.canvasData.elements) {
+      return null
+    }
+
+    // Find key elements for preview
+    const nameElement = template.canvasData.elements.find((el: any) => el.id === 'name')
+    const titleElement = template.canvasData.elements.find((el: any) => el.id === 'title')
+    const emailElement = template.canvasData.elements.find((el: any) => el.id === 'email')
+    const phoneElement = template.canvasData.elements.find((el: any) => el.id === 'phone')
+    const summaryElement = template.canvasData.elements.find((el: any) => el.id === 'summary_text')
+
+    return {
+      name: nameElement?.text || 'JOHN DOE',
+      title: titleElement?.text || 'Software Engineer',
+      email: emailElement?.text || 'john.doe@email.com',
+      phone: phoneElement?.text || '(555) 123-4567',
+      summary: summaryElement?.text || 'Experienced software engineer with expertise in modern web technologies.'
+    }
   }
 
   return (
@@ -190,50 +218,15 @@ export default function TemplateSidebar({
                 onClick={() => handleTemplateClick(template._id)}
               >
                 <div className="relative overflow-hidden">
-                  {/* Actual Resume Preview */}
+                  {/* Template Preview */}
                   <div className="aspect-[3/4] bg-white rounded-t-xl overflow-hidden border border-gray-200">
-                    <div className="w-full h-full p-3 text-xs">
-                      {/* Resume Preview Content */}
-                      <div className="h-full bg-white border border-gray-200 rounded shadow-sm">
-                        <div className="p-3 space-y-2">
-                          {/* Header */}
-                          <div className="text-center border-b border-gray-300 pb-2 mb-3">
-                            <h1 className="text-lg font-bold text-gray-900">JOHN DOE</h1>
-                            <p className="text-sm text-gray-600">Software Engineer</p>
-                            <p className="text-xs text-gray-500">john.doe@email.com • (555) 123-4567</p>
-                          </div>
-                          
-                          {/* Experience */}
-                          <div className="mb-3">
-                            <h2 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-1 mb-2">EXPERIENCE</h2>
-                            <div className="space-y-1">
-                              <div>
-                                <div className="flex justify-between">
-                                  <span className="font-semibold text-gray-800">Senior Developer</span>
-                                  <span className="text-gray-600">2020-Present</span>
-                                </div>
-                                <p className="text-gray-600">Tech Company Inc.</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Education */}
-                          <div className="mb-3">
-                            <h2 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-1 mb-2">EDUCATION</h2>
-                            <div>
-                              <div className="flex justify-between">
-                                <span className="font-semibold text-gray-800">Computer Science</span>
-                                <span className="text-gray-600">2018</span>
-                              </div>
-                              <p className="text-gray-600">University Name</p>
-                            </div>
-                          </div>
-                          
-                          {/* Skills */}
-                          <div>
-                            <h2 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-1 mb-2">SKILLS</h2>
-                            <p className="text-gray-700">JavaScript, React, Node.js, Python</p>
-                          </div>
+                    <div className="w-full h-full bg-white flex items-center justify-center">
+                      <div className="text-center p-4">
+                        <div className="text-lg font-bold text-gray-900 mb-2">EMMA AHEARN</div>
+                        <div className="text-sm text-gray-600 mb-1">CHEMIST</div>
+                        <div className="text-xs text-gray-500 mb-3">hello@reallygreatsite.com</div>
+                        <div className="text-xs text-gray-700">
+                          Chemistry graduate with research experience at East State University
                         </div>
                       </div>
                     </div>
@@ -256,14 +249,14 @@ export default function TemplateSidebar({
                   )}
                   
                   {/* Hover overlay with use button */}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-center justify-center">
+                  {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button className="bg-white text-gray-900 px-3 py-2 rounded-lg font-semibold text-xs shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200">
                         <Sparkles className="w-3 h-3 mr-1 inline" />
                         Use
                       </button>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </Card>
             ))}

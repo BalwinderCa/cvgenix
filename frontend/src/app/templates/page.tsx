@@ -162,6 +162,7 @@ export default function TemplatesPage() {
     router.push(`/resume-builder?template=${templateId}`);
   };
 
+
   const previewTemplate = (templateId: string) => {
     // Open template preview in new tab
     window.open(`/templates/preview/${templateId}`, '_blank');
@@ -210,6 +211,7 @@ export default function TemplatesPage() {
             </div>
           </div>
 
+
           {/* Filter Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <div className="flex items-center gap-3">
@@ -238,7 +240,7 @@ export default function TemplatesPage() {
         {/* Templates Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredTemplates.map((template) => (
-            <Card key={template._id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white cursor-pointer" onClick={() => handleUseTemplate(template._id)}>
+            <Card key={template._id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white">
               <div className="relative overflow-hidden">
                 <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl overflow-hidden">
                   <div className="w-full h-full flex items-center justify-center">
@@ -254,11 +256,14 @@ export default function TemplatesPage() {
                     Premium
                   </Badge>
                 )}
-                {/* Hover overlay with edit button */}
+                {/* Hover overlay with use button */}
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200">
-                      Edit this template
+                    <button 
+                      onClick={() => handleUseTemplate(template._id)}
+                      className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200"
+                    >
+                      Use this template
                     </button>
                   </div>
                 </div>
@@ -304,6 +309,7 @@ export default function TemplatesPage() {
       <div className="mt-20">
         <FooterSection />
       </div>
+
 
     </div>
   );
