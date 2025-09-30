@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 
 const TemplateSchema = new mongoose.Schema({
+  // Core Info
   name: {
     type: String,
     required: true,
@@ -17,10 +18,8 @@ const TemplateSchema = new mongoose.Schema({
     enum: ['Professional', 'Creative', 'Minimalist', 'Modern', 'Classic', 'Executive'],
     default: 'Professional'
   },
-  tags: [{
-    type: String,
-    trim: true
-  }],
+  
+  // Visual Assets
   thumbnail: {
     type: String,
     required: true
@@ -29,17 +28,17 @@ const TemplateSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // Legacy fields (for backward compatibility)
-  html: {
-    type: String,
-    required: false
-  },
-  css: {
-    type: String,
-    required: false
-  },
   
-  // New builder framework structure
+  // Template Engine & Data
+  renderEngine: {
+    type: String,
+    enum: ['html', 'builder', 'canvas', 'jsx'],
+    default: 'builder'
+  },
+  canvasData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   builderData: {
     components: [{
       type: {
@@ -76,74 +75,14 @@ const TemplateSchema = new mongoose.Schema({
     }
   },
   
-  // Canvas data for visual editor
-  canvasData: {
-    type: mongoose.Schema.Types.Mixed,
-    default: null
-  },
-  
-  // Template rendering engine type
-  renderEngine: {
-    type: String,
-    enum: ['html', 'builder', 'canvas', 'jsx'],
-    default: 'builder'
-  },
-  config: {
-    sections: [{
-      name: {
-        type: String,
-        required: true
-      },
-      required: {
-        type: Boolean,
-        default: false
-      },
-      order: {
-        type: Number,
-        default: 0
-      }
-    }],
-    colors: {
-      primary: {
-        type: String,
-        default: '#3B82F6'
-      },
-      secondary: {
-        type: String,
-        default: '#6B7280'
-      },
-      accent: {
-        type: String,
-        default: '#10B981'
-      }
-    },
-    fonts: {
-      heading: {
-        type: String,
-        default: 'Inter'
-      },
-      body: {
-        type: String,
-        default: 'Inter'
-      }
-    },
-    spacing: {
-      type: String,
-      enum: ['compact', 'normal', 'spacious'],
-      default: 'normal'
-    }
-  },
-  sampleData: {
-    type: mongoose.Schema.Types.Mixed,
-    default: null
+  // Status & Flags
+  isActive: {
+    type: Boolean,
+    default: true
   },
   isPremium: {
     type: Boolean,
     default: false
-  },
-  isActive: {
-    type: Boolean,
-    default: true
   },
   isPopular: {
     type: Boolean,
@@ -153,64 +92,14 @@ const TemplateSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  usageCount: {
-    type: Number,
-    default: 0
-  },
-  rating: {
-    average: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
-    count: {
-      type: Number,
-      default: 0
-    }
-  },
-  compatibility: {
-    ats: {
-      type: Boolean,
-      default: true
-    },
-    atsScore: {
-      type: Number,
-      default: 95,
-      min: 0,
-      max: 100
-    }
-  },
-  industry: [{
+  
+  // Organization
+  tags: [{
     type: String,
     trim: true
   }],
-  features: [{
-    type: String,
-    trim: true
-  }],
-  previewImages: [{
-    type: String
-  }],
-  downloadCount: {
-    type: Number,
-    default: 0
-  },
-  lastUsed: {
-    type: Date
-  },
-  price: {
-    type: Number,
-    default: 0
-  },
-  mobile: {
-    type: Boolean,
-    default: true
-  },
-  print: {
-    type: Boolean,
-    default: true
-  },
+  
+  // Essential Metadata Only
   metadata: {
     colorScheme: {
       type: String,
@@ -226,18 +115,6 @@ const TemplateSchema = new mongoose.Schema({
       type: String,
       enum: ['simple', 'moderate', 'complex'],
       default: 'moderate'
-    },
-    author: {
-      type: String,
-      trim: true
-    },
-    version: {
-      type: String,
-      default: '1.0.0'
-    },
-    lastUpdated: {
-      type: Date,
-      default: Date.now
     }
   }
 }, {

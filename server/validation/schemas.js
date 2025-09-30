@@ -244,24 +244,44 @@ const resumeSchemas = {
 const templateSchemas = {
   create: Joi.object({
     name: Joi.string().min(1).max(100).required(),
-    description: Joi.string().max(500).optional(),
-    category: Joi.string().valid('professional', 'creative', 'modern', 'classic', 'minimal').required(),
-    html: Joi.string().min(100).required(),
-    css: Joi.string().optional(),
-    preview: Joi.string().uri().optional(),
+    description: Joi.string().max(500).required(),
+    category: Joi.string().valid('Professional', 'Creative', 'Minimalist', 'Modern', 'Classic', 'Executive').required(),
+    thumbnail: Joi.string().required(),
+    preview: Joi.string().required(),
+    renderEngine: Joi.string().valid('html', 'builder', 'canvas', 'jsx').default('builder'),
+    canvasData: Joi.object().optional(),
+    builderData: Joi.object().optional(),
+    isActive: Joi.boolean().default(true),
     isPremium: Joi.boolean().default(false),
-    tags: Joi.array().items(Joi.string().max(30)).max(10).optional()
+    isPopular: Joi.boolean().default(false),
+    isNewTemplate: Joi.boolean().default(false),
+    tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
+    metadata: Joi.object({
+      colorScheme: Joi.string().valid('light', 'dark', 'colorful').default('light'),
+      layout: Joi.string().valid('single-column', 'two-column', 'hybrid').default('single-column'),
+      complexity: Joi.string().valid('simple', 'moderate', 'complex').default('moderate')
+    }).optional()
   }),
 
   update: Joi.object({
     name: Joi.string().min(1).max(100).optional(),
     description: Joi.string().max(500).optional(),
-    category: Joi.string().valid('professional', 'creative', 'modern', 'classic', 'minimal').optional(),
-    html: Joi.string().min(100).optional(),
-    css: Joi.string().optional(),
-    preview: Joi.string().uri().optional(),
+    category: Joi.string().valid('Professional', 'Creative', 'Minimalist', 'Modern', 'Classic', 'Executive').optional(),
+    thumbnail: Joi.string().optional(),
+    preview: Joi.string().optional(),
+    renderEngine: Joi.string().valid('html', 'builder', 'canvas', 'jsx').optional(),
+    canvasData: Joi.object().optional(),
+    builderData: Joi.object().optional(),
+    isActive: Joi.boolean().optional(),
     isPremium: Joi.boolean().optional(),
-    tags: Joi.array().items(Joi.string().max(30)).max(10).optional()
+    isPopular: Joi.boolean().optional(),
+    isNewTemplate: Joi.boolean().optional(),
+    tags: Joi.array().items(Joi.string().max(30)).max(10).optional(),
+    metadata: Joi.object({
+      colorScheme: Joi.string().valid('light', 'dark', 'colorful').optional(),
+      layout: Joi.string().valid('single-column', 'two-column', 'hybrid').optional(),
+      complexity: Joi.string().valid('simple', 'moderate', 'complex').optional()
+    }).optional()
   }),
 
   query: Joi.object({
@@ -269,8 +289,10 @@ const templateSchemas = {
     limit: patterns.pagination.limit,
     sort: patterns.sort,
     search: Joi.string().max(100).optional(),
-    category: Joi.string().valid('professional', 'creative', 'modern', 'classic', 'minimal').optional(),
-    isPremium: Joi.boolean().optional()
+    category: Joi.string().valid('Professional', 'Creative', 'Minimalist', 'Modern', 'Classic', 'Executive').optional(),
+    isPremium: Joi.boolean().optional(),
+    isPopular: Joi.boolean().optional(),
+    isNewTemplate: Joi.boolean().optional()
   })
 };
 

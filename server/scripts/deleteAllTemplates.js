@@ -1,30 +1,43 @@
-const mongoose = require('mongoose');
-const Template = require('../models/Template');
+const mongoose = require('mongoose')
+const Template = require('../models/Template')
+require('dotenv').config()
 
-async function deleteAllTemplates() {
+const deleteAllTemplates = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cvgenix', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    console.log('🔌 Connecting to database...')
+    await mongoose.connect(process.env.MONGODB_URI)
+    console.log('✅ Connected to database')
 
-    console.log('Connected to MongoDB');
+    // Count templates before deletion
+    const templateCount = await Template.countDocuments()
+    console.log(`📊 Found ${templateCount} templates in database`)
+
+    if (templateCount === 0) {
+      console.log('ℹ️  No templates found to delete')
+      return
+    }
 
     // Delete all templates
-    const result = await Template.deleteMany({});
+    console.log('🗑️  Deleting all templates...')
+    const result = await Template.deleteMany({})
     
-    console.log(`Deleted ${result.deletedCount} templates from database`);
+    console.log(`✅ Successfully deleted ${result.deletedCount} templates`)
     
-    // Close connection
-    await mongoose.connection.close();
-    console.log('Database connection closed');
-    
+    // Verify deletion
+    const remainingCount = await Template.countDocuments()
+    console.log(`📊 Remaining templates: ${remainingCount}`)
+
   } catch (error) {
-    console.error('Error deleting templates:', error);
-    process.exit(1);
+    console.error('❌ Error deleting templates:', error.message)
+    process.exit(1)
+  } finally {
+    // Close database connection
+    await mongoose.connection.close()
+    console.log('🔌 Database connection closed')
+    process.exit(0)
   }
 }
 
 // Run the script
-deleteAllTemplates();
+deleteAllTemplates()
