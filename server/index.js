@@ -14,8 +14,7 @@ const { errorService } = require('./services/errorService')
 const loggerService = require('./services/loggerService')
 const securityMiddleware = require('./middleware/security')
 
-// Import Swagger documentation
-const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./config/swagger')
+// Swagger removed - not needed
 
 // Set default environment variables if not provided
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-12345'
@@ -47,14 +46,9 @@ const realtimeService = new RealtimeService(server)
 const authRoutes = require('./routes/auth')
 const resumeRoutes = require('./routes/resumes')
 const enhancedTemplateRoutes = require('./routes/enhancedTemplates')
-const templateEditorRoutes = require('./routes/templateEditor')
 const userRoutes = require('./routes/users')
-const adminRoutes = require('./routes/admin')
-const simpleATSRoutes = require('./routes/simpleATS')
 const atsRoutes = require('./routes/ats')
-const fileRoutes = require('./routes/files')
 const resumeSharingRoutes = require('./routes/resumeSharing')
-const emailRoutes = require('./routes/emails')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -94,24 +88,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 // Compression middleware
 app.use(compression())
 
-// Logging middleware
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'))
-} else {
-  app.use(morgan('combined'))
-}
+// Logging middleware (disabled for cleaner console output)
+// if (process.env.NODE_ENV === 'development') {
+//   app.use(morgan('dev'))
+// } else {
+//   app.use(morgan('combined'))
+// }
 
-// Custom request logging
-app.use(loggerService.requestLogger())
-
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions))
-
-// API documentation JSON endpoint
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json')
-  res.send(swaggerSpec)
-})
+// Custom request logging (disabled for cleaner console output)
+// app.use(loggerService.requestLogger())
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -127,19 +112,10 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/resumes', resumeRoutes)
 app.use('/api/templates', enhancedTemplateRoutes) // Enhanced templates routes (includes basic templates)
-app.use('/api/template-editor', templateEditorRoutes) // Template editing and switching routes
 app.use('/api/users', userRoutes)
-app.use('/api/admin', adminRoutes)
-app.use('/api/simple-ats', simpleATSRoutes)
 app.use('/api/ats', atsRoutes)
 app.use('/api/progress', require('./routes/progress')) // Simple progress tracking
-app.use('/api/ai', require('./routes/ai')) // AI services routes
-app.use('/api/files', security.fileUploadSecurity, require('./routes/files')) // File upload security
-app.use('/api/emails', require('./routes/emails')) // Original email routes
 app.use('/api/payments', require('./routes/payments'))
-app.use('/api/analytics', require('./routes/analytics'))
-app.use('/api/jobs', require('./routes/jobMatching'))
-app.use('/api/resume-scoring', require('./routes/resumeScoring'))
 app.use('/api/resumes/sharing', resumeSharingRoutes) // Resume sharing routes
 
 // Serve uploaded files
