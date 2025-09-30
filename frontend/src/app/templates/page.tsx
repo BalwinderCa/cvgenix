@@ -243,12 +243,35 @@ export default function TemplatesPage() {
             <Card key={template._id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white">
               <div className="relative overflow-hidden">
                 <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl overflow-hidden">
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="text-center">
-                      <Palette className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                      <p className="text-sm text-gray-500 font-medium">{template.style}</p>
+                  {template.thumbnail && template.thumbnail.startsWith('data:image') ? (
+                    <img 
+                      src={template.thumbnail} 
+                      alt={`${template.name} template preview`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : template.thumbnail && template.thumbnail.startsWith('data:text/html') ? (
+                    <iframe 
+                      src={template.thumbnail} 
+                      className="w-full h-full border-0"
+                      title={`${template.name} template preview`}
+                      style={{ 
+                        pointerEvents: 'none',
+                        overflow: 'hidden',
+                        transform: 'scale(1.0)',
+                        transformOrigin: 'top left',
+                        width: '100%',
+                        height: '100%'
+                      }}
+                      scrolling="no"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <Palette className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                        <p className="text-sm text-gray-500 font-medium">{template.style || 'Professional Resume'}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 {template.isPremium && (
                   <Badge className="absolute top-3 right-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold">
@@ -256,16 +279,14 @@ export default function TemplatesPage() {
                     Premium
                   </Badge>
                 )}
-                {/* Hover overlay with use button */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button 
-                      onClick={() => handleUseTemplate(template._id)}
-                      className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200"
-                    >
-                      Use this template
-                    </button>
-                  </div>
+                {/* Use button - only show on hover */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <button 
+                    onClick={() => handleUseTemplate(template._id)}
+                    className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200"
+                  >
+                    Use this template
+                  </button>
                 </div>
               </div>
             </Card>

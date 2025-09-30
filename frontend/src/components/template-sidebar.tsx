@@ -37,11 +37,13 @@ interface Template {
 interface TemplateSidebarProps {
   currentTemplateId: string
   onTemplateSelect: (templateId: string) => void
+  canvasReady?: boolean
 }
 
 export default function TemplateSidebar({ 
   currentTemplateId, 
-  onTemplateSelect
+  onTemplateSelect,
+  canvasReady = false
 }: TemplateSidebarProps) {
   const [templates, setTemplates] = useState<Template[]>([])
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([])
@@ -64,8 +66,10 @@ export default function TemplateSidebar({
       const response = await fetch('http://localhost:3001/api/templates')
       if (response.ok) {
         const data = await response.json()
+        console.log('Templates loaded:', data.templates)
         setTemplates(data.templates || [])
       } else {
+        console.log('API failed, using default templates')
         // Fallback to default templates if API fails
         setTemplates(getDefaultTemplates())
       }
@@ -102,6 +106,7 @@ export default function TemplateSidebar({
   }
 
   const handleTemplateClick = (templateId: string) => {
+    console.log('Template clicked in sidebar:', templateId)
     onTemplateSelect(templateId)
   }
 
@@ -143,6 +148,7 @@ export default function TemplateSidebar({
             Choose a template to get started
           </p>
         </div>
+        
 
         {/* Search */}
         <div className="relative mb-4">
@@ -220,16 +226,24 @@ export default function TemplateSidebar({
                 <div className="relative overflow-hidden">
                   {/* Template Preview */}
                   <div className="aspect-[3/4] bg-white rounded-t-xl overflow-hidden border border-gray-200">
-                    <div className="w-full h-full bg-white flex items-center justify-center">
-                      <div className="text-center p-4">
-                        <div className="text-lg font-bold text-gray-900 mb-2">EMMA AHEARN</div>
-                        <div className="text-sm text-gray-600 mb-1">CHEMIST</div>
-                        <div className="text-xs text-gray-500 mb-3">hello@reallygreatsite.com</div>
-                        <div className="text-xs text-gray-700">
-                          Chemistry graduate with research experience at East State University
+                    {template.thumbnail && template.thumbnail.startsWith('data:image') ? (
+                      <img 
+                        src={template.thumbnail} 
+                        alt={`${template.name} template preview`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-white flex items-center justify-center">
+                        <div className="text-center p-4">
+                          <div className="text-lg font-bold text-gray-900 mb-2">JOHN SMITH</div>
+                          <div className="text-sm text-gray-600 mb-1">SOFTWARE ENGINEER</div>
+                          <div className="text-xs text-gray-500 mb-3">john.smith@email.com</div>
+                          <div className="text-xs text-gray-700">
+                            Modern professional resume template
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   
                   {template.isPremium && (

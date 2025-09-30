@@ -8,14 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Move, RotateCcw, Maximize2, Minimize2, Grid3X3, Lock, Unlock } from 'lucide-react';
 import {
   DndContext,
-  DragEndEvent,
   DragOverlay,
-  DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
   closestCenter,
 } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 interface DraggableResumePreviewProps {

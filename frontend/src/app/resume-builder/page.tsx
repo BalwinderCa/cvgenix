@@ -61,6 +61,9 @@ interface ResumeElement {
   scaleX?: number;
   scaleY?: number;
   draggable?: boolean;
+  lineHeight?: number;
+  textAlign?: string;
+  charSpacing?: number;
 }
 
 
@@ -441,11 +444,44 @@ export default function ResumeBuilderPage() {
       if (response.ok) {
         const template = await response.json();
         
-        if (template.renderEngine === 'canvas' && template.canvasData && template.canvasData.elements) {
-          // Load canvas template
-          setElements(template.canvasData.elements);
-          setCurrentTemplate(templateId);
-          saveToHistory(template.canvasData.elements);
+        if (template.renderEngine === 'canvas' && template.canvasData) {
+          // Check if it's Fabric.js format (objects) or Konva.js format (elements)
+          if (template.canvasData.objects) {
+            // Fabric.js format - convert to Konva format for the resume builder
+            const konvaElements = template.canvasData.objects.map((obj: any) => ({
+              id: obj.id,
+              type: obj.type === 'textbox' ? 'text' : obj.type,
+              x: obj.left,
+              y: obj.top,
+              width: obj.width,
+              height: obj.height,
+              text: obj.text,
+              fontSize: obj.fontSize,
+              fontFamily: obj.fontFamily,
+              fontWeight: obj.fontWeight,
+              fontStyle: obj.fontStyle,
+              fill: obj.fill,
+              stroke: obj.stroke,
+              strokeWidth: obj.strokeWidth,
+              rotation: obj.angle,
+              scaleX: obj.scaleX,
+              scaleY: obj.scaleY,
+              draggable: true,
+              lineHeight: obj.lineHeight,
+              textAlign: obj.textAlign,
+              charSpacing: obj.charSpacing
+            }));
+            setElements(konvaElements);
+            setCurrentTemplate(templateId);
+            saveToHistory(konvaElements);
+          } else if (template.canvasData.elements) {
+            // Konva.js format - use directly
+            setElements(template.canvasData.elements);
+            setCurrentTemplate(templateId);
+            saveToHistory(template.canvasData.elements);
+          } else {
+            alert('This template is not compatible with the canvas editor. Please select a canvas template.');
+          }
         } else {
           // For non-canvas templates, show a message
           alert('This template is not compatible with the canvas editor. Please select a canvas template.');
@@ -536,13 +572,13 @@ export default function ResumeBuilderPage() {
         renderEngine: 'canvas',
         isActive: true,
         isPremium: false,
+        isPopular: false,
+        isNewTemplate: true,
         tags: ['interactive', 'konva', 'canvas'],
         metadata: {
           colorScheme: 'light',
           layout: 'single-column',
-          complexity: 'moderate',
-          author: 'User',
-          version: '1.0.0'
+          complexity: 'moderate'
         }
       };
 
@@ -598,13 +634,13 @@ export default function ResumeBuilderPage() {
         renderEngine: 'canvas',
         isActive: true,
         isPremium: false,
+        isPopular: false,
+        isNewTemplate: true,
         tags: ['interactive', 'konva', 'canvas'],
         metadata: {
           colorScheme: 'light',
           layout: 'single-column',
-          complexity: 'moderate',
-          author: 'User',
-          version: '1.0.0'
+          complexity: 'moderate'
         }
       };
 
@@ -1041,6 +1077,9 @@ export default function ResumeBuilderPage() {
                                 textDecoration={element.textDecoration}
                                 fill={element.fill}
                                 draggable={element.draggable}
+                                lineHeight={element.lineHeight}
+                                align={element.textAlign}
+                                letterSpacing={element.charSpacing}
                                 onClick={handleElementClick}
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
