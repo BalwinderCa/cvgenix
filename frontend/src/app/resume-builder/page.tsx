@@ -165,17 +165,67 @@ export default function ResumeBuilderPage() {
           enableRetinaScaling: true,
           imageSmoothingEnabled: false
         });
+
         console.log('✅ Canvas created:', canvas);
+
+        // Configure global settings to disable rotation and certain resize handles
+        fabric.Object.prototype.set({
+          lockRotation: true, // Disable rotation for all objects
+          lockUniScaling: true, // Prevent uniform scaling
+          lockScalingX: false, // Allow horizontal scaling
+          lockScalingY: false, // Allow vertical scaling
+          lockScalingFlip: true, // Prevent flipping
+          borderScaleFactor: 2, // 2px border
+          cornerSize: 12, // 12px corner handles
+          cornerStyle: 'circle',
+          cornerColor: '#ffffff',
+          cornerStrokeColor: '#999999',
+          transparentCorners: false,
+          borderColor: '#3b82f6', // Primary blue color
+          borderOpacityWhenMoving: 1,
+          hasControls: true,
+          hasBorders: true,
+          borderDashArray: null
+        });
+
+        // Configure selection controls to remove resize handles and rotate handle
+        const configureSelectionControls = (activeObject: any) => {
+          if (activeObject) {
+            // Remove top and bottom resize handles and rotate handle
+            activeObject.setControlsVisibility({
+              mt: false, // top
+              mb: false, // bottom
+              mtr: false, // rotate handle
+              tl: true,  // top-left
+              tr: true,  // top-right
+              bl: true,  // bottom-left
+              br: true   // bottom-right
+            });
+
+            // Apply custom styling to match the image
+            activeObject.set({
+              borderColor: '#3b82f6', // Primary blue color
+              cornerColor: '#ffffff', // White corner handles
+              cornerStrokeColor: '#999999', // Gray outline
+              cornerStyle: 'circle',
+              cornerSize: 12, // 12px corner handles
+              transparentCorners: false,
+              borderScaleFactor: 2 // 2px border
+            });
+          }
+        };
 
       // Add event listeners
       canvas.on('selection:created', (e: any) => {
         setSelectedObject(e.selected[0]);
         setSelectedElement(e.selected[0]?.id || null);
+        configureSelectionControls(e.selected[0]);
       });
 
       canvas.on('selection:updated', (e: any) => {
         setSelectedObject(e.selected[0]);
         setSelectedElement(e.selected[0]?.id || null);
+        configureSelectionControls(e.selected[0]);
       });
 
       canvas.on('selection:cleared', () => {
@@ -198,16 +248,40 @@ export default function ResumeBuilderPage() {
         saveCanvasToLocalStorage();
       });
 
-      // Ensure crisp text rendering for all objects
+      // Ensure crisp text rendering and apply control settings for all objects
       canvas.on('object:added', (e: any) => {
         const obj = e.target;
-        if (obj && obj.type === 'text') {
-          // Force crisp text rendering
-          obj.set({
-            fontFamily: obj.fontFamily || 'Arial',
-            fontSize: obj.fontSize || 16,
-            fontWeight: obj.fontWeight || 'normal'
+        if (obj) {
+          // Apply control visibility settings
+          obj.setControlsVisibility({
+            mt: false, // top
+            mb: false, // bottom
+            mtr: false, // rotate handle
+            tl: true,  // top-left
+            tr: true,  // top-right
+            bl: true,  // bottom-left
+            br: true   // bottom-right
           });
+
+          // Apply custom styling to match the image
+          obj.set({
+            borderColor: '#3b82f6', // Primary blue color
+            cornerColor: '#ffffff', // White corner handles
+            cornerStrokeColor: '#999999', // Gray outline
+            cornerStyle: 'circle',
+            cornerSize: 12, // 12px corner handles
+            transparentCorners: false,
+            borderScaleFactor: 2 // 2px border
+          });
+
+          if (obj.type === 'text') {
+            // Force crisp text rendering
+            obj.set({
+              fontFamily: obj.fontFamily || 'Arial',
+              fontSize: obj.fontSize || 16,
+              fontWeight: obj.fontWeight || 'normal'
+            });
+          }
         }
       });
 
@@ -353,108 +427,7 @@ export default function ResumeBuilderPage() {
     saveToHistory(newElements);
   }, [elements, saveToHistory]);
 
-  const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Check if clicking on empty stage area (not on any element)
-    if (e.target === e.target.getStage()) {
-      setSelectedElement(null);
-      if (transformerRef.current) {
-        transformerRef.current.nodes([]);
-        transformerRef.current.getLayer()?.batchDraw();
-      }
-    }
-  }, []);
-
-  const handleElementClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    e.cancelBubble = true;
-    const elementId = e.target.id();
-    
-    // If clicking on the same element, deselect it
-    if (selectedElement === elementId) {
-      setSelectedElement(null);
-      if (transformerRef.current) {
-        transformerRef.current.nodes([]);
-        transformerRef.current.getLayer()?.batchDraw();
-      }
-    } else {
-      // Select the new element
-      setSelectedElement(elementId);
-      
-      // Attach transformer immediately
-      if (transformerRef.current && stageRef.current) {
-        const stage = stageRef.current;
-        const selectedNode = stage.findOne(`#${elementId}`);
-        if (selectedNode) {
-          transformerRef.current.nodes([selectedNode]);
-          transformerRef.current.getLayer()?.batchDraw();
-        }
-      }
-    }
-  }, [selectedElement]);
-
-  const handleElementMouseEnter = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    const container = e.target.getStage()?.container();
-    if (container) {
-      container.style.cursor = 'pointer';
-    }
-  }, []);
-
-  const handleElementMouseLeave = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    const container = e.target.getStage()?.container();
-    if (container) {
-      container.style.cursor = 'default';
-    }
-  }, []);
-
-  const handleElementDrag = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
-    const id = e.target.id();
-    const newElements = elements.map(el => 
-      el.id === id ? { ...el, x: e.target.x(), y: e.target.y() } : el
-    );
-    setElements(newElements);
-  }, [elements]);
-
-  const handleElementTransform = useCallback((e: Konva.KonvaEventObject<Event>) => {
-    const id = e.target.id();
-    const node = e.target;
-    
-    // Reset scale to prevent accumulation
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-    
-    const newElements = elements.map(el => 
-      el.id === id ? {
-        ...el,
-        x: node.x(),
-        y: node.y(),
-        width: Math.max(10, node.width() * scaleX), // Minimum width of 10
-        height: Math.max(10, node.height() * scaleY), // Minimum height of 10
-        rotation: node.rotation(),
-        scaleX: 1, // Reset scale to prevent accumulation
-        scaleY: 1  // Reset scale to prevent accumulation
-      } : el
-    );
-    setElements(newElements);
-    
-    // Reset the node's scale to prevent accumulation
-    node.scaleX(1);
-    node.scaleY(1);
-  }, [elements]);
-
-  const handleElementTransformEnd = useCallback(() => {
-    // Reset scale after transform to prevent accumulation
-    if (transformerRef.current && selectedElement) {
-      const stage = stageRef.current;
-      if (stage) {
-        const selectedNode = stage.findOne(`#${selectedElement}`);
-        if (selectedNode) {
-          selectedNode.scaleX(1);
-          selectedNode.scaleY(1);
-          transformerRef.current.forceUpdate();
-        }
-      }
-    }
-    saveToHistory(elements);
-  }, [elements, saveToHistory, selectedElement]);
+  // Legacy Konva handlers removed - now using Fabric.js event handlers
 
 
   const generateSampleResume = useCallback(() => {
@@ -463,17 +436,16 @@ export default function ResumeBuilderPage() {
   }, []);
 
   const exportToPDF = useCallback(async () => {
-    if (!stageRef.current) return;
+    if (!fabricCanvas) return;
     
     try {
       // Dynamic import of jsPDF
       const { default: jsPDF } = await import('jspdf');
       
-      const stage = stageRef.current;
-      const dataURL = stage.toDataURL({
-        mimeType: 'image/png',
+      const dataURL = fabricCanvas.toDataURL({
+        format: 'png',
         quality: 1,
-        pixelRatio: 2
+        multiplier: 2
       });
       
       // Create new PDF document
@@ -500,11 +472,10 @@ export default function ResumeBuilderPage() {
     } catch (error) {
       console.error('Error creating PDF:', error);
       // Fallback to download as PNG
-      const stage = stageRef.current;
-      const dataURL = stage.toDataURL({
-        mimeType: 'image/png',
+      const dataURL = fabricCanvas.toDataURL({
+        format: 'png',
         quality: 1,
-        pixelRatio: 2
+        multiplier: 2
       });
       
       const link = document.createElement('a');
@@ -512,7 +483,7 @@ export default function ResumeBuilderPage() {
       link.href = dataURL;
       link.click();
     }
-  }, []);
+  }, [fabricCanvas]);
 
   const duplicateElement = useCallback(() => {
     if (!selectedElement) return;
@@ -643,7 +614,8 @@ export default function ResumeBuilderPage() {
       }
     } catch (error) {
       console.error('❌ Error loading template from database:', error);
-      alert(`Failed to load template: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to load template: ${errorMessage}`);
     }
   }, [fabricCanvas]);
 
@@ -687,7 +659,7 @@ export default function ResumeBuilderPage() {
   }, [fabricCanvas]);
 
   const deleteAllTemplatesAndSaveCurrent = useCallback(async () => {
-    if (!stageRef.current) return;
+    if (!fabricCanvas) return;
     
     try {
       // First, delete all existing templates
@@ -703,33 +675,26 @@ export default function ResumeBuilderPage() {
       console.log('Deleted templates:', deleteResult);
 
       // Generate thumbnail from canvas
-      const stage = stageRef.current;
-      const thumbnail = stage.toDataURL({
-        mimeType: 'image/png',
+      const thumbnail = fabricCanvas.toDataURL({
+        format: 'png',
         quality: 0.8,
-        pixelRatio: 1
+        multiplier: 1
       });
 
       // Prepare template data
       const templateData = {
         name: 'Current Canvas Template',
-        description: 'Interactive resume template created with Konva editor',
+        description: 'Interactive resume template created with Fabric.js editor',
         category: 'Modern',
         thumbnail: thumbnail,
         preview: thumbnail,
-        canvasData: {
-          elements: elements,
-          stageConfig: {
-            width: 800,
-            height: 1000
-          }
-        },
+        canvasData: fabricCanvas.toJSON(),
         renderEngine: 'canvas',
         isActive: true,
         isPremium: false,
         isPopular: false,
         isNewTemplate: true,
-        tags: ['interactive', 'konva', 'canvas'],
+        tags: ['interactive', 'fabric', 'canvas'],
         metadata: {
           colorScheme: 'light',
           layout: 'single-column',
@@ -758,40 +723,33 @@ export default function ResumeBuilderPage() {
       console.error('Error deleting and saving canvas:', error);
       alert('Failed to delete templates and save canvas');
     }
-  }, [elements]);
+  }, [fabricCanvas]);
 
   const saveCanvasToDatabase = useCallback(async () => {
-    if (!stageRef.current) return;
+    if (!fabricCanvas) return;
     
     try {
       // Generate thumbnail from canvas
-      const stage = stageRef.current;
-      const thumbnail = stage.toDataURL({
-        mimeType: 'image/png',
+      const thumbnail = fabricCanvas.toDataURL({
+        format: 'png',
         quality: 0.8,
-        pixelRatio: 1
+        multiplier: 1
       });
 
       // Prepare template data
       const templateData = {
         name: `Canvas Template ${new Date().toLocaleDateString()}`,
-        description: 'Interactive resume template created with Konva editor',
+        description: 'Interactive resume template created with Fabric.js editor',
         category: 'Modern',
         thumbnail: thumbnail,
         preview: thumbnail,
-        canvasData: {
-          elements: elements,
-          stageConfig: {
-            width: 800,
-            height: 1000
-          }
-        },
+        canvasData: fabricCanvas.toJSON(),
         renderEngine: 'canvas',
         isActive: true,
         isPremium: false,
         isPopular: false,
         isNewTemplate: true,
-        tags: ['interactive', 'konva', 'canvas'],
+        tags: ['interactive', 'fabric', 'canvas'],
         metadata: {
           colorScheme: 'light',
           layout: 'single-column',
@@ -820,7 +778,7 @@ export default function ResumeBuilderPage() {
       console.error('Error saving canvas:', error);
       alert('Failed to save canvas to database');
     }
-  }, [elements]);
+  }, [fabricCanvas]);
 
   // Show choice screen first
   if (!showCanvas) {
@@ -1201,6 +1159,27 @@ export default function ResumeBuilderPage() {
                         fontStyle: fontStyle,
                         textAlign: textAlign,
                         width: 200,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      });
+                      text.setControlsVisibility({
+                        mt: false, // top
+                        mb: false, // bottom
+                        mtr: false, // rotate handle
+                        tl: true,  // top-left
+                        tr: true,  // top-right
+                        bl: true,  // bottom-left
+                        br: true   // bottom-right
+                      });
+                      text.set({
+                        borderColor: '#3b82f6', // Primary blue color
+                        cornerColor: '#ffffff', // White corner handles
+                        cornerStrokeColor: '#999999', // Gray outline
+                        cornerStyle: 'circle',
+                        cornerSize: 12, // 12px corner handles
+                        transparentCorners: false,
+                        borderScaleFactor: 2 // 2px border
                       });
                       fabricCanvas.add(text);
                       fabricCanvas.setActiveObject(text);
@@ -1214,6 +1193,27 @@ export default function ResumeBuilderPage() {
                         fill: backgroundColor,
                         stroke: strokeColor,
                         strokeWidth: strokeWidth,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      });
+                      rect.setControlsVisibility({
+                        mt: false, // top
+                        mb: false, // bottom
+                        mtr: false, // rotate handle
+                        tl: true,  // top-left
+                        tr: true,  // top-right
+                        bl: true,  // bottom-left
+                        br: true   // bottom-right
+                      });
+                      rect.set({
+                        borderColor: '#3b82f6', // Primary blue color
+                        cornerColor: '#ffffff', // White corner handles
+                        cornerStrokeColor: '#999999', // Gray outline
+                        cornerStyle: 'circle',
+                        cornerSize: 12, // 12px corner handles
+                        transparentCorners: false,
+                        borderScaleFactor: 2 // 2px border
                       });
                       fabricCanvas.add(rect);
                       fabricCanvas.setActiveObject(rect);
@@ -1226,6 +1226,27 @@ export default function ResumeBuilderPage() {
                         fill: backgroundColor,
                         stroke: strokeColor,
                         strokeWidth: strokeWidth,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      });
+                      circle.setControlsVisibility({
+                        mt: false, // top
+                        mb: false, // bottom
+                        mtr: false, // rotate handle
+                        tl: true,  // top-left
+                        tr: true,  // top-right
+                        bl: true,  // bottom-left
+                        br: true   // bottom-right
+                      });
+                      circle.set({
+                        borderColor: '#3b82f6', // Primary blue color
+                        cornerColor: '#ffffff', // White corner handles
+                        cornerStrokeColor: '#999999', // Gray outline
+                        cornerStyle: 'circle',
+                        cornerSize: 12, // 12px corner handles
+                        transparentCorners: false,
+                        borderScaleFactor: 2 // 2px border
                       });
                       fabricCanvas.add(circle);
                       fabricCanvas.setActiveObject(circle);
