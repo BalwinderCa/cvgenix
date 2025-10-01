@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { loadFabric } from '@/lib/fabric-loader';
-import { demoResumeData } from '@/lib/demoResume';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -108,112 +107,6 @@ export default function ResumeBuilderPage() {
     initFabric();
   }, []);
 
-  // Load demo resume function - improved reliability with better debugging
-  const loadDemoResume = useCallback(async () => {
-    if (!fabricCanvas) {
-      console.log('❌ Canvas not ready yet, skipping demo resume load');
-      return;
-    }
-    
-    // Check if canvas already has content
-    if (fabricCanvas.getObjects().length > 0) {
-      console.log('⚠️ Canvas already has content, skipping demo resume load');
-      return;
-    }
-    
-    console.log('🚀 Starting demo resume load...', { 
-      canvasReady: !!fabricCanvas, 
-      objectsCount: fabricCanvas.getObjects().length,
-      timestamp: new Date().toISOString()
-    });
-    
-    // First try hardcoded data for immediate loading
-    console.log('📋 Loading hardcoded demo data immediately...');
-    try {
-      await new Promise<void>((resolve, reject) => {
-        fabricCanvas.loadFromJSON(demoResumeData, () => {
-          console.log('✅ Demo resume loaded from hardcoded data, objects count:', fabricCanvas.getObjects().length);
-          fabricCanvas.renderAll();
-          setCurrentTemplate('demo');
-          resolve();
-        });
-      });
-      console.log('✅ Demo resume successfully loaded from hardcoded data');
-      return; // Exit early with hardcoded data
-    } catch (fallbackError) {
-      console.error('❌ Error loading hardcoded demo data:', fallbackError);
-    }
-    
-    // Then try to load from database in background (optional)
-    console.log('🌐 Attempting to load from database in background...');
-    try {
-      // First, delete all existing templates
-      console.log('🗑️ Deleting existing templates...');
-      const deleteResponse = await fetch('http://localhost:3001/api/templates', {
-        method: 'DELETE'
-      });
-      
-      if (deleteResponse.ok) {
-        const deleteResult = await deleteResponse.json();
-        console.log('✅ Deleted templates:', deleteResult);
-      } else {
-        console.warn('⚠️ Failed to delete templates:', deleteResponse.status);
-      }
-      
-      // Then, save the demo template to database
-      console.log('💾 Saving demo template to database...');
-      const saveResponse = await fetch('http://localhost:3001/api/templates/save-demo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (!saveResponse.ok) {
-        throw new Error(`Failed to save demo template: ${saveResponse.status} ${saveResponse.statusText}`);
-      }
-      
-      const saveResult = await saveResponse.json();
-      console.log('✅ Demo template saved:', saveResult);
-      
-      // Now fetch the template from database
-      console.log('📥 Fetching template from database...');
-      const fetchResponse = await fetch('http://localhost:3001/api/templates');
-      
-      if (!fetchResponse.ok) {
-        throw new Error(`Failed to fetch templates: ${fetchResponse.status} ${fetchResponse.statusText}`);
-      }
-      
-      const templates = await fetchResponse.json();
-      console.log('📋 Templates fetched:', templates);
-      
-      if (templates.length > 0) {
-        const template = templates[0];
-        console.log('🔄 Loading template from database:', template.name);
-        
-        if (template.renderEngine === 'canvas' && template.canvasData) {
-          // Use a promise to ensure loading completes
-          await new Promise<void>((resolve, reject) => {
-            fabricCanvas.loadFromJSON(template.canvasData, () => {
-              console.log('✅ Demo resume loaded from database, objects count:', fabricCanvas.getObjects().length);
-              fabricCanvas.renderAll();
-              setCurrentTemplate(template._id);
-              resolve();
-            });
-          });
-          console.log('✅ Successfully loaded from database');
-          return; // Success, exit early
-        } else {
-          throw new Error('Template is not a canvas template');
-        }
-      } else {
-        throw new Error('No templates found in database');
-      }
-    } catch (error) {
-      console.error('❌ Error loading demo resume from database:', error);
-      console.log('ℹ️ Continuing with hardcoded data (already loaded)');
-    }
-  }, [fabricCanvas]);
 
   // Initialize Fabric.js canvas - with proper timing
   useEffect(() => {
