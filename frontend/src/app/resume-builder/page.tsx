@@ -96,6 +96,32 @@ export default function ResumeBuilderPage() {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
+  // History management functions
+  const saveToHistory = useCallback((newElements: ResumeElement[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newElements]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setElements([...history[newIndex]]);
+      setSelectedElement(null); // Deselect when undoing
+    }
+  }, [historyIndex, history]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setElements([...history[newIndex]]);
+      setSelectedElement(null); // Deselect when redoing
+    }
+  }, [historyIndex, history]);
+
   // Attach transformer to selected element
   React.useEffect(() => {
     if (selectedElement && transformerRef.current && stageRef.current) {
@@ -133,26 +159,33 @@ export default function ResumeBuilderPage() {
     loadTemplatesFromDatabase();
   }, []);
 
-  const saveToHistory = useCallback((newElements: ResumeElement[]) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push([...newElements]);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements(history[historyIndex - 1]);
+  // Initialize history with empty state
+  React.useEffect(() => {
+    if (history.length === 0 && elements.length === 0) {
+      saveToHistory([]);
     }
-  }, [historyIndex, history]);
+  }, [history.length, elements.length, saveToHistory]);
 
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements(history[historyIndex + 1]);
-    }
-  }, [historyIndex, history]);
+  // Keyboard shortcuts for undo/redo
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          undo();
+        } else if (e.key === 'z' && e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else if (e.key === 'y') {
+          e.preventDefault();
+          redo();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   const addElement = useCallback((type: ResumeElement['type']) => {
     const newElement: ResumeElement = {
@@ -255,6 +288,11 @@ export default function ResumeBuilderPage() {
     setElements(newElements);
   }, [elements]);
 
+  const handleElementDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    // Save to history when drag ends
+    saveToHistory(elements);
+  }, [elements, saveToHistory]);
+
   const handleElementTransform = useCallback((e: Konva.KonvaEventObject<Event>) => {
     const id = e.target.id();
     const node = e.target;
@@ -295,6 +333,7 @@ export default function ResumeBuilderPage() {
         }
       }
     }
+    // Save to history when transform ends
     saveToHistory(elements);
   }, [elements, saveToHistory, selectedElement]);
 
@@ -979,7 +1018,8 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={undo}
                       disabled={historyIndex <= 0}
-                      className="h-8 w-8 p-0"
+                      className={`h-8 w-8 p-0 ${historyIndex <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                      title="Undo (Ctrl+Z)"
                     >
                       <Undo className="w-4 h-4" />
                     </Button>
@@ -988,7 +1028,8 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={redo}
                       disabled={historyIndex >= history.length - 1}
-                      className="h-8 w-8 p-0"
+                      className={`h-8 w-8 p-0 ${historyIndex >= history.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                      title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
                     >
                       <Redo className="w-4 h-4" />
                     </Button>
@@ -998,13 +1039,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         setHistory([]);
                         setHistoryIndex(-1);
+                        setElements([]);
+                        setSelectedElement(null);
                       }}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      title="Clear History"
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      title="Clear History and Canvas"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     
+                    {/* History Status */}
+                    <div className="text-xs text-gray-500 ml-2">
+                      {historyIndex + 1}/{history.length}
+                    </div>
                   </div>
                   <Button
                     onClick={exportToPDF}
@@ -1084,6 +1131,7 @@ export default function ResumeBuilderPage() {
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
                                 onDragMove={handleElementDrag}
+                                onDragEnd={handleElementDragEnd}
                                 onTransform={handleElementTransform}
                                 onTransformEnd={handleElementTransformEnd}
                               />
@@ -1139,6 +1187,7 @@ export default function ResumeBuilderPage() {
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
                                 onDragMove={handleElementDrag}
+                                onDragEnd={handleElementDragEnd}
                                 onTransform={handleElementTransform}
                                 onTransformEnd={handleElementTransformEnd}
                               />
@@ -1195,6 +1244,7 @@ export default function ResumeBuilderPage() {
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
                                 onDragMove={handleElementDrag}
+                                onDragEnd={handleElementDragEnd}
                                 onTransform={handleElementTransform}
                                 onTransformEnd={handleElementTransformEnd}
                               />
