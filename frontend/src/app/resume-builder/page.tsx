@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
-import { Stage, Layer, Rect, Text, Group, Transformer } from 'react-konva';
-import Konva from 'konva';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { loadFabric } from '@/lib/fabric-loader';
+import { demoResumeData } from '@/lib/demoResume';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -93,23 +93,272 @@ export default function ResumeBuilderPage() {
   const [currentTemplate, setCurrentTemplate] = useState('');
   const [showTemplateSidebar, setShowTemplateSidebar] = useState(true);
   
-  const stageRef = useRef<Konva.Stage>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
+  // Fabric.js refs and state
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
+  const [fabric, setFabric] = useState<any>(null);
+  const [selectedObject, setSelectedObject] = useState<any>(null);
 
-  // Attach transformer to selected element
-  React.useEffect(() => {
-    if (selectedElement && transformerRef.current && stageRef.current) {
-      const stage = stageRef.current;
-      const selectedNode = stage.findOne(`#${selectedElement}`);
-      if (selectedNode) {
-        transformerRef.current.nodes([selectedNode]);
-        transformerRef.current.getLayer()?.batchDraw();
-      }
-    } else if (!selectedElement && transformerRef.current) {
-      transformerRef.current.nodes([]);
-      transformerRef.current.getLayer()?.batchDraw();
+  // Load Fabric.js
+  useEffect(() => {
+    const initFabric = async () => {
+      const fabricInstance = await loadFabric();
+      setFabric(fabricInstance);
+    };
+    initFabric();
+  }, []);
+
+  // Load demo resume function - improved reliability with better debugging
+  const loadDemoResume = useCallback(async () => {
+    if (!fabricCanvas) {
+      console.log('❌ Canvas not ready yet, skipping demo resume load');
+      return;
     }
-  }, [selectedElement]);
+    
+    // Check if canvas already has content
+    if (fabricCanvas.getObjects().length > 0) {
+      console.log('⚠️ Canvas already has content, skipping demo resume load');
+      return;
+    }
+    
+    console.log('🚀 Starting demo resume load...', { 
+      canvasReady: !!fabricCanvas, 
+      objectsCount: fabricCanvas.getObjects().length,
+      timestamp: new Date().toISOString()
+    });
+    
+    // First try hardcoded data for immediate loading
+    console.log('📋 Loading hardcoded demo data immediately...');
+    try {
+      await new Promise<void>((resolve, reject) => {
+        fabricCanvas.loadFromJSON(demoResumeData, () => {
+          console.log('✅ Demo resume loaded from hardcoded data, objects count:', fabricCanvas.getObjects().length);
+          fabricCanvas.renderAll();
+          setCurrentTemplate('demo');
+          resolve();
+        });
+      });
+      console.log('✅ Demo resume successfully loaded from hardcoded data');
+      return; // Exit early with hardcoded data
+    } catch (fallbackError) {
+      console.error('❌ Error loading hardcoded demo data:', fallbackError);
+    }
+    
+    // Then try to load from database in background (optional)
+    console.log('🌐 Attempting to load from database in background...');
+    try {
+      // First, delete all existing templates
+      console.log('🗑️ Deleting existing templates...');
+      const deleteResponse = await fetch('http://localhost:3001/api/templates', {
+        method: 'DELETE'
+      });
+      
+      if (deleteResponse.ok) {
+        const deleteResult = await deleteResponse.json();
+        console.log('✅ Deleted templates:', deleteResult);
+      } else {
+        console.warn('⚠️ Failed to delete templates:', deleteResponse.status);
+      }
+      
+      // Then, save the demo template to database
+      console.log('💾 Saving demo template to database...');
+      const saveResponse = await fetch('http://localhost:3001/api/templates/save-demo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!saveResponse.ok) {
+        throw new Error(`Failed to save demo template: ${saveResponse.status} ${saveResponse.statusText}`);
+      }
+      
+      const saveResult = await saveResponse.json();
+      console.log('✅ Demo template saved:', saveResult);
+      
+      // Now fetch the template from database
+      console.log('📥 Fetching template from database...');
+      const fetchResponse = await fetch('http://localhost:3001/api/templates');
+      
+      if (!fetchResponse.ok) {
+        throw new Error(`Failed to fetch templates: ${fetchResponse.status} ${fetchResponse.statusText}`);
+      }
+      
+      const templates = await fetchResponse.json();
+      console.log('📋 Templates fetched:', templates);
+      
+      if (templates.length > 0) {
+        const template = templates[0];
+        console.log('🔄 Loading template from database:', template.name);
+        
+        if (template.renderEngine === 'canvas' && template.canvasData) {
+          // Use a promise to ensure loading completes
+          await new Promise<void>((resolve, reject) => {
+            fabricCanvas.loadFromJSON(template.canvasData, () => {
+              console.log('✅ Demo resume loaded from database, objects count:', fabricCanvas.getObjects().length);
+              fabricCanvas.renderAll();
+              setCurrentTemplate(template._id);
+              resolve();
+            });
+          });
+          console.log('✅ Successfully loaded from database');
+          return; // Success, exit early
+        } else {
+          throw new Error('Template is not a canvas template');
+        }
+      } else {
+        throw new Error('No templates found in database');
+      }
+    } catch (error) {
+      console.error('❌ Error loading demo resume from database:', error);
+      console.log('ℹ️ Continuing with hardcoded data (already loaded)');
+    }
+  }, [fabricCanvas]);
+
+  // Initialize Fabric.js canvas - with proper timing
+  useEffect(() => {
+    console.log('🎨 Canvas initialization useEffect triggered:', {
+      canvasRef: !!canvasRef.current,
+      fabric: !!fabric,
+      fabricCanvas: !!fabricCanvas,
+      showCanvas: showCanvas
+    });
+    
+    // Only initialize if we're showing the canvas and have fabric loaded
+    if (!showCanvas || !fabric || fabricCanvas) {
+      console.log('⏳ Skipping canvas initialization:', { showCanvas, fabric: !!fabric, fabricCanvas: !!fabricCanvas });
+      return;
+    }
+    
+    // Wait for canvas element to be ready
+    let retryCount = 0;
+    const maxRetries = 50; // 5 seconds max
+    
+    const initializeCanvas = () => {
+      retryCount++;
+      
+      if (!canvasRef.current) {
+        if (retryCount >= maxRetries) {
+          console.error('❌ Canvas ref not ready after maximum retries');
+          return;
+        }
+        console.log(`⏳ Canvas ref not ready yet, retrying in 100ms... (${retryCount}/${maxRetries})`);
+        setTimeout(initializeCanvas, 100);
+        return;
+      }
+      
+      // Additional check to ensure canvas is properly mounted
+      if (!canvasRef.current.getContext) {
+        if (retryCount >= maxRetries) {
+          console.error('❌ Canvas element not fully ready after maximum retries');
+          return;
+        }
+        console.log(`⏳ Canvas element not fully ready, retrying in 100ms... (${retryCount}/${maxRetries})`);
+        setTimeout(initializeCanvas, 100);
+        return;
+      }
+      
+      console.log('✅ Canvas ref ready, initializing Fabric.js canvas...');
+      try {
+        // Simple approach - minimal configuration
+        console.log('📱 Device pixel ratio:', window.devicePixelRatio || 1);
+        
+        const canvas = new fabric.Canvas(canvasRef.current, {
+          width: 800,
+          height: 1000,
+          backgroundColor: '#ffffff',
+          selection: true,
+          interactive: true,
+          enableRetinaScaling: true,
+          imageSmoothingEnabled: false
+        });
+        console.log('✅ Canvas created:', canvas);
+
+      // Add event listeners
+      canvas.on('selection:created', (e: any) => {
+        setSelectedObject(e.selected[0]);
+        setSelectedElement(e.selected[0]?.id || null);
+      });
+
+      canvas.on('selection:updated', (e: any) => {
+        setSelectedObject(e.selected[0]);
+        setSelectedElement(e.selected[0]?.id || null);
+      });
+
+      canvas.on('selection:cleared', () => {
+        setSelectedObject(null);
+        setSelectedElement(null);
+      });
+
+      canvas.on('object:added', () => {
+        console.log('📝 Object added to canvas');
+        saveCanvasToLocalStorage();
+      });
+
+      canvas.on('object:removed', () => {
+        console.log('🗑️ Object removed from canvas');
+        saveCanvasToLocalStorage();
+      });
+
+      canvas.on('object:modified', () => {
+        console.log('✏️ Object modified on canvas');
+        saveCanvasToLocalStorage();
+      });
+
+      // Ensure crisp text rendering for all objects
+      canvas.on('object:added', (e: any) => {
+        const obj = e.target;
+        if (obj && obj.type === 'text') {
+          // Force crisp text rendering
+          obj.set({
+            fontFamily: obj.fontFamily || 'Arial',
+            fontSize: obj.fontSize || 16,
+            fontWeight: obj.fontWeight || 'normal'
+          });
+        }
+      });
+
+      console.log('💾 Setting fabric canvas state...');
+      setFabricCanvas(canvas);
+      console.log('✅ Canvas state set, fabricCanvas should be available now');
+      
+      // Simple re-render
+      setTimeout(() => {
+        if (canvas) {
+          canvas.renderAll();
+          console.log('🔄 Canvas re-rendered');
+        }
+      }, 100);
+      
+      // Handle window resize
+      const handleResize = () => {
+        if (canvas) {
+          canvas.setDimensions({
+            width: 800,
+            height: 1000
+          });
+          canvas.renderAll();
+        }
+      };
+      
+      window.addEventListener('resize', handleResize);
+      
+      // Cleanup on unmount
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+      } catch (error) {
+        console.error('❌ Error creating Fabric.js canvas:', error);
+        // Retry after a short delay
+        setTimeout(initializeCanvas, 200);
+      }
+    };
+    
+    // Start initialization
+    initializeCanvas();
+  }, [fabric, showCanvas, fabricCanvas]);
+
+  // Legacy Konva logic removed - now using Fabric.js
 
   // Update header toolbar when element is selected
   React.useEffect(() => {
@@ -128,10 +377,7 @@ export default function ResumeBuilderPage() {
   }, [selectedElement, elements]);
 
 
-  // Load templates from database on component mount
-  React.useEffect(() => {
-    loadTemplatesFromDatabase();
-  }, []);
+
 
   const saveToHistory = useCallback((newElements: ResumeElement[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -139,6 +385,25 @@ export default function ResumeBuilderPage() {
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
+
+  // Save canvas data to localStorage
+  const saveCanvasToLocalStorage = useCallback(() => {
+    if (fabricCanvas) {
+      try {
+        const canvasData = fabricCanvas.toJSON();
+        localStorage.setItem('resume-canvas-data', JSON.stringify(canvasData));
+        console.log('Canvas data saved to localStorage');
+      } catch (error) {
+        console.error('Error saving canvas data to localStorage:', error);
+      }
+    }
+  }, [fabricCanvas]);
+
+  // Clear saved canvas data
+  const clearSavedCanvasData = useCallback(() => {
+    localStorage.removeItem('resume-canvas-data');
+    console.log('Saved canvas data cleared from localStorage');
+  }, []);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -439,97 +704,94 @@ export default function ResumeBuilderPage() {
   }, [selectedElement, elements, fontWeight, fontStyle, textDecoration, updateElement]);
 
   const handleTemplateSelect = useCallback(async (templateId: string) => {
+    if (!fabricCanvas) {
+      console.log('❌ Canvas not ready, cannot load template');
+      return;
+    }
+    
+    console.log('🎯 Loading template from database:', templateId);
+    
     try {
+      // Clear current canvas first
+      fabricCanvas.clear();
+      console.log('🧹 Canvas cleared, loading new template...');
+      
       const response = await fetch(`http://localhost:3001/api/templates/${templateId}`);
       if (response.ok) {
         const template = await response.json();
+        console.log('✅ Template loaded from database:', {
+          id: template._id,
+          name: template.name,
+          renderEngine: template.renderEngine,
+          hasCanvasData: !!template.canvasData,
+          objectsCount: template.canvasData?.objects?.length || 0
+        });
         
         if (template.renderEngine === 'canvas' && template.canvasData) {
-          // Check if it's Fabric.js format (objects) or Konva.js format (elements)
-          if (template.canvasData.objects) {
-            // Fabric.js format - convert to Konva format for the resume builder
-            const konvaElements = template.canvasData.objects.map((obj: any) => ({
-              id: obj.id,
-              type: obj.type === 'textbox' ? 'text' : obj.type,
-              x: obj.left,
-              y: obj.top,
-              width: obj.width,
-              height: obj.height,
-              text: obj.text,
-              fontSize: obj.fontSize,
-              fontFamily: obj.fontFamily,
-              fontWeight: obj.fontWeight,
-              fontStyle: obj.fontStyle,
-              fill: obj.fill,
-              stroke: obj.stroke,
-              strokeWidth: obj.strokeWidth,
-              rotation: obj.angle,
-              scaleX: obj.scaleX,
-              scaleY: obj.scaleY,
-              draggable: true,
-              lineHeight: obj.lineHeight,
-              textAlign: obj.textAlign,
-              charSpacing: obj.charSpacing
-            }));
-            setElements(konvaElements);
-            setCurrentTemplate(templateId);
-            saveToHistory(konvaElements);
-          } else if (template.canvasData.elements) {
-            // Konva.js format - use directly
-            setElements(template.canvasData.elements);
-            setCurrentTemplate(templateId);
-            saveToHistory(template.canvasData.elements);
-          } else {
-            alert('This template is not compatible with the canvas editor. Please select a canvas template.');
-          }
+          console.log('📋 Loading canvas template with', template.canvasData.objects.length, 'objects');
+          
+          // Load template directly with Fabric.js - no conversion needed!
+          await new Promise<void>((resolve, reject) => {
+            fabricCanvas.loadFromJSON(template.canvasData, () => {
+              console.log('✅ Template loaded to canvas, objects count:', fabricCanvas.getObjects().length);
+              fabricCanvas.renderAll();
+              setCurrentTemplate(templateId);
+              resolve();
+            });
+          });
+          
+          console.log('🎉 Template successfully loaded from database!');
         } else {
-          // For non-canvas templates, show a message
+          console.log('⚠️ Template is not a canvas template:', template.renderEngine);
           alert('This template is not compatible with the canvas editor. Please select a canvas template.');
         }
       } else {
-        throw new Error('Failed to load template');
+        throw new Error(`Failed to load template: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error loading template:', error);
-      alert('Failed to load template');
+      console.error('❌ Error loading template from database:', error);
+      alert(`Failed to load template: ${error.message}`);
     }
-  }, [saveToHistory]);
+  }, [fabricCanvas]);
 
-  const loadTemplatesFromDatabase = useCallback(async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/templates');
-      if (response.ok) {
-        const data = await response.json();
-        const templates = data.templates || [];
-        
-        // Find a canvas template or create a default one
-        const canvasTemplate = templates.find((t: any) => t.renderEngine === 'canvas' && t.canvasData);
-        
-        if (canvasTemplate && canvasTemplate.canvasData && canvasTemplate.canvasData.elements) {
-          // Load template from database
-          setElements(canvasTemplate.canvasData.elements);
-          setCurrentTemplate(canvasTemplate._id);
-          saveToHistory(canvasTemplate.canvasData.elements);
-        } else {
-          // Show empty canvas when no template is selected
-          setElements([]);
-          setCurrentTemplate('');
-          saveToHistory([]);
-        }
-      } else {
-        // Show empty canvas if API fails
-        setElements([]);
-        setCurrentTemplate('');
-        saveToHistory([]);
-      }
-    } catch (error) {
-      console.error('Error loading templates:', error);
-      // Show empty canvas on error
-      setElements([]);
-      setCurrentTemplate('');
-      saveToHistory([]);
+  // Load saved canvas data when canvas becomes available
+  React.useEffect(() => {
+    console.log('🎯 Canvas loading useEffect triggered:', { 
+      fabricCanvas: !!fabricCanvas, 
+      objectsCount: fabricCanvas?.getObjects().length,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!fabricCanvas) {
+      console.log('⏳ Canvas not ready yet');
+      return;
     }
-  }, [saveToHistory]);
+    
+    // Check if canvas already has content
+    if (fabricCanvas.getObjects().length > 0) {
+      console.log('✅ Canvas already has content, skipping load');
+      return;
+    }
+    
+    // Check if there's saved canvas data in localStorage first
+    const savedCanvasData = localStorage.getItem('resume-canvas-data');
+    if (savedCanvasData) {
+      console.log('💾 Loading saved canvas data from localStorage');
+      try {
+        const canvasData = JSON.parse(savedCanvasData);
+        fabricCanvas.loadFromJSON(canvasData, () => {
+          console.log('✅ Canvas data restored from localStorage');
+          fabricCanvas.renderAll();
+        });
+        return; // Exit early if localStorage data is loaded
+      } catch (error) {
+        console.error('❌ Error loading saved canvas data:', error);
+      }
+    }
+    
+    // No auto-loading of demo resume - let user choose template
+    console.log('📋 Canvas ready - no auto-loading, user can select template');
+  }, [fabricCanvas]);
 
   const deleteAllTemplatesAndSaveCurrent = useCallback(async () => {
     if (!stageRef.current) return;
@@ -754,6 +1016,7 @@ export default function ResumeBuilderPage() {
               <div className="mb-6">
                 
               </div>
+
 
           {/* Header Toolbar */}
           <div className="mb-4">
@@ -1013,230 +1276,72 @@ export default function ResumeBuilderPage() {
                     <Download className="w-4 h-4" />
                     <span>Export PDF</span>
                   </Button>
+                  
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Canvas - Fit Content */}
-          <div className="w-fit">
-            <Stage
-              ref={stageRef}
+          {/* Canvas - Fixed Size */}
+          <div style={{ width: '800px', height: '1000px' }}>
+            <canvas
+              ref={canvasRef}
               width={800}
               height={1000}
               className="border rounded-lg shadow-lg"
+              style={{
+                display: 'block',
+                imageRendering: 'crisp-edges'
+              }}
               onClick={(e) => {
-                // Only deselect if clicking on the stage background, not on elements
-                if (e.target === e.target.getStage()) {
-                  setSelectedElement(null);
-                  if (transformerRef.current) {
-                    transformerRef.current.nodes([]);
-                    transformerRef.current.getLayer()?.batchDraw();
+                if (tool !== 'select' && fabricCanvas) {
+                  const pointer = fabricCanvas.getPointer(e);
+                  switch (tool) {
+                    case 'text':
+                      const text = new fabric.Textbox('New Text', {
+                        left: pointer.x,
+                        top: pointer.y,
+                        fontSize: fontSize,
+                        fontFamily: fontFamily,
+                        fill: textColor,
+                        fontWeight: fontWeight,
+                        fontStyle: fontStyle,
+                        textAlign: textAlign,
+                        width: 200,
+                      });
+                      fabricCanvas.add(text);
+                      fabricCanvas.setActiveObject(text);
+                      break;
+                    case 'rect':
+                      const rect = new fabric.Rect({
+                        left: pointer.x,
+                        top: pointer.y,
+                        width: 100,
+                        height: 100,
+                        fill: backgroundColor,
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth,
+                      });
+                      fabricCanvas.add(rect);
+                      fabricCanvas.setActiveObject(rect);
+                      break;
+                    case 'circle':
+                      const circle = new fabric.Circle({
+                        left: pointer.x,
+                        top: pointer.y,
+                        radius: 50,
+                        fill: backgroundColor,
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth,
+                      });
+                      fabricCanvas.add(circle);
+                      fabricCanvas.setActiveObject(circle);
+                      break;
                   }
+                  fabricCanvas.renderAll();
                 }
               }}
-              onMouseDown={(e) => {
-                if (tool !== 'select') {
-                  const pos = e.target.getStage()?.getPointerPosition();
-                  if (pos) {
-                    addElement(tool);
-                  }
-                }
-              }}
-            >
-                    <Layer>
-                      {/* Background */}
-                      <Rect
-                        x={0}
-                        y={0}
-                        width={800}
-                        height={1000}
-                        fill="#ffffff"
-                        stroke="#e5e7eb"
-                        strokeWidth={1}
-                      />
-                      
-                      {/* Elements */}
-                      {elements.map((element) => {
-                        const isSelected = selectedElement === element.id;
-                        
-                        if (element.type === 'text') {
-                          return (
-                            <Group key={element.id}>
-                              <Text
-                                id={element.id}
-                                x={element.x}
-                                y={element.y}
-                                width={element.width}
-                                height={element.height}
-                                text={element.text || ''}
-                                fontSize={element.fontSize}
-                                fontFamily={element.fontFamily}
-                                fontStyle={element.fontStyle}
-                                fontWeight={element.fontWeight}
-                                textDecoration={element.textDecoration}
-                                fill={element.fill}
-                                draggable={element.draggable}
-                                lineHeight={element.lineHeight}
-                                align={element.textAlign}
-                                letterSpacing={element.charSpacing}
-                                onClick={handleElementClick}
-                                onMouseEnter={handleElementMouseEnter}
-                                onMouseLeave={handleElementMouseLeave}
-                                onDragMove={handleElementDrag}
-                                onTransform={handleElementTransform}
-                                onTransformEnd={handleElementTransformEnd}
-                              />
-                              {isSelected && (
-                                <Transformer
-                                  ref={transformerRef}
-                                  boundBoxFunc={(oldBox, newBox) => {
-                                    // Prevent elements from becoming too small
-                                    if (newBox.width < 20 || newBox.height < 10) {
-                                      return oldBox;
-                                    }
-                                    // Prevent elements from becoming too large
-                                    if (newBox.width > 800 || newBox.height > 200) {
-                                      return oldBox;
-                                    }
-                                    return newBox;
-                                  }}
-                                  enabledAnchors={[ 'top-center', 'middle-right', 'bottom-center', 'middle-left']}
-                                  borderStroke="rgb(14, 181, 129)"
-                                  borderStrokeWidth={2}
-                                  anchorStroke="#ffffff"
-                                  anchorFill="rgb(14, 181, 129)"
-                                  anchorStrokeWidth={5}
-                                  anchorSize={11}
-                                  anchorCornerRadius={2}
-                                  keepRatio={false}
-                                  rotateEnabled={false}
-                                  flipEnabled={false}
-                                  centeredScaling={false}
-                                  ignoreStroke={true}
-                                  useSingleNodeRotation={true}
-                                  shouldOverdrawWholeArea={false}
-                                />
-                              )}
-                            </Group>
-                          );
-                        }
-                        
-                        if (element.type === 'rect') {
-                          return (
-                            <Group key={element.id}>
-                              <Rect
-                                id={element.id}
-                                x={element.x}
-                                y={element.y}
-                                width={element.width}
-                                height={element.height}
-                                fill={element.fill}
-                                stroke={element.stroke}
-                                strokeWidth={element.strokeWidth}
-                                draggable={element.draggable}
-                                onClick={handleElementClick}
-                                onMouseEnter={handleElementMouseEnter}
-                                onMouseLeave={handleElementMouseLeave}
-                                onDragMove={handleElementDrag}
-                                onTransform={handleElementTransform}
-                                onTransformEnd={handleElementTransformEnd}
-                              />
-                              {isSelected && (
-                                <Transformer
-                                  ref={transformerRef}
-                                  boundBoxFunc={(oldBox, newBox) => {
-                                    // Prevent elements from becoming too small
-                                    if (newBox.width < 20 || newBox.height < 10) {
-                                      return oldBox;
-                                    }
-                                    // Prevent elements from becoming too large
-                                    if (newBox.width > 800 || newBox.height > 200) {
-                                      return oldBox;
-                                    }
-                                    return newBox;
-                                  }}
-                                  enabledAnchors={['top-left', 'top-center', 'top-right', 'middle-right', 'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']}
-                                  borderStroke="#3b82f6"
-                                  borderStrokeWidth={2}
-                                  anchorStroke="#ffffff"
-                                  anchorFill="#3b82f6"
-                                  anchorStrokeWidth={1}
-                                  anchorSize={24}
-                                  anchorCornerRadius={1}
-                                  keepRatio={false}
-                                  rotateEnabled={false}
-                                  flipEnabled={false}
-                                  centeredScaling={false}
-                                  ignoreStroke={true}
-                                  useSingleNodeRotation={true}
-                                  shouldOverdrawWholeArea={false}
-                                />
-                              )}
-                            </Group>
-                          );
-                        }
-                        
-                        if (element.type === 'circle') {
-                          return (
-                            <Group key={element.id}>
-                              <Rect
-                                id={element.id}
-                                x={element.x}
-                                y={element.y}
-                                width={element.width}
-                                height={element.height}
-                                cornerRadius={Math.min(element.width || 0, element.height || 0) / 2}
-                                fill={element.fill}
-                                stroke={element.stroke}
-                                strokeWidth={element.strokeWidth}
-                                draggable={element.draggable}
-                                onClick={handleElementClick}
-                                onMouseEnter={handleElementMouseEnter}
-                                onMouseLeave={handleElementMouseLeave}
-                                onDragMove={handleElementDrag}
-                                onTransform={handleElementTransform}
-                                onTransformEnd={handleElementTransformEnd}
-                              />
-                              {isSelected && (
-                                <Transformer
-                                  ref={transformerRef}
-                                  boundBoxFunc={(oldBox, newBox) => {
-                                    // Prevent elements from becoming too small
-                                    if (newBox.width < 20 || newBox.height < 10) {
-                                      return oldBox;
-                                    }
-                                    // Prevent elements from becoming too large
-                                    if (newBox.width > 800 || newBox.height > 200) {
-                                      return oldBox;
-                                    }
-                                    return newBox;
-                                  }}
-                                  enabledAnchors={['top-left', 'top-center', 'top-right', 'middle-right', 'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']}
-                                  borderStroke="#3b82f6"
-                                  borderStrokeWidth={2}
-                                  anchorStroke="#ffffff"
-                                  anchorFill="#3b82f6"
-                                  anchorStrokeWidth={1}
-                                  anchorSize={24}
-                                  anchorCornerRadius={1}
-                                  keepRatio={false}
-                                  rotateEnabled={false}
-                                  flipEnabled={false}
-                                  centeredScaling={false}
-                                  ignoreStroke={true}
-                                  useSingleNodeRotation={true}
-                                  shouldOverdrawWholeArea={false}
-                                />
-                              )}
-                            </Group>
-                          );
-                        }
-                        
-                        return null;
-                      })}
-                    </Layer>
-            </Stage>
+            />
           </div>
             </div>
           </div>
