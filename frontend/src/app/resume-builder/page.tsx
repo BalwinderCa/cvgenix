@@ -133,6 +133,38 @@ export default function ResumeBuilderPage() {
     loadTemplatesFromDatabase();
   }, []);
 
+  // Initialize history with empty state
+  React.useEffect(() => {
+    if (history.length === 0 && elements.length === 0) {
+      setHistory([[]]);
+      setHistoryIndex(0);
+    }
+  }, [history.length, elements.length]);
+
+  // Keyboard shortcuts for undo/redo
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (historyIndex > 0) {
+          const newIndex = historyIndex - 1;
+          setHistoryIndex(newIndex);
+          setElements([...history[newIndex]]);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        if (historyIndex < history.length - 1) {
+          const newIndex = historyIndex + 1;
+          setHistoryIndex(newIndex);
+          setElements([...history[newIndex]]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history]);
+
   const saveToHistory = useCallback((newElements: ResumeElement[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push([...newElements]);
@@ -142,15 +174,17 @@ export default function ResumeBuilderPage() {
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements(history[historyIndex - 1]);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setElements([...history[newIndex]]);
     }
   }, [historyIndex, history]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements(history[historyIndex + 1]);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setElements([...history[newIndex]]);
     }
   }, [historyIndex, history]);
 
@@ -185,6 +219,7 @@ export default function ResumeBuilderPage() {
       el.id === id ? { ...el, ...updates } : el
     );
     setElements(newElements);
+    // Save to history immediately for text changes
     saveToHistory(newElements);
   }, [elements, saveToHistory]);
 
@@ -254,6 +289,15 @@ export default function ResumeBuilderPage() {
     );
     setElements(newElements);
   }, [elements]);
+
+  const handleElementDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    // Save to history when drag ends
+    const id = e.target.id();
+    const newElements = elements.map(el => 
+      el.id === id ? { ...el, x: e.target.x(), y: e.target.y() } : el
+    );
+    saveToHistory(newElements);
+  }, [elements, saveToHistory]);
 
   const handleElementTransform = useCallback((e: Konva.KonvaEventObject<Event>) => {
     const id = e.target.id();
@@ -473,12 +517,16 @@ export default function ResumeBuilderPage() {
             }));
             setElements(konvaElements);
             setCurrentTemplate(templateId);
-            saveToHistory(konvaElements);
+            // Initialize history with the loaded template
+            setHistory([konvaElements]);
+            setHistoryIndex(0);
           } else if (template.canvasData.elements) {
             // Konva.js format - use directly
             setElements(template.canvasData.elements);
             setCurrentTemplate(templateId);
-            saveToHistory(template.canvasData.elements);
+            // Initialize history with the loaded template
+            setHistory([template.canvasData.elements]);
+            setHistoryIndex(0);
           } else {
             alert('This template is not compatible with the canvas editor. Please select a canvas template.');
           }
@@ -509,25 +557,33 @@ export default function ResumeBuilderPage() {
           // Load template from database
           setElements(canvasTemplate.canvasData.elements);
           setCurrentTemplate(canvasTemplate._id);
-          saveToHistory(canvasTemplate.canvasData.elements);
+          // Initialize history with the loaded template
+          setHistory([canvasTemplate.canvasData.elements]);
+          setHistoryIndex(0);
         } else {
           // Show empty canvas when no template is selected
           setElements([]);
           setCurrentTemplate('');
-          saveToHistory([]);
+          // Initialize history with empty state
+          setHistory([[]]);
+          setHistoryIndex(0);
         }
       } else {
         // Show empty canvas if API fails
         setElements([]);
         setCurrentTemplate('');
-        saveToHistory([]);
+        // Initialize history with empty state
+        setHistory([[]]);
+        setHistoryIndex(0);
       }
     } catch (error) {
       console.error('Error loading templates:', error);
       // Show empty canvas on error
       setElements([]);
       setCurrentTemplate('');
-      saveToHistory([]);
+      // Initialize history with empty state
+      setHistory([[]]);
+      setHistoryIndex(0);
     }
   }, [saveToHistory]);
 
@@ -980,6 +1036,7 @@ export default function ResumeBuilderPage() {
                       onClick={undo}
                       disabled={historyIndex <= 0}
                       className="h-8 w-8 p-0"
+                      title="Undo (Ctrl+Z)"
                     >
                       <Undo className="w-4 h-4" />
                     </Button>
@@ -989,6 +1046,7 @@ export default function ResumeBuilderPage() {
                       onClick={redo}
                       disabled={historyIndex >= history.length - 1}
                       className="h-8 w-8 p-0"
+                      title="Redo (Ctrl+Y)"
                     >
                       <Redo className="w-4 h-4" />
                     </Button>
@@ -998,6 +1056,7 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         setHistory([]);
                         setHistoryIndex(-1);
+                        setElements([]);
                       }}
                       className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                       title="Clear History"
@@ -1084,6 +1143,7 @@ export default function ResumeBuilderPage() {
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
                                 onDragMove={handleElementDrag}
+                                onDragEnd={handleElementDragEnd}
                                 onTransform={handleElementTransform}
                                 onTransformEnd={handleElementTransformEnd}
                               />
@@ -1139,6 +1199,7 @@ export default function ResumeBuilderPage() {
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
                                 onDragMove={handleElementDrag}
+                                onDragEnd={handleElementDragEnd}
                                 onTransform={handleElementTransform}
                                 onTransformEnd={handleElementTransformEnd}
                               />
@@ -1195,6 +1256,7 @@ export default function ResumeBuilderPage() {
                                 onMouseEnter={handleElementMouseEnter}
                                 onMouseLeave={handleElementMouseLeave}
                                 onDragMove={handleElementDrag}
+                                onDragEnd={handleElementDragEnd}
                                 onTransform={handleElementTransform}
                                 onTransformEnd={handleElementTransformEnd}
                               />
