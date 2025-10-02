@@ -34,7 +34,13 @@ import {
   Save,
   Upload,
   FileText,
-  Sparkles
+  Sparkles,
+  Layout,
+  Shapes,
+  Image,
+  Cloud,
+  Pencil,
+  ChevronRight
 } from 'lucide-react';
 import NavigationHeader from '@/components/navigation-header';
 import TemplateSidebar from '@/components/template-sidebar';
@@ -91,6 +97,8 @@ export default function ResumeBuilderPage() {
   const [isStrikethrough, setIsStrikethrough] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState('');
   const [showTemplateSidebar, setShowTemplateSidebar] = useState(true);
+  const [activeSidebarTab, setActiveSidebarTab] = useState('design');
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   
   // Fabric.js refs and state
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -165,6 +173,9 @@ export default function ResumeBuilderPage() {
           enableRetinaScaling: true,
           imageSmoothingEnabled: false
         });
+
+        // Enable history tracking
+        canvas.history = true;
 
         console.log('✅ Canvas created:', canvas);
 
@@ -327,21 +338,33 @@ export default function ResumeBuilderPage() {
 
   // Legacy Konva logic removed - now using Fabric.js
 
-  // Update header toolbar when element is selected
+  // Update header toolbar when object is selected
   React.useEffect(() => {
-    if (selectedElement) {
-      const element = elements.find(el => el.id === selectedElement);
-      if (element) {
-        setFontFamily(element.fontFamily || 'Arial');
-        setFontSize(element.fontSize || 16);
-        setTextColor(element.fill || '#000000');
-        setIsBold(element.fontWeight === 'bold');
-        setIsItalic(element.fontStyle === 'italic');
-        setIsUnderline(element.textDecoration === 'underline');
-        setIsStrikethrough(element.textDecoration === 'line-through');
+    if (fabricCanvas) {
+      const activeObjects = fabricCanvas.getActiveObjects();
+      if (activeObjects.length > 0) {
+        // For multiple selection, use the first object's properties
+        const firstObject = activeObjects[0];
+        setFontFamily(firstObject.fontFamily || 'Arial');
+        setFontSize(firstObject.fontSize || 16);
+        setTextColor(firstObject.fill || '#000000');
+        setIsBold(firstObject.fontWeight === 'bold');
+        setIsItalic(firstObject.fontStyle === 'italic');
+        setIsUnderline(firstObject.underline || false);
+        setIsStrikethrough(firstObject.linethrough || false);
+        setTextAlign(firstObject.textAlign || 'left');
+      } else if (selectedObject) {
+        setFontFamily(selectedObject.fontFamily || 'Arial');
+        setFontSize(selectedObject.fontSize || 16);
+        setTextColor(selectedObject.fill || '#000000');
+        setIsBold(selectedObject.fontWeight === 'bold');
+        setIsItalic(selectedObject.fontStyle === 'italic');
+        setIsUnderline(selectedObject.underline || false);
+        setIsStrikethrough(selectedObject.linethrough || false);
+        setTextAlign(selectedObject.textAlign || 'left');
       }
     }
-  }, [selectedElement, elements]);
+  }, [selectedObject, fabricCanvas]);
 
 
 
@@ -373,18 +396,16 @@ export default function ResumeBuilderPage() {
   }, []);
 
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements(history[historyIndex - 1]);
+    if (fabricCanvas) {
+      fabricCanvas.undo();
     }
-  }, [historyIndex, history]);
+  }, [fabricCanvas]);
 
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements(history[historyIndex + 1]);
+    if (fabricCanvas) {
+      fabricCanvas.redo();
     }
-  }, [historyIndex, history]);
+  }, [fabricCanvas]);
 
   const addElement = useCallback((type: ResumeElement['type']) => {
     const newElement: ResumeElement = {
@@ -852,13 +873,163 @@ export default function ResumeBuilderPage() {
     <div className="min-h-screen bg-gray-50">
       <NavigationHeader />
       <div className="pt-16 flex h-screen">
-        {/* Template Sidebar */}
-        {showTemplateSidebar && (
-          <TemplateSidebar
-            currentTemplateId={currentTemplate}
-            onTemplateSelect={handleTemplateSelect}
-          />
+        {/* Right Sidebar with Horizontal Tabs */}
+        {showLeftSidebar && (
+          <div className="w-80 bg-white border-r border-gray-200">
+            {/* Horizontal Tab Navigation */}
+            <div className="border-b border-gray-200 p-4">
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => setActiveSidebarTab('design')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeSidebarTab === 'design' 
+                      ? 'bg-teal-500 text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Layout className="w-4 h-4" />
+                  <span>Design</span>
+                </button>
+                <button
+                  onClick={() => setActiveSidebarTab('elements')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeSidebarTab === 'elements' 
+                      ? 'bg-teal-500 text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Shapes className="w-4 h-4" />
+                  <span>Elements</span>
+                </button>
+                <button
+                  onClick={() => setActiveSidebarTab('text')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeSidebarTab === 'text' 
+                      ? 'bg-teal-500 text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Type className="w-4 h-4" />
+                  <span>Text</span>
+                </button>
+                <button
+                  onClick={() => setActiveSidebarTab('uploads')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeSidebarTab === 'uploads' 
+                      ? 'bg-teal-500 text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Cloud className="w-4 h-4" />
+                  <span>Uploads</span>
+                </button>
+                <button
+                  onClick={() => setActiveSidebarTab('tools')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeSidebarTab === 'tools' 
+                      ? 'bg-teal-500 text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span>Tools</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="h-full">
+              {activeSidebarTab === 'design' && (
+                <TemplateSidebar
+                  currentTemplateId={currentTemplate}
+                  onTemplateSelect={handleTemplateSelect}
+                  canvasReady={!!fabricCanvas}
+                />
+              )}
+
+              {activeSidebarTab === 'elements' && (
+                <div className="p-4 space-y-4">
+                  <h3 className="font-semibold text-gray-900">Elements</h3>
+                  <div className="space-y-2">
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Shapes</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Icons</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Lines</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSidebarTab === 'text' && (
+                <div className="p-4 space-y-4">
+                  <h3 className="font-semibold text-gray-900">Text</h3>
+                  <div className="space-y-2">
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Headings</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Body Text</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Lists</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSidebarTab === 'uploads' && (
+                <div className="p-4 space-y-4">
+                  <h3 className="font-semibold text-gray-900">Uploads</h3>
+                  <div className="space-y-2">
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Images</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Documents</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Recent</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSidebarTab === 'tools' && (
+                <div className="p-4 space-y-4">
+                  <h3 className="font-semibold text-gray-900">Tools</h3>
+                  <div className="space-y-2">
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Select</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Text</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                      <span>Shapes</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
+
         
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
@@ -874,14 +1045,75 @@ export default function ResumeBuilderPage() {
             <Card className="p-0 w-fit">
               <CardContent className="p-1">
                 <div className="flex items-center space-x-4 bg-gray-50 rounded-lg p-0">
+                  {/* Sidebar Toggle */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+                    className="h-8 w-8 p-0"
+                    title="Toggle Sidebar"
+                  >
+                    <PanelLeft className="w-4 h-4" />
+                  </Button>
+                  {/* Tool Selection */}
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant={tool === 'select' ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setTool('select')}
+                      className="h-8 w-8 p-0"
+                      title="Select Tool"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={tool === 'text' ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setTool('text')}
+                      className="h-8 w-8 p-0"
+                      title="Text Tool"
+                    >
+                      <Type className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={tool === 'rect' ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setTool('rect')}
+                      className="h-8 w-8 p-0"
+                      title="Rectangle Tool"
+                    >
+                      <Square className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={tool === 'circle' ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setTool('circle')}
+                      className="h-8 w-8 p-0"
+                      title="Circle Tool"
+                    >
+                      <Circle className="w-4 h-4" />
+                    </Button>
+                  </div>
+
                   {/* Font Family */}
                   <div className="flex items-center space-x-2">
                     <select
                       value={fontFamily}
                       onChange={(e) => {
                         setFontFamily(e.target.value);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fontFamily: e.target.value });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ fontFamily: e.target.value });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fontFamily: e.target.value });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="px-3 py-1 border rounded-md text-sm bg-white"
@@ -891,6 +1123,22 @@ export default function ResumeBuilderPage() {
                       <option value="Georgia">Georgia</option>
                       <option value="Helvetica">Helvetica</option>
                       <option value="Verdana">Verdana</option>
+                      <option value="Calibri">Calibri</option>
+                      <option value="Cambria">Cambria</option>
+                      <option value="Comic Sans MS">Comic Sans MS</option>
+                      <option value="Courier New">Courier New</option>
+                      <option value="Garamond">Garamond</option>
+                      <option value="Impact">Impact</option>
+                      <option value="Lucida Console">Lucida Console</option>
+                      <option value="Lucida Sans Unicode">Lucida Sans Unicode</option>
+                      <option value="Palatino">Palatino</option>
+                      <option value="Tahoma">Tahoma</option>
+                      <option value="Trebuchet MS">Trebuchet MS</option>
+                      <option value="Open Sans">Open Sans</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Lato">Lato</option>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Source Sans Pro">Source Sans Pro</option>
                     </select>
                   </div>
 
@@ -902,8 +1150,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         const newSize = Math.max(8, fontSize - 1);
                         setFontSize(newSize);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fontSize: newSize });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ fontSize: newSize });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fontSize: newSize });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="h-8 w-8 p-0"
@@ -916,8 +1175,19 @@ export default function ResumeBuilderPage() {
                       onChange={(e) => {
                         const newSize = Math.max(8, Math.min(72, Number(e.target.value)));
                         setFontSize(newSize);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fontSize: newSize });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ fontSize: newSize });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fontSize: newSize });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="w-12 text-center text-sm border-0 bg-transparent focus:outline-none"
@@ -928,8 +1198,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         const newSize = Math.min(72, fontSize + 1);
                         setFontSize(newSize);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fontSize: newSize });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ fontSize: newSize });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fontSize: newSize });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="h-8 w-8 p-0"
@@ -945,8 +1226,17 @@ export default function ResumeBuilderPage() {
                       value={textColor}
                       onChange={(e) => {
                         setTextColor(e.target.value);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fill: e.target.value });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.set({ fill: e.target.value });
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fill: e.target.value });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="w-8 h-8 rounded border-0 cursor-pointer"
@@ -961,8 +1251,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         const newBold = !isBold;
                         setIsBold(newBold);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fontWeight: newBold ? 'bold' : 'normal' });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ fontWeight: newBold ? 'bold' : 'normal' });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fontWeight: newBold ? 'bold' : 'normal' });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="h-8 w-8 p-0"
@@ -975,8 +1276,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         const newItalic = !isItalic;
                         setIsItalic(newItalic);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { fontStyle: newItalic ? 'italic' : 'normal' });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ fontStyle: newItalic ? 'italic' : 'normal' });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ fontStyle: newItalic ? 'italic' : 'normal' });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="h-8 w-8 p-0"
@@ -989,8 +1301,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         const newUnderline = !isUnderline;
                         setIsUnderline(newUnderline);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { textDecoration: newUnderline ? 'underline' : 'none' });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ underline: newUnderline });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ underline: newUnderline });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="h-8 w-8 p-0"
@@ -1003,8 +1326,19 @@ export default function ResumeBuilderPage() {
                       onClick={() => {
                         const newStrikethrough = !isStrikethrough;
                         setIsStrikethrough(newStrikethrough);
-                        if (selectedElement) {
-                          updateElement(selectedElement, { textDecoration: newStrikethrough ? 'line-through' : 'none' });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ linethrough: newStrikethrough });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ linethrough: newStrikethrough });
+                            fabricCanvas.renderAll();
+                          }
                         }
                       }}
                       className="h-8 w-8 p-0"
@@ -1020,10 +1354,18 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={() => {
                         setTextAlign('left');
-                        if (selectedElement) {
-                          const element = elements.find(el => el.id === selectedElement);
-                          if (element) {
-                            updateElement(selectedElement, { x: 50 });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ textAlign: 'left' });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ textAlign: 'left' });
+                            fabricCanvas.renderAll();
                           }
                         }
                       }}
@@ -1036,10 +1378,18 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={() => {
                         setTextAlign('center');
-                        if (selectedElement) {
-                          const element = elements.find(el => el.id === selectedElement);
-                          if (element) {
-                            updateElement(selectedElement, { x: 400 - (element.width || 0) / 2 });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ textAlign: 'center' });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ textAlign: 'center' });
+                            fabricCanvas.renderAll();
                           }
                         }
                       }}
@@ -1052,10 +1402,18 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={() => {
                         setTextAlign('right');
-                        if (selectedElement) {
-                          const element = elements.find(el => el.id === selectedElement);
-                          if (element) {
-                            updateElement(selectedElement, { x: 750 - (element.width || 0) });
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ textAlign: 'right' });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ textAlign: 'right' });
+                            fabricCanvas.renderAll();
                           }
                         }
                       }}
@@ -1066,7 +1424,23 @@ export default function ResumeBuilderPage() {
                     <Button
                       variant={textAlign === 'justify' ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setTextAlign('justify')}
+                      onClick={() => {
+                        setTextAlign('justify');
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              if (obj.type === 'text' || obj.type === 'textbox') {
+                                obj.set({ textAlign: 'justify' });
+                              }
+                            });
+                            fabricCanvas.renderAll();
+                          } else if (selectedObject) {
+                            selectedObject.set({ textAlign: 'justify' });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
                       className="h-8 w-8 p-0"
                     >
                       <AlignJustify className="w-4 h-4" />
@@ -1092,7 +1466,6 @@ export default function ResumeBuilderPage() {
                       variant="ghost"
                       size="sm"
                       onClick={undo}
-                      disabled={historyIndex <= 0}
                       className="h-8 w-8 p-0"
                     >
                       <Undo className="w-4 h-4" />
@@ -1101,7 +1474,6 @@ export default function ResumeBuilderPage() {
                       variant="ghost"
                       size="sm"
                       onClick={redo}
-                      disabled={historyIndex >= history.length - 1}
                       className="h-8 w-8 p-0"
                     >
                       <Redo className="w-4 h-4" />
