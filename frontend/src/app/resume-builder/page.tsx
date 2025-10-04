@@ -336,7 +336,6 @@ export default function ResumeBuilderPage() {
     initializeCanvas();
   }, [fabric, showCanvas, fabricCanvas]);
 
-  // Legacy Konva logic removed - now using Fabric.js
 
   // Update header toolbar when object is selected
   React.useEffect(() => {
@@ -448,7 +447,6 @@ export default function ResumeBuilderPage() {
     saveToHistory(newElements);
   }, [elements, saveToHistory]);
 
-  // Legacy Konva handlers removed - now using Fabric.js event handlers
 
 
   const generateSampleResume = useCallback(() => {

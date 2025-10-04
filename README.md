@@ -53,7 +53,7 @@ cp env.example .env.local
 
 Edit `.env.local` with your configuration:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 # Add other frontend environment variables as needed
 ```
@@ -68,7 +68,7 @@ cp env.example .env
 
 Edit `.env` with your configuration:
 ```env
-PORT=5000
+PORT=3001
 NODE_ENV=development
 DATABASE_URL=your_database_url
 JWT_SECRET=your_jwt_secret
