@@ -873,63 +873,77 @@ export default function ResumeBuilderPage() {
       <div className="pt-16 flex h-screen">
         {/* Right Sidebar with Horizontal Tabs */}
         {showLeftSidebar && (
-          <div className="w-80 bg-white border-r border-gray-200">
+          <div className="w-96 bg-white border-r border-gray-200 pt-4">
+            {/* Sidebar Header with Toggle */}
+            <div className="border-b border-gray-200 p-4 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Templates</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+                className="h-8 w-8 p-0"
+                title="Toggle Sidebar"
+              >
+                <PanelLeft className="w-4 h-4" />
+              </Button>
+            </div>
+
             {/* Horizontal Tab Navigation */}
             <div className="border-b border-gray-200 p-4">
-              <div className="flex space-x-1">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setActiveSidebarTab('design')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     activeSidebarTab === 'design' 
                       ? 'bg-teal-500 text-white' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Layout className="w-4 h-4" />
+                  <Layout className="w-3.5 h-3.5" />
                   <span>Design</span>
                 </button>
                 <button
                   onClick={() => setActiveSidebarTab('elements')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     activeSidebarTab === 'elements' 
                       ? 'bg-teal-500 text-white' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Shapes className="w-4 h-4" />
+                  <Shapes className="w-3.5 h-3.5" />
                   <span>Elements</span>
                 </button>
                 <button
                   onClick={() => setActiveSidebarTab('text')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     activeSidebarTab === 'text' 
                       ? 'bg-teal-500 text-white' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Type className="w-4 h-4" />
+                  <Type className="w-3.5 h-3.5" />
                   <span>Text</span>
                 </button>
                 <button
                   onClick={() => setActiveSidebarTab('uploads')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     activeSidebarTab === 'uploads' 
                       ? 'bg-teal-500 text-white' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Cloud className="w-4 h-4" />
+                  <Cloud className="w-3.5 h-3.5" />
                   <span>Uploads</span>
                 </button>
                 <button
                   onClick={() => setActiveSidebarTab('tools')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     activeSidebarTab === 'tools' 
                       ? 'bg-teal-500 text-white' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Pencil className="w-4 h-4" />
+                  <Pencil className="w-3.5 h-3.5" />
                   <span>Tools</span>
                 </button>
               </div>
@@ -949,17 +963,342 @@ export default function ResumeBuilderPage() {
                 <div className="p-4 space-y-4">
                   <h3 className="font-semibold text-gray-900">Elements</h3>
                   <div className="space-y-2">
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Shapes</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const rect = new fabric.Rect({
+                            left: 100,
+                            top: 100,
+                            width: 100,
+                            height: 100,
+                            fill: '#3b82f6',
+                            stroke: '#1e40af',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          rect.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          rect.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(rect);
+                          fabricCanvas.setActiveObject(rect);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Square className="w-4 h-4" />
+                        <span>Rectangle</span>
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Icons</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const circle = new fabric.Circle({
+                            left: 100,
+                            top: 100,
+                            radius: 50,
+                            fill: '#10b981',
+                            stroke: '#059669',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          circle.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          circle.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(circle);
+                          fabricCanvas.setActiveObject(circle);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Circle className="w-4 h-4" />
+                        <span>Circle</span>
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Lines</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const line = new fabric.Line([50, 50, 150, 50], {
+                            stroke: '#ef4444',
+                            strokeWidth: 3,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          line.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          line.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(line);
+                          fabricCanvas.setActiveObject(line);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Minus className="w-4 h-4" />
+                        <span>Line</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const triangle = new fabric.Triangle({
+                            left: 100,
+                            top: 100,
+                            width: 80,
+                            height: 80,
+                            fill: '#8b5cf6',
+                            stroke: '#7c3aed',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          triangle.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          triangle.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(triangle);
+                          fabricCanvas.setActiveObject(triangle);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Shapes className="w-4 h-4" />
+                        <span>Triangle</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const polygon = new fabric.Polygon([
+                            { x: 0, y: -50 },
+                            { x: 50, y: 0 },
+                            { x: 0, y: 50 },
+                            { x: -50, y: 0 }
+                          ], {
+                            left: 100,
+                            top: 100,
+                            fill: '#f59e0b',
+                            stroke: '#d97706',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          polygon.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          polygon.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(polygon);
+                          fabricCanvas.setActiveObject(polygon);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Square className="w-4 h-4" />
+                        <span>Diamond</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const star = new fabric.Polygon([
+                            { x: 0, y: -40 },
+                            { x: 12, y: -12 },
+                            { x: 40, y: -12 },
+                            { x: 20, y: 8 },
+                            { x: 24, y: 40 },
+                            { x: 0, y: 24 },
+                            { x: -24, y: 40 },
+                            { x: -20, y: 8 },
+                            { x: -40, y: -12 },
+                            { x: -12, y: -12 }
+                          ], {
+                            left: 100,
+                            top: 100,
+                            fill: '#eab308',
+                            stroke: '#ca8a04',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          star.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          star.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(star);
+                          fabricCanvas.setActiveObject(star);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Sparkles className="w-4 h-4" />
+                        <span>Star</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const hexagon = new fabric.Polygon([
+                            { x: -30, y: -25 },
+                            { x: 30, y: -25 },
+                            { x: 40, y: 0 },
+                            { x: 30, y: 25 },
+                            { x: -30, y: 25 },
+                            { x: -40, y: 0 }
+                          ], {
+                            left: 100,
+                            top: 100,
+                            fill: '#06b6d4',
+                            stroke: '#0891b2',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          hexagon.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          hexagon.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(hexagon);
+                          fabricCanvas.setActiveObject(hexagon);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Shapes className="w-4 h-4" />
+                        <span>Hexagon</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const arrow = new fabric.Polygon([
+                            { x: -30, y: -10 },
+                            { x: 20, y: -10 },
+                            { x: 20, y: -20 },
+                            { x: 40, y: 0 },
+                            { x: 20, y: 20 },
+                            { x: 20, y: 10 },
+                            { x: -30, y: 10 }
+                          ], {
+                            left: 100,
+                            top: 100,
+                            fill: '#dc2626',
+                            stroke: '#b91c1c',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          arrow.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          arrow.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(arrow);
+                          fabricCanvas.setActiveObject(arrow);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <ChevronRight className="w-4 h-4" />
+                        <span>Arrow</span>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -969,17 +1308,322 @@ export default function ResumeBuilderPage() {
                 <div className="p-4 space-y-4">
                   <h3 className="font-semibold text-gray-900">Text</h3>
                   <div className="space-y-2">
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Headings</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const heading = new fabric.Textbox('Your Name', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 24,
+                            fontFamily: 'Arial',
+                            fontWeight: 'bold',
+                            fill: '#1f2937',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          heading.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          heading.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(heading);
+                          fabricCanvas.setActiveObject(heading);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
+                        <span>Heading</span>
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const bodyText = new fabric.Textbox('Body text content here...', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 14,
+                            fontFamily: 'Arial',
+                            fill: '#374151',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          bodyText.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          bodyText.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(bodyText);
+                          fabricCanvas.setActiveObject(bodyText);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
                       <span>Body Text</span>
-                      <ChevronRight className="w-4 h-4" />
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Lists</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const bulletText = new fabric.Textbox('• First item\n• Second item\n• Third item', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 14,
+                            fontFamily: 'Arial',
+                            fill: '#374151',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          bulletText.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          bulletText.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(bulletText);
+                          fabricCanvas.setActiveObject(bulletText);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <List className="w-4 h-4" />
+                        <span>Bullet List</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const numberedList = new fabric.Textbox('1. First item\n2. Second item\n3. Third item', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 14,
+                            fontFamily: 'Arial',
+                            fill: '#374151',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          numberedList.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          numberedList.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(numberedList);
+                          fabricCanvas.setActiveObject(numberedList);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <List className="w-4 h-4" />
+                        <span>Numbered List</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const subheading = new fabric.Textbox('Subheading', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 18,
+                            fontFamily: 'Arial',
+                            fontWeight: 'bold',
+                            fill: '#1f2937',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          subheading.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          subheading.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(subheading);
+                          fabricCanvas.setActiveObject(subheading);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
+                        <span>Subheading</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const caption = new fabric.Textbox('Caption text', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 12,
+                            fontFamily: 'Arial',
+                            fontStyle: 'italic',
+                            fill: '#6b7280',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          caption.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          caption.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(caption);
+                          fabricCanvas.setActiveObject(caption);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
+                        <span>Caption</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const quote = new fabric.Textbox('"This is a quote"', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 16,
+                            fontFamily: 'Georgia',
+                            fontStyle: 'italic',
+                            fill: '#374151',
+                            width: 250,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          quote.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          quote.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(quote);
+                          fabricCanvas.setActiveObject(quote);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
+                        <span>Quote</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const code = new fabric.Textbox('code snippet', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 14,
+                            fontFamily: 'Courier New',
+                            fill: '#1f2937',
+                            backgroundColor: '#f3f4f6',
+                            width: 200,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          code.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          code.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(code);
+                          fabricCanvas.setActiveObject(code);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
+                        <span>Code</span>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -989,17 +1633,171 @@ export default function ResumeBuilderPage() {
                 <div className="p-4 space-y-4">
                   <h3 className="font-semibold text-gray-900">Uploads</h3>
                   <div className="space-y-2">
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Images</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <label className="w-full cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && fabricCanvas) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const img = new Image();
+                              img.onload = () => {
+                                const fabricImage = new fabric.Image(img, {
+                                  left: 100,
+                                  top: 100,
+                                  scaleX: 0.5,
+                                  scaleY: 0.5,
+                                  lockRotation: true,
+                                  lockUniScaling: true,
+                                  lockScalingFlip: true
+                                });
+                                fabricImage.setControlsVisibility({
+                                  mt: false, mb: false, mtr: false,
+                                  tl: true, tr: true, bl: true, br: true
+                                });
+                                fabricImage.set({
+                                  borderColor: '#3b82f6',
+                                  cornerColor: '#ffffff',
+                                  cornerStrokeColor: '#999999',
+                                  cornerStyle: 'circle',
+                                  cornerSize: 12,
+                                  transparentCorners: false,
+                                  borderScaleFactor: 2
+                                });
+                                fabricCanvas.add(fabricImage);
+                                fabricCanvas.setActiveObject(fabricImage);
+                                fabricCanvas.renderAll();
+                              };
+                              img.src = event.target?.result as string;
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <div className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Image className="w-4 h-4" />
+                          <span>Upload Image</span>
+                        </div>
+                        <Upload className="w-4 h-4" />
+                      </div>
+                    </label>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          // Add a sample profile image placeholder
+                          const rect = new fabric.Rect({
+                            left: 100,
+                            top: 100,
+                            width: 80,
+                            height: 80,
+                            fill: '#e5e7eb',
+                            stroke: '#9ca3af',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          const text = new fabric.Text('Photo', {
+                            left: 100,
+                            top: 140,
+                            fontSize: 12,
+                            fill: '#6b7280',
+                            textAlign: 'center',
+                            originX: 'center',
+                            originY: 'center'
+                          });
+                          const group = new fabric.Group([rect, text], {
+                            left: 100,
+                            top: 100,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          group.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          group.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(group);
+                          fabricCanvas.setActiveObject(group);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Image className="w-4 h-4" />
+                        <span>Profile Placeholder</span>
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Documents</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Recent</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          // Add a sample logo placeholder
+                          const circle = new fabric.Circle({
+                            left: 100,
+                            top: 100,
+                            radius: 30,
+                            fill: '#3b82f6',
+                            stroke: '#1e40af',
+                            strokeWidth: 2,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          const text = new fabric.Text('LOGO', {
+                            left: 100,
+                            top: 100,
+                            fontSize: 10,
+                            fill: '#ffffff',
+                            textAlign: 'center',
+                            originX: 'center',
+                            originY: 'center',
+                            fontWeight: 'bold'
+                          });
+                          const group = new fabric.Group([circle, text], {
+                            left: 100,
+                            top: 100,
+                            lockRotation: true,
+                            lockUniScaling: true,
+                            lockScalingFlip: true
+                          });
+                          group.setControlsVisibility({
+                            mt: false, mb: false, mtr: false,
+                            tl: true, tr: true, bl: true, br: true
+                          });
+                          group.set({
+                            borderColor: '#3b82f6',
+                            cornerColor: '#ffffff',
+                            cornerStrokeColor: '#999999',
+                            cornerStyle: 'circle',
+                            cornerSize: 12,
+                            transparentCorners: false,
+                            borderScaleFactor: 2
+                          });
+                          fabricCanvas.add(group);
+                          fabricCanvas.setActiveObject(group);
+                          fabricCanvas.renderAll();
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Square className="w-4 h-4" />
+                        <span>Logo Placeholder</span>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -1009,17 +1807,230 @@ export default function ResumeBuilderPage() {
                 <div className="p-4 space-y-4">
                   <h3 className="font-semibold text-gray-900">Tools</h3>
                   <div className="space-y-2">
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Select</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => setTool('select')}
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between ${
+                        tool === 'select' ? 'bg-blue-100 text-blue-700' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Settings className="w-4 h-4" />
+                        <span>Select Tool</span>
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Text</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => setTool('text')}
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between ${
+                        tool === 'text' ? 'bg-blue-100 text-blue-700' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Type className="w-4 h-4" />
+                        <span>Text Tool</span>
+                      </div>
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
-                      <span>Shapes</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <button 
+                      onClick={() => setTool('rect')}
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between ${
+                        tool === 'rect' ? 'bg-blue-100 text-blue-700' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Square className="w-4 h-4" />
+                        <span>Rectangle Tool</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => setTool('circle')}
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between ${
+                        tool === 'circle' ? 'bg-blue-100 text-blue-700' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Circle className="w-4 h-4" />
+                        <span>Circle Tool</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const objects = fabricCanvas.getObjects();
+                          if (objects.length > 0) {
+                            fabricCanvas.remove(...objects);
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between text-red-600 hover:text-red-700"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Trash2 className="w-4 h-4" />
+                        <span>Clear Canvas</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.bringToFront();
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <MoveUp className="w-4 h-4" />
+                        <span>Bring to Front</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.sendToBack();
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <MoveDown className="w-4 h-4" />
+                        <span>Send to Back</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.set({ angle: 0 });
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Reset Rotation</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            const firstObj = activeObjects[0];
+                            const newObj = firstObj.clone();
+                            newObj.set({
+                              left: firstObj.left + 20,
+                              top: firstObj.top + 20
+                            });
+                            fabricCanvas.add(newObj);
+                            fabricCanvas.setActiveObject(newObj);
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Copy className="w-4 h-4" />
+                        <span>Duplicate</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.set({ opacity: obj.opacity === 0.5 ? 1 : 0.5 });
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Settings className="w-4 h-4" />
+                        <span>Toggle Opacity</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.set({ 
+                                flipX: !obj.flipX 
+                              });
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Flip Horizontal</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.set({ 
+                                flipY: !obj.flipY 
+                              });
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Flip Vertical</span>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (fabricCanvas) {
+                          const activeObjects = fabricCanvas.getActiveObjects();
+                          if (activeObjects.length > 0) {
+                            activeObjects.forEach((obj: any) => {
+                              obj.set({ 
+                                scaleX: obj.scaleX * -1,
+                                scaleY: obj.scaleY * -1
+                              });
+                            });
+                            fabricCanvas.renderAll();
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Flip Both</span>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -1037,13 +2048,12 @@ export default function ResumeBuilderPage() {
                 
               </div>
 
-
           {/* Header Toolbar */}
           <div className="mb-4">
             <Card className="p-0 w-fit">
               <CardContent className="p-1">
                 <div className="flex items-center space-x-4 bg-gray-50 rounded-lg p-0">
-                  {/* Sidebar Toggle */}
+                  {/* Sidebar Toggle - Always visible */}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1053,46 +2063,7 @@ export default function ResumeBuilderPage() {
                   >
                     <PanelLeft className="w-4 h-4" />
                   </Button>
-                  {/* Tool Selection */}
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant={tool === 'select' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setTool('select')}
-                      className="h-8 w-8 p-0"
-                      title="Select Tool"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={tool === 'text' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setTool('text')}
-                      className="h-8 w-8 p-0"
-                      title="Text Tool"
-                    >
-                      <Type className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={tool === 'rect' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setTool('rect')}
-                      className="h-8 w-8 p-0"
-                      title="Rectangle Tool"
-                    >
-                      <Square className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={tool === 'circle' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setTool('circle')}
-                      className="h-8 w-8 p-0"
-                      title="Circle Tool"
-                    >
-                      <Circle className="w-4 h-4" />
-                    </Button>
-                  </div>
-
+                  
                   {/* Font Family */}
                   <div className="flex items-center space-x-2">
                     <select
@@ -1115,6 +2086,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="px-3 py-1 border rounded-md text-sm bg-white"
+                      title="Font Family"
                     >
                       <option value="Arial">Arial</option>
                       <option value="Times New Roman">Times New Roman</option>
@@ -1164,6 +2136,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="h-8 w-8 p-0"
+                      title="Decrease Font Size"
                     >
                       <Minus className="w-3 h-3" />
                     </Button>
@@ -1189,6 +2162,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="w-12 text-center text-sm border-0 bg-transparent focus:outline-none"
+                      title="Font Size"
                     />
                     <Button
                       variant="ghost"
@@ -1212,6 +2186,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="h-8 w-8 p-0"
+                      title="Increase Font Size"
                     >
                       <Plus className="w-3 h-3" />
                     </Button>
@@ -1219,6 +2194,7 @@ export default function ResumeBuilderPage() {
 
                   {/* Text Color */}
                   <div className="flex items-center space-x-1">
+                    <div className="relative group">
                     <input
                       type="color"
                       value={textColor}
@@ -1237,8 +2213,15 @@ export default function ResumeBuilderPage() {
                           }
                         }
                       }}
-                      className="w-8 h-8 rounded border-0 cursor-pointer"
-                    />
+                        className="w-8 h-8 rounded-lg cursor-pointer opacity-0 absolute z-10"
+                      />
+                      <div className="w-8 h-8 rounded-lg shadow-sm border border-gray-200 bg-gradient-to-br from-white to-gray-50 flex items-center justify-center cursor-pointer hover:shadow-md hover:scale-105 transition-all duration-200 group-hover:border-blue-300">
+                        <div 
+                          className="w-5 h-5 rounded-md shadow-inner border border-gray-300"
+                          style={{ backgroundColor: textColor }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Text Formatting */}
@@ -1265,6 +2248,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="h-8 w-8 p-0"
+                      title="Bold"
                     >
                       <Bold className="w-4 h-4" />
                     </Button>
@@ -1290,6 +2274,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="h-8 w-8 p-0"
+                      title="Italic"
                     >
                       <Italic className="w-4 h-4" />
                     </Button>
@@ -1315,6 +2300,7 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="h-8 w-8 p-0"
+                      title="Underline"
                     >
                       <Underline className="w-4 h-4" />
                     </Button>
@@ -1340,121 +2326,51 @@ export default function ResumeBuilderPage() {
                         }
                       }}
                       className="h-8 w-8 p-0"
+                      title="Strikethrough"
                     >
                       <Strikethrough className="w-4 h-4" />
                     </Button>
                   </div>
 
                   {/* Text Alignment */}
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant={textAlign === 'left' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        setTextAlign('left');
+                  <div className="flex items-center space-x-2">
+                    <div className="relative">
+                      <select
+                        value={textAlign}
+                        onChange={(e) => {
+                          setTextAlign(e.target.value);
                         if (fabricCanvas) {
                           const activeObjects = fabricCanvas.getActiveObjects();
                           if (activeObjects.length > 0) {
                             activeObjects.forEach((obj: any) => {
                               if (obj.type === 'text' || obj.type === 'textbox') {
-                                obj.set({ textAlign: 'left' });
+                                  obj.set({ textAlign: e.target.value });
                               }
                             });
                             fabricCanvas.renderAll();
                           } else if (selectedObject) {
-                            selectedObject.set({ textAlign: 'left' });
+                              selectedObject.set({ textAlign: e.target.value });
                             fabricCanvas.renderAll();
                           }
                         }
                       }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <AlignLeft className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={textAlign === 'center' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        setTextAlign('center');
-                        if (fabricCanvas) {
-                          const activeObjects = fabricCanvas.getActiveObjects();
-                          if (activeObjects.length > 0) {
-                            activeObjects.forEach((obj: any) => {
-                              if (obj.type === 'text' || obj.type === 'textbox') {
-                                obj.set({ textAlign: 'center' });
-                              }
-                            });
-                            fabricCanvas.renderAll();
-                          } else if (selectedObject) {
-                            selectedObject.set({ textAlign: 'center' });
-                            fabricCanvas.renderAll();
-                          }
-                        }
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <AlignCenter className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={textAlign === 'right' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        setTextAlign('right');
-                        if (fabricCanvas) {
-                          const activeObjects = fabricCanvas.getActiveObjects();
-                          if (activeObjects.length > 0) {
-                            activeObjects.forEach((obj: any) => {
-                              if (obj.type === 'text' || obj.type === 'textbox') {
-                                obj.set({ textAlign: 'right' });
-                              }
-                            });
-                            fabricCanvas.renderAll();
-                          } else if (selectedObject) {
-                            selectedObject.set({ textAlign: 'right' });
-                            fabricCanvas.renderAll();
-                          }
-                        }
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <AlignRight className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={textAlign === 'justify' ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        setTextAlign('justify');
-                        if (fabricCanvas) {
-                          const activeObjects = fabricCanvas.getActiveObjects();
-                          if (activeObjects.length > 0) {
-                            activeObjects.forEach((obj: any) => {
-                              if (obj.type === 'text' || obj.type === 'textbox') {
-                                obj.set({ textAlign: 'justify' });
-                              }
-                            });
-                            fabricCanvas.renderAll();
-                          } else if (selectedObject) {
-                            selectedObject.set({ textAlign: 'justify' });
-                            fabricCanvas.renderAll();
-                          }
-                        }
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <AlignJustify className="w-4 h-4" />
-                    </Button>
+                        className="appearance-none px-3 py-1 border rounded-md text-sm bg-white pr-8 cursor-pointer"
+                        title="Text Alignment"
+                      >
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                        <option value="justify">Justify</option>
+                      </select>
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        {textAlign === 'left' && <AlignLeft className="w-4 h-4" />}
+                        {textAlign === 'center' && <AlignCenter className="w-4 h-4" />}
+                        {textAlign === 'right' && <AlignRight className="w-4 h-4" />}
+                        {textAlign === 'justify' && <AlignJustify className="w-4 h-4" />}
+                  </div>
+                    </div>
                   </div>
 
-                  {/* List/Indent */}
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
 
 
 
@@ -1465,6 +2381,7 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={undo}
                       className="h-8 w-8 p-0"
+                      title="Undo"
                     >
                       <Undo className="w-4 h-4" />
                     </Button>
@@ -1473,26 +2390,16 @@ export default function ResumeBuilderPage() {
                       size="sm"
                       onClick={redo}
                       className="h-8 w-8 p-0"
+                      title="Redo"
                     >
                       <Redo className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setHistory([]);
-                        setHistoryIndex(-1);
-                      }}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      title="Clear History"
-                    >
-                      <Trash2 className="w-4 h-4" />
                     </Button>
                     
                   </div>
                   <Button
                     onClick={exportToPDF}
                     className="px-4 py-2 items-center space-x-2"
+                    title="Export to PDF"
                   >
                     <Download className="w-4 h-4" />
                     <span>Export PDF</span>
