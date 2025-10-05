@@ -51,7 +51,12 @@ import {
   Highlighter,
   Link,
   Heading1,
-  Heading2
+  Heading2,
+  Phone,
+  Briefcase,
+  GraduationCap,
+  Zap,
+  Search
 } from 'lucide-react';
 import TemplateSidebar from './template-sidebar';
 
@@ -70,6 +75,19 @@ export default function ResumeBuilderSidebar({
   currentTemplateId,
   onTemplateSelect
 }: ResumeBuilderSidebarProps) {
+  const [showAllShapes, setShowAllShapes] = useState(false);
+  const [showAllResumeElements, setShowAllResumeElements] = useState(false);
+  const [showAllContentBlocks, setShowAllContentBlocks] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Function to check if an element matches the search query
+  const matchesSearch = (elementName: string, elementType?: string) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return elementName.toLowerCase().includes(query) || 
+           (elementType && elementType.toLowerCase().includes(query));
+  };
+
   const createFabricObject = async (objectType: string, options: any) => {
     if (!fabricCanvas) return;
     
@@ -105,11 +123,21 @@ export default function ResumeBuilderSidebar({
       }
 
       // Set common properties
-      obj.setControlsVisibility({
-        mt: false, mb: false, mtr: false, // Hide rotation handle
-        ml: true, mr: true, // Keep middle left and right handles
-        tl: true, tr: true, bl: true, br: true
-      });
+      if (objectType === 'Line') {
+        // For lines, only show left and right middle handles
+        obj.setControlsVisibility({
+          mt: false, mb: false, mtr: false, // Hide rotation and top/bottom handles
+          ml: true, mr: true, // Keep middle left and right handles
+          tl: false, tr: false, bl: false, br: false // Hide corner handles
+        });
+      } else {
+        // For other objects, use default control visibility
+        obj.setControlsVisibility({
+          mt: false, mb: false, mtr: false, // Hide rotation handle
+          ml: true, mr: true, // Keep middle left and right handles
+          tl: true, tr: true, bl: true, br: true
+        });
+      }
       obj.set({
         borderColor: '#3b82f6',
         cornerColor: '#ffffff',
@@ -209,272 +237,466 @@ export default function ResumeBuilderSidebar({
               <p className="text-xs text-gray-500">Add shapes and graphics</p>
             </div>
 
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search elements..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+              />
+            </div>
+
             <div className="space-y-3">
               <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Lines</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => createFabricObject('Line', {
-                    points: [50, 50, 200, 50],
-                    left: 100,
-                    top: 100,
-                    stroke: '#6366f1',
-                    strokeWidth: 6,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Minus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Double Line</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Line', {
-                    points: [50, 50, 200, 50],
-                    left: 100,
-                    top: 100,
-                    stroke: '#f97316',
-                    strokeWidth: 4,
-                    strokeDashArray: [10, 5],
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Minus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Zigzag Line</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Line', {
-                    points: [50, 50, 150, 50],
-                    stroke: '#ef4444',
-                    strokeWidth: 3,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Minus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Line</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Line', {
-                    points: [50, 50, 200, 50],
-                    left: 100,
-                    top: 100,
-                    stroke: '#dc2626',
-                    strokeWidth: 4,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <ArrowRight className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Arrow Line</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Line', {
-                    points: [50, 50, 200, 50],
-                    left: 100,
-                    top: 100,
-                    stroke: '#8b5cf6',
-                    strokeWidth: 5,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Minus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Gradient Line</span>
-                </button>
+              <div className="grid grid-cols-1 gap-2">
+                {matchesSearch('Line', 'line') && (
+                  <button 
+                    onClick={() => createFabricObject('Line', {
+                      points: [50, 50, 200, 50],
+                      left: 100,
+                      top: 100,
+                      stroke: '#1f2937',
+                      strokeWidth: 3,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Minus className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Line</span>
+                  </button>
+                )}
+                {matchesSearch('Dashed Line', 'line') && (
+                  <button 
+                    onClick={() => createFabricObject('Line', {
+                      points: [50, 50, 200, 50],
+                      left: 100,
+                      top: 100,
+                      stroke: '#1f2937',
+                      strokeWidth: 3,
+                      strokeDashArray: [10, 5],
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Minus className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Dashed Line</span>
+                  </button>
+                )}
+                {matchesSearch('Dotted Line', 'line') && (
+                  <button 
+                    onClick={() => createFabricObject('Line', {
+                      points: [50, 50, 200, 50],
+                      left: 100,
+                      top: 100,
+                      stroke: '#1f2937',
+                      strokeWidth: 3,
+                      strokeDashArray: [5, 5],
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Minus className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Dotted Line</span>
+                  </button>
+                )}
               </div>
             </div>
             
             <div className="space-y-3">
               <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Shapes</h4>
               <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => createFabricObject('Rect', {
-                    left: 100,
-                    top: 100,
-                    width: 100,
-                    height: 100,
-                    fill: '#3b82f6',
-                    stroke: '#1e40af',
-                    strokeWidth: 2,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Square className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Rectangle</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Circle', {
-                    left: 100,
-                    top: 100,
-                    radius: 50,
-                    fill: '#10b981',
-                    stroke: '#059669',
-                    strokeWidth: 2,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Circle className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Circle</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Triangle', {
-                    left: 100,
-                    top: 100,
-                    width: 60,
-                    height: 60,
-                    fill: '#f59e0b',
-                    stroke: '#d97706',
-                    strokeWidth: 2,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Triangle className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Triangle</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Polygon', {
-                    points: [
-                      { x: 0, y: -40 },
-                      { x: 12, y: -12 },
-                      { x: 40, y: -12 },
-                      { x: 20, y: 8 },
-                      { x: 24, y: 40 },
-                      { x: 0, y: 24 },
-                      { x: -24, y: 40 },
-                      { x: -20, y: 8 },
-                      { x: -40, y: -12 },
-                      { x: -12, y: -12 }
-                    ],
-                    left: 100,
-                    top: 100,
-                    fill: '#eab308',
-                    stroke: '#ca8a04',
-                    strokeWidth: 2,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <Star className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Star</span>
-                </button>
+                {matchesSearch('Rectangle', 'shape') && (
+                  <button 
+                    onClick={() => createFabricObject('Rect', {
+                      left: 100,
+                      top: 100,
+                      width: 100,
+                      height: 100,
+                      fill: '#3b82f6',
+                      stroke: '#1e40af',
+                      strokeWidth: 2,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Square className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Rectangle</span>
+                  </button>
+                )}
+                {matchesSearch('Circle', 'shape') && (
+                  <button 
+                    onClick={() => createFabricObject('Circle', {
+                      left: 100,
+                      top: 100,
+                      radius: 50,
+                      fill: '#10b981',
+                      stroke: '#059669',
+                      strokeWidth: 2,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Circle className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Circle</span>
+                  </button>
+                )}
+                {matchesSearch('Triangle', 'shape') && (
+                  <button 
+                    onClick={() => createFabricObject('Triangle', {
+                      left: 100,
+                      top: 100,
+                      width: 60,
+                      height: 60,
+                      fill: '#f59e0b',
+                      stroke: '#d97706',
+                      strokeWidth: 2,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Triangle className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Triangle</span>
+                  </button>
+                )}
+                {matchesSearch('Star', 'shape') && (
+                  <button 
+                    onClick={() => createFabricObject('Polygon', {
+                      points: [
+                        { x: 0, y: -40 },
+                        { x: 12, y: -12 },
+                        { x: 40, y: -12 },
+                        { x: 20, y: 8 },
+                        { x: 24, y: 40 },
+                        { x: 0, y: 24 },
+                        { x: -24, y: 40 },
+                        { x: -20, y: 8 },
+                        { x: -40, y: -12 },
+                        { x: -12, y: -12 }
+                      ],
+                      left: 100,
+                      top: 100,
+                      fill: '#eab308',
+                      stroke: '#ca8a04',
+                      strokeWidth: 2,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <Star className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Star</span>
+                  </button>
+                )}
               </div>
+              
+              {/* Show More/Less Button for Shapes - no additional elements, so hide button */}
             </div>
             
+            
             <div className="space-y-3">
-              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Icons</h4>
+              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Resume Elements</h4>
               <div className="grid grid-cols-2 gap-2">
                 <button 
-                  onClick={() => createFabricObject('Polygon', {
-                    points: [
-                      { x: 0, y: -15 },
-                      { x: 15, y: -15 },
-                      { x: 20, y: 0 },
-                      { x: 0, y: 20 },
-                      { x: -20, y: 0 },
-                      { x: -15, y: -15 },
-                      { x: 0, y: -15 }
-                    ],
+                  onClick={() => createFabricObject('Textbox', {
+                    text: 'John Doe',
                     left: 100,
                     top: 100,
-                    fill: '#ef4444',
-                    stroke: '#dc2626',
-                    strokeWidth: 2,
+                    fontSize: 20,
+                    fontFamily: 'Arial',
+                    fill: '#1f2937',
+                    fontWeight: 'bold',
+                    width: 200,
                     lockRotation: true,
                     lockUniScaling: true,
                     lockScalingFlip: true
                   })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
                 >
-                  <Heart className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Heart</span>
+                  <div className="flex items-center space-x-2">
+                    <Type className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Name</span>
+                  </div>
+                  <span className="text-xs text-gray-400">20px</span>
                 </button>
                 <button 
-                  onClick={() => createFabricObject('Ellipse', {
+                  onClick={() => createFabricObject('Textbox', {
+                    text: 'Software Engineer',
                     left: 100,
                     top: 100,
-                    rx: 40,
-                    ry: 25,
-                    fill: '#94a3b8',
-                    stroke: '#64748b',
-                    strokeWidth: 2,
+                    fontSize: 16,
+                    fontFamily: 'Arial',
+                    fill: '#374151',
+                    fontWeight: '600',
+                    width: 200,
                     lockRotation: true,
                     lockUniScaling: true,
                     lockScalingFlip: true
                   })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
                 >
-                  <Cloud className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Cloud</span>
+                  <div className="flex items-center space-x-2">
+                    <Award className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Job Title</span>
+                  </div>
+                  <span className="text-xs text-gray-400">16px</span>
                 </button>
                 <button 
-                  onClick={() => createFabricObject('Polygon', {
-                    points: [
-                      { x: -30, y: -10 },
-                      { x: 20, y: -10 },
-                      { x: 20, y: -20 },
-                      { x: 40, y: 0 },
-                      { x: 20, y: 20 },
-                      { x: 20, y: 10 },
-                      { x: -30, y: 10 }
-                    ],
+                  onClick={() => createFabricObject('Textbox', {
+                    text: 'john@email.com',
                     left: 100,
                     top: 100,
-                    fill: '#dc2626',
-                    stroke: '#b91c1c',
-                    strokeWidth: 2,
+                    fontSize: 12,
+                    fontFamily: 'Arial',
+                    fill: '#6b7280',
+                    width: 200,
                     lockRotation: true,
                     lockUniScaling: true,
                     lockScalingFlip: true
                   })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
                 >
-                  <ArrowRight className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Arrow</span>
+                  <div className="flex items-center space-x-2">
+                    <Link className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Email</span>
+                  </div>
+                  <span className="text-xs text-gray-400">12px</span>
                 </button>
                 <button 
-                  onClick={() => createFabricObject('Polygon', {
-                    points: [
-                      { x: 0, y: -20 },
-                      { x: 20, y: 0 },
-                      { x: 0, y: 20 },
-                      { x: -20, y: 0 }
-                    ],
+                  onClick={() => createFabricObject('Textbox', {
+                    text: '(555) 123-4567',
                     left: 100,
                     top: 100,
-                    fill: '#8b5cf6',
-                    stroke: '#7c3aed',
-                    strokeWidth: 2,
+                    fontSize: 12,
+                    fontFamily: 'Arial',
+                    fill: '#6b7280',
+                    width: 200,
                     lockRotation: true,
                     lockUniScaling: true,
                     lockScalingFlip: true
                   })}
-                  className="flex items-center space-x-2 p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
                 >
-                  <Square className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">Diamond</span>
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Phone</span>
+                  </div>
+                  <span className="text-xs text-gray-400">12px</span>
+                </button>
+                
+                {/* Additional elements - shown only when showAllResumeElements is true */}
+                {showAllResumeElements && (
+                  <>
+                    <button 
+                      onClick={() => createFabricObject('Textbox', {
+                        text: 'EXPERIENCE',
+                        left: 100,
+                        top: 100,
+                        fontSize: 14,
+                        fontFamily: 'Arial',
+                        fill: '#1f2937',
+                        fontWeight: 'bold',
+                        width: 200,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      })}
+                      className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Briefcase className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">Experience</span>
+                      </div>
+                      <span className="text-xs text-gray-400">14px</span>
+                    </button>
+                    <button 
+                      onClick={() => createFabricObject('Textbox', {
+                        text: 'EDUCATION',
+                        left: 100,
+                        top: 100,
+                        fontSize: 14,
+                        fontFamily: 'Arial',
+                        fill: '#1f2937',
+                        fontWeight: 'bold',
+                        width: 200,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      })}
+                      className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <GraduationCap className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">Education</span>
+                      </div>
+                      <span className="text-xs text-gray-400">14px</span>
+                    </button>
+                    <button 
+                      onClick={() => createFabricObject('Textbox', {
+                        text: 'SKILLS',
+                        left: 100,
+                        top: 100,
+                        fontSize: 14,
+                        fontFamily: 'Arial',
+                        fill: '#1f2937',
+                        fontWeight: 'bold',
+                        width: 200,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      })}
+                      className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Zap className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">Skills</span>
+                      </div>
+                      <span className="text-xs text-gray-400">14px</span>
+                    </button>
+                    <button 
+                      onClick={() => createFabricObject('Textbox', {
+                        text: 'PROJECTS',
+                        left: 100,
+                        top: 100,
+                        fontSize: 14,
+                        fontFamily: 'Arial',
+                        fill: '#1f2937',
+                        fontWeight: 'bold',
+                        width: 200,
+                        lockRotation: true,
+                        lockUniScaling: true,
+                        lockScalingFlip: true
+                      })}
+                      className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Code className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">Projects</span>
+                      </div>
+                      <span className="text-xs text-gray-400">14px</span>
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {/* Show More/Less Button */}
+              <button
+                onClick={() => setShowAllResumeElements(!showAllResumeElements)}
+                className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors"
+              >
+                {showAllResumeElements ? 'Show Less' : 'Show More'} ({showAllResumeElements ? '4' : '4'} more)
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Content Blocks</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => createFabricObject('Textbox', {
+                    text: 'Company Name - Job Title\n2020 - Present\n• Led development of key features\n• Managed team of 5 developers',
+                    left: 100,
+                    top: 100,
+                    fontSize: 12,
+                    fontFamily: 'Arial',
+                    fill: '#374151',
+                    width: 300,
+                    height: 80,
+                    lockRotation: true,
+                    lockUniScaling: true,
+                    lockScalingFlip: true
+                  })}
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Job Entry</span>
+                  </div>
+                  <span className="text-xs text-gray-400">12px</span>
+                </button>
+                <button 
+                  onClick={() => createFabricObject('Textbox', {
+                    text: 'University Name\nBachelor of Science in Computer Science\n2016 - 2020',
+                    left: 100,
+                    top: 100,
+                    fontSize: 12,
+                    fontFamily: 'Arial',
+                    fill: '#374151',
+                    width: 300,
+                    height: 60,
+                    lockRotation: true,
+                    lockUniScaling: true,
+                    lockScalingFlip: true
+                  })}
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <GraduationCap className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Education Entry</span>
+                  </div>
+                  <span className="text-xs text-gray-400">12px</span>
+                </button>
+                <button 
+                  onClick={() => createFabricObject('Textbox', {
+                    text: '• JavaScript, React, Node.js\n• Python, Django, Flask\n• SQL, MongoDB, PostgreSQL\n• AWS, Docker, Kubernetes',
+                    left: 100,
+                    top: 100,
+                    fontSize: 12,
+                    fontFamily: 'Arial',
+                    fill: '#374151',
+                    width: 300,
+                    height: 80,
+                    lockRotation: true,
+                    lockUniScaling: true,
+                    lockScalingFlip: true
+                  })}
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <List className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Skills List</span>
+                  </div>
+                  <span className="text-xs text-gray-400">12px</span>
+                </button>
+                <button 
+                  onClick={() => createFabricObject('Textbox', {
+                    text: 'Project Name\nA brief description of the project and its impact.\nTechnologies: React, Node.js, MongoDB',
+                    left: 100,
+                    top: 100,
+                    fontSize: 12,
+                    fontFamily: 'Arial',
+                    fill: '#374151',
+                    width: 300,
+                    height: 80,
+                    lockRotation: true,
+                    lockUniScaling: true,
+                    lockScalingFlip: true
+                  })}
+                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Code className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Project Entry</span>
+                  </div>
+                  <span className="text-xs text-gray-400">12px</span>
                 </button>
               </div>
+              
+              {/* Show More/Less Button for Content Blocks - no additional elements, so hide button */}
             </div>
           </div>
         )}
@@ -578,6 +800,7 @@ export default function ResumeBuilderSidebar({
                 </button>
               </div>
             </div>
+
           </div>
         )}
 

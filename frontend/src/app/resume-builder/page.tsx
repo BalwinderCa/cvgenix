@@ -11,7 +11,7 @@ export default function ResumeBuilderPage() {
   const [activeSidebarTab, setActiveSidebarTab] = useState('design');
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
-  const [zoomLevel, setZoomLevel] = useState(100);
+  const [zoomLevel, setZoomLevel] = useState(65);
   const [currentTemplateId, setCurrentTemplateId] = useState<string>('');
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 800, height: 1000 });
   const [exportFormat, setExportFormat] = useState('PNG');

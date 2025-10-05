@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Undo, 
   Redo, 
@@ -13,7 +13,8 @@ import {
   Copy,
   Trash2,
   Plus,
-  Minus
+  Minus,
+  Settings
 } from 'lucide-react';
 
 // Types
@@ -41,6 +42,9 @@ interface FabricObject {
   fontStyle?: string;
   underline?: boolean;
   textAlign?: string;
+  lineHeight?: number;
+  charSpacing?: number;
+  strokeWidth?: number;
   left?: number;
   top?: number;
   set(properties: Record<string, any>): void;
@@ -54,6 +58,9 @@ interface TextProperties {
   isItalic: boolean;
   isUnderline: boolean;
   textAlign: string;
+  lineHeight: number;
+  charSpacing: number;
+  strokeWidth: number;
 }
 
 interface ResumeBuilderTopBarProps {
@@ -69,7 +76,10 @@ const DEFAULT_TEXT_PROPERTIES: TextProperties = {
   isBold: false,
   isItalic: false,
   isUnderline: false,
-  textAlign: ''
+  textAlign: '',
+  lineHeight: 1.2,
+  charSpacing: 0,
+  strokeWidth: 1
 };
 
 const FONT_FAMILIES = [
@@ -128,6 +138,23 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
     }
   }, [fabricCanvas, getActiveTextObjects]);
 
+  // Apply changes to all active objects (text and lines) with error handling
+  const applyToActiveObjects = useCallback((updater: (obj: FabricObject) => void): boolean => {
+    if (!fabricCanvas) return false;
+    
+    try {
+      const activeObjects = fabricCanvas.getActiveObjects();
+      if (activeObjects.length === 0) return false;
+      
+      activeObjects.forEach(updater);
+      fabricCanvas.renderAll();
+      return true;
+    } catch (error) {
+      console.error('Error applying changes to active objects:', error);
+      return false;
+    }
+  }, [fabricCanvas]);
+
   // Update text properties from canvas with error handling
   const updateTextProperties = useCallback(() => {
     if (!fabricCanvas) {
@@ -147,7 +174,10 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
           isBold: firstTextObject.fontWeight === 'bold',
           isItalic: firstTextObject.fontStyle === 'italic',
           isUnderline: firstTextObject.underline || false,
-          textAlign: firstTextObject.textAlign || 'left'
+          textAlign: firstTextObject.textAlign || 'left',
+          lineHeight: firstTextObject.lineHeight || DEFAULT_TEXT_PROPERTIES.lineHeight,
+          charSpacing: firstTextObject.charSpacing || DEFAULT_TEXT_PROPERTIES.charSpacing,
+          strokeWidth: firstTextObject.strokeWidth || DEFAULT_TEXT_PROPERTIES.strokeWidth
         });
       } else {
         setTextProperties(DEFAULT_TEXT_PROPERTIES);
@@ -241,8 +271,13 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       setIsLoading(true);
       
       try {
-        const success = await applyToTextObjects((obj: FabricObject) => {
-          obj.set({ fill: color });
+        const success = await applyToActiveObjects((obj: FabricObject) => {
+          // For text objects, use 'fill', for line objects, use 'stroke'
+          if (obj.type === 'line') {
+            obj.set({ stroke: color });
+          } else {
+            obj.set({ fill: color });
+          }
         });
         
         if (success) {
@@ -390,8 +425,86 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       } finally {
         setIsLoading(false);
       }
+    },
+
+    // Line height operations
+    changeLineHeight: async (lineHeight: number) => {
+      if (isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        const success = await applyToTextObjects((obj: FabricObject) => {
+          obj.set({ lineHeight });
+        });
+        
+        if (success) {
+          setTextProperties(prev => ({ ...prev, lineHeight }));
+        }
+      } catch (error) {
+        console.error('Error changing line height:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    // Character spacing operations
+    changeCharSpacing: async (charSpacing: number) => {
+      if (isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        const success = await applyToTextObjects((obj: FabricObject) => {
+          obj.set({ charSpacing });
+        });
+        
+        if (success) {
+          setTextProperties(prev => ({ ...prev, charSpacing }));
+        }
+      } catch (error) {
+        console.error('Error changing character spacing:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    // Stroke width operations
+    changeStrokeWidth: async (strokeWidth: number) => {
+      if (isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        const success = await applyToActiveObjects((obj: FabricObject) => {
+          // For line objects, use 'strokeWidth', for text objects, use 'strokeWidth' as well
+          obj.set({ strokeWidth });
+        });
+        
+        if (success) {
+          setTextProperties(prev => ({ ...prev, strokeWidth }));
+        }
+      } catch (error) {
+        console.error('Error changing stroke width:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    // Real-time stroke width updates (for slider dragging)
+    updateStrokeWidthRealtime: (strokeWidth: number) => {
+      if (!fabricCanvas) return;
+      
+      try {
+        // Direct synchronous update without async operations
+        const activeObjects = fabricCanvas.getActiveObjects();
+        activeObjects.forEach((obj: FabricObject) => {
+          obj.set({ strokeWidth });
+        });
+        fabricCanvas.renderAll();
+        setTextProperties(prev => ({ ...prev, strokeWidth }));
+      } catch (error) {
+        console.error('Error updating stroke width in real-time:', error);
+      }
     }
-  }), [applyToTextObjects, getActiveTextObjects, isLoading]);
+  }), [applyToTextObjects, applyToActiveObjects, getActiveTextObjects, fabricCanvas, isLoading]);
 
   return { textProperties, textOperations, updateTextProperties, isLoading };
 };
@@ -602,6 +715,291 @@ const FontFamilyDropdown = ({
   </select>
 );
 
+// Line thickness slider component with local state for smooth sliding
+const LineThicknessSlider = ({ 
+  value, 
+  onChange, 
+  onInput, 
+  disabled = false 
+}: { 
+  value: number; 
+  onChange: (value: number) => void; 
+  onInput: (value: number) => void; 
+  disabled?: boolean; 
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Update local value when prop value changes (but not while dragging)
+  useEffect(() => {
+    if (!isDragging) {
+      setLocalValue(value);
+    }
+  }, [value, isDragging]);
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = parseFloat(e.target.value);
+    setLocalValue(newValue);
+    // Direct update without throttling for smooth slider movement
+    onInput(newValue);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = parseFloat(e.target.value);
+    setLocalValue(newValue);
+    onChange(newValue);
+    setIsDragging(false);
+  };
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-700">
+        Line Thickness
+      </label>
+      <div className="flex items-center space-x-2">
+        <input
+          type="range"
+          min="1"
+          max="50"
+          step="1"
+          value={localValue}
+          onChange={handleChange}
+          onInput={handleInput}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          disabled={disabled}
+          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+          title={`Line Thickness: ${localValue}px`}
+        />
+        <input
+          type="number"
+          min="1"
+          max="50"
+          step="1"
+          value={localValue}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            if (value >= 1 && value <= 50) {
+              setLocalValue(value);
+              onChange(value);
+            }
+          }}
+          disabled={disabled}
+          className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
+          placeholder="1"
+        />
+      </div>
+    </div>
+  );
+};
+
+// Advanced tools overlay component
+const AdvancedToolsOverlay = ({ 
+  isOpen, 
+  onClose, 
+  textProperties, 
+  textOperations, 
+  isLoading = false,
+  hasLineSelected = false
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  textProperties: TextProperties; 
+  textOperations: any;
+  isLoading?: boolean;
+  hasLineSelected?: boolean;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 z-40" 
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      
+      {/* Overlay */}
+      <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[280px]">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">Advanced Tools</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close advanced tools"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Line Height Control */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-gray-700">
+              Line Height
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="range"
+                min="0.8"
+                max="3.0"
+                step="0.1"
+                value={textProperties.lineHeight}
+                onChange={(e) => textOperations.changeLineHeight(parseFloat(e.target.value))}
+                onInput={(e) => textOperations.changeLineHeight(parseFloat((e.target as HTMLInputElement).value))}
+                disabled={isLoading}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                title={`Line Height: ${textProperties.lineHeight}`}
+              />
+              <input
+                type="number"
+                min="0.8"
+                max="3.0"
+                step="0.1"
+                value={textProperties.lineHeight}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (value >= 0.8 && value <= 3.0) {
+                    textOperations.changeLineHeight(value);
+                  }
+                }}
+                disabled={isLoading}
+                className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
+                placeholder="1.2"
+              />
+            </div>
+          </div>
+          
+          {/* Character Spacing Control */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-gray-700">
+              Letter Spacing
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="range"
+                min="-5"
+                max="20"
+                step="0.5"
+                value={textProperties.charSpacing}
+                onChange={(e) => textOperations.changeCharSpacing(parseFloat(e.target.value))}
+                onInput={(e) => textOperations.changeCharSpacing(parseFloat((e.target as HTMLInputElement).value))}
+                disabled={isLoading}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                title={`Letter Spacing: ${textProperties.charSpacing}px`}
+              />
+              <input
+                type="number"
+                min="-5"
+                max="20"
+                step="0.5"
+                value={textProperties.charSpacing}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (value >= -5 && value <= 20) {
+                    textOperations.changeCharSpacing(value);
+                  }
+                }}
+                disabled={isLoading}
+                className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
+                placeholder="0"
+              />
+            </div>
+          </div>
+          
+          {/* Line Thickness Control - Only show when line is selected */}
+          {hasLineSelected && (
+            <LineThicknessSlider 
+              value={textProperties.strokeWidth}
+              onChange={textOperations.changeStrokeWidth}
+              onInput={textOperations.updateStrokeWidthRealtime}
+              disabled={isLoading}
+            />
+          )}
+          
+        </div>
+        
+        <style jsx>{`
+          .slider {
+            background: linear-gradient(to right, #e5e7eb 0%, #e5e7eb 100%);
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            transition: background 0.2s ease;
+          }
+          
+          .slider::-webkit-slider-thumb {
+            appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: grab;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+            transition: all 0.2s ease;
+            border: 2px solid white;
+          }
+          
+          .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+          }
+          
+          .slider::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.5);
+          }
+          
+          .slider::-webkit-slider-track {
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+          }
+          
+          .slider::-moz-range-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: grab;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+            transition: all 0.2s ease;
+          }
+          
+          .slider::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+          }
+          
+          .slider::-moz-range-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.5);
+          }
+          
+          .slider::-moz-range-track {
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            border: none;
+          }
+        `}</style>
+      </div>
+    </>
+  );
+};
+
 // Main component with better error boundaries
 export default function ResumeBuilderTopBar({ 
   fabricCanvas, 
@@ -609,6 +1007,8 @@ export default function ResumeBuilderTopBar({
 }: ResumeBuilderTopBarProps) {
   const { textProperties, textOperations, updateTextProperties, isLoading: textLoading } = useTextOperations(fabricCanvas);
   const { canvasOperations, isLoading: canvasLoading } = useCanvasOperations(fabricCanvas);
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  const [hasLineSelected, setHasLineSelected] = useState(false);
   
   const isLoading = textLoading || canvasLoading;
 
@@ -619,6 +1019,11 @@ export default function ResumeBuilderTopBar({
     const handleSelectionChange = () => {
       try {
         updateTextProperties();
+        
+        // Check if a line is selected
+        const activeObject = fabricCanvas.getActiveObject();
+        const hasLine = activeObject && activeObject.type === 'line';
+        setHasLineSelected(!!hasLine);
       } catch (error) {
         console.error('Error handling selection change:', error);
       }
@@ -734,6 +1139,27 @@ export default function ResumeBuilderTopBar({
               onChange={textOperations.changeTextColor}
               isLoading={isLoading}
             />
+            
+            
+            {/* Advanced Tools */}
+            <div className="relative">
+              <ToolbarButton 
+                onClick={() => setShowAdvancedTools(!showAdvancedTools)} 
+                icon={Settings} 
+                title="Advanced Tools" 
+                isActive={showAdvancedTools}
+                isLoading={isLoading}
+              />
+              
+              <AdvancedToolsOverlay
+                isOpen={showAdvancedTools}
+                onClose={() => setShowAdvancedTools(false)}
+                textProperties={textProperties}
+                textOperations={textOperations}
+                isLoading={isLoading}
+                hasLineSelected={hasLineSelected}
+              />
+            </div>
             
             <ToolbarSeparator />
             

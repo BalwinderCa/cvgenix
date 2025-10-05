@@ -149,13 +149,13 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel }: Resume
   }, [onCanvasReady]);
 
   return (
-    <div className="w-full h-full bg-gray-50 p-4">
-      <div className="flex items-center justify-center min-h-full">
+    <div className="w-full h-full bg-gray-50 p-1">
+      <div className="flex items-start justify-center pt-4">
         <div 
           className="bg-white shadow-lg rounded-lg overflow-hidden transition-transform duration-200"
           style={{ 
             transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: 'center center'
+            transformOrigin: 'top center'
           }}
         >
           <canvas
