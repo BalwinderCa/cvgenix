@@ -136,47 +136,42 @@ export default function TemplateSidebar({
   }
 
   return (
-    <div className="w-96 bg-gradient-to-br from-gray-50 via-white to-blue-50/30 shadow-lg border-r border-gray-200 flex flex-col h-full overflow-hidden">
+    <div className="w-full h-full overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 flex-shrink-0 pt-20">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-            <Palette className="h-6 w-6" />
-            Templates
-          </h2>
-          <p className="text-gray-600 text-sm">
-            Choose a template to get started
-          </p>
+      <div className="p-4 border-b border-gray-200 flex-shrink-0">
+        <div className="mb-4">
+          <h3 className="font-medium text-gray-900 text-sm">Templates</h3>
+          <p className="text-xs text-gray-500">Choose a template to get started</p>
         </div>
         
 
         {/* Search */}
         <div className="relative mb-4">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search templates..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 h-12 text-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            className="pl-10 h-9 text-sm border-gray-300 focus:border-gray-400 focus:ring-gray-400"
           />
         </div>
 
         {/* Category Filter */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-semibold text-gray-700">Category:</span>
+            <span className="text-xs font-medium text-gray-600">Category:</span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {categories.map(category => (
               <Button
                 key={category}
                 variant={selectedCategory === category ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSelectedCategory(category)}
-                className={`text-xs px-3 py-1 ${
+                className={`text-xs px-2 py-1 ${
                   selectedCategory === category 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -188,7 +183,7 @@ export default function TemplateSidebar({
       </div>
 
       {/* Templates Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -280,7 +275,7 @@ export default function TemplateSidebar({
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-        <div className="text-sm text-gray-600 text-center">
+        <div className="text-xs text-gray-500 text-center">
           {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''} found
         </div>
       </div>
