@@ -31,6 +31,8 @@ interface FabricCanvas {
   setActiveObject(object: FabricObject): void;
   on(event: string, handler: () => void): void;
   off(event: string, handler: () => void): void;
+  highlightAllTextObjects?(): void;
+  clearAllHighlights?(): void;
 }
 
 interface FabricObject {
@@ -47,7 +49,11 @@ interface FabricObject {
   strokeWidth?: number;
   left?: number;
   top?: number;
+  isEditing?: boolean;
   set(properties: Record<string, any>): void;
+  enterEditing?(): void;
+  exitEditing?(): void;
+  selectAll?(): void;
 }
 
 interface TextProperties {
@@ -503,6 +509,43 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       } catch (error) {
         console.error('Error updating stroke width in real-time:', error);
       }
+    },
+
+    // Enter text editing mode
+    enterTextEditing: async () => {
+      if (!fabricCanvas || isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        const activeObject = fabricCanvas.getActiveObject();
+        if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'text')) {
+          activeObject.enterEditing?.();
+          activeObject.selectAll?.();
+          fabricCanvas.renderAll();
+        }
+      } catch (error) {
+        console.error('Error entering text editing mode:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    // Exit text editing mode
+    exitTextEditing: async () => {
+      if (!fabricCanvas || isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        const activeObject = fabricCanvas.getActiveObject();
+        if (activeObject && activeObject.isEditing) {
+          activeObject.exitEditing?.();
+          fabricCanvas.renderAll();
+        }
+      } catch (error) {
+        console.error('Error exiting text editing mode:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   }), [applyToTextObjects, applyToActiveObjects, getActiveTextObjects, fabricCanvas, isLoading]);
 
@@ -577,6 +620,36 @@ const useCanvasOperations = (fabricCanvas: FabricCanvas | null) => {
         }
       } catch (error) {
         console.error('Error copying object:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    highlightTextObjects: async () => {
+      if (!fabricCanvas || isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        if (fabricCanvas.highlightAllTextObjects) {
+          fabricCanvas.highlightAllTextObjects();
+        }
+      } catch (error) {
+        console.error('Error highlighting text objects:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    clearHighlights: async () => {
+      if (!fabricCanvas || isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        if (fabricCanvas.clearAllHighlights) {
+          fabricCanvas.clearAllHighlights();
+        }
+      } catch (error) {
+        console.error('Error clearing highlights:', error);
       } finally {
         setIsLoading(false);
       }
@@ -1084,6 +1157,8 @@ export default function ResumeBuilderTopBar({
             />
             
             <ToolbarSeparator />
+            
+            {/* Highlight Text Objects Button */}
             
             {/* Text Alignment */}
             <ToolbarButton 

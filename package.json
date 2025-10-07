@@ -12,10 +12,17 @@
     "install-all": "npm install && cd server && npm install && cd ../frontend && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["resume", "builder", "react", "nodejs", "pdf"],
+  "keywords": [
+    "resume",
+    "builder",
+    "react",
+    "nodejs",
+    "pdf"
+  ],
   "author": "Resume4Me Team",
   "license": "MIT",
   "devDependencies": {
+    "@types/fabric": "^5.3.10",
     "concurrently": "^8.2.2"
   },
   "engines": {

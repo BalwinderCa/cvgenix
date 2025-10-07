@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Download, ZoomIn, ZoomOut, Save, Maximize2, Ruler } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Download, ZoomIn, ZoomOut, Save, Maximize2, Ruler, Trash2 } from 'lucide-react';
 import NavigationHeader from '@/components/navigation-header';
 import ResumeBuilderSidebar from '@/components/resume-builder-sidebar';
 import ResumeBuilderTopBar from '@/components/resume-builder-topbar';
 import ResumeBuilderCanvas from '@/components/resume-builder-canvas';
+import CanvasEditToolbar from '@/components/canvas-edit-toolbar';
 
 export default function ResumeBuilderPage() {
   const [activeSidebarTab, setActiveSidebarTab] = useState('design');
@@ -13,16 +14,67 @@ export default function ResumeBuilderPage() {
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [zoomLevel, setZoomLevel] = useState(65);
   const [currentTemplateId, setCurrentTemplateId] = useState<string>('');
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 800, height: 1000 });
+  
+  // Calculate display dimensions based on zoom
+  const canvasDimensions = {
+    width: Math.round(800 * (zoomLevel / 100)),
+    height: Math.round(1000 * (zoomLevel / 100))
+  };
   const [exportFormat, setExportFormat] = useState('PNG');
+  const [showEditToolbar, setShowEditToolbar] = useState(false);
+  const [editToolbarPosition, setEditToolbarPosition] = useState({ x: 0, y: 0 });
+  const [selectedObject, setSelectedObject] = useState<any>(null);
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
 
   const handleCanvasReady = useCallback((canvas: any) => {
       setFabricCanvas(canvas);
-      // Update canvas dimensions when canvas is ready
-      const width = canvas.getWidth();
-      const height = canvas.getHeight();
-      setCanvasDimensions({ width, height });
-  }, []);
+
+      // Add event listeners for edit toolbar
+      const handleSelectionChange = (e: any) => {
+        const activeObject = canvas.getActiveObject();
+        
+        if (activeObject) {
+          setSelectedObject(activeObject);
+          setShowDeleteButton(true);
+          
+          // Calculate position for toolbar
+          const canvasElement = canvas.getElement();
+          const canvasOffset = canvasElement.getBoundingClientRect();
+          const zoom = zoomLevel / 100;
+          
+          // Get object bounds
+          const objBounds = activeObject.getBoundingRect();
+          const x = canvasOffset.left + (objBounds.left + objBounds.width / 2) * zoom;
+          const y = canvasOffset.top + objBounds.top * zoom;
+          
+          setEditToolbarPosition({ x, y });
+          setShowEditToolbar(true);
+        } else {
+          setSelectedObject(null);
+          setShowDeleteButton(false);
+          setShowEditToolbar(false);
+        }
+      };
+
+      const handleSelectionCleared = () => {
+        setSelectedObject(null);
+        setShowDeleteButton(false);
+        setShowEditToolbar(false);
+      };
+
+      // Store handlers for cleanup
+      canvas.selectionHandlers = {
+        created: handleSelectionChange,
+        updated: handleSelectionChange,
+        cleared: handleSelectionCleared
+      };
+
+      // Add edit functionality to the initial canvas
+      if (!canvas.hasEditFunctionality) {
+        addEditFunctionality(canvas);
+        canvas.hasEditFunctionality = true;
+      }
+  }, [zoomLevel]);
 
   const handleSave = () => {
     if (fabricCanvas) {
@@ -60,6 +112,466 @@ export default function ResumeBuilderPage() {
 
   const handleFitToScreen = () => {
     setZoomLevel(100);
+  };
+
+  const handleCloseEditToolbar = () => {
+    setShowEditToolbar(false);
+  };
+
+  const handleDeleteSelected = () => {
+    if (fabricCanvas && selectedObject) {
+      fabricCanvas.remove(selectedObject);
+      fabricCanvas.renderAll();
+      setSelectedObject(null);
+      setShowDeleteButton(false);
+      setShowEditToolbar(false);
+    }
+  };
+
+  // Function to clean template data for Fabric.js compatibility
+  const cleanTemplateForFabric = (templateData: any) => {
+    if (!templateData || !templateData.objects) {
+      return templateData;
+    }
+
+    const cleanObjects = templateData.objects.map((obj: any) => {
+      const cleanObj = { ...obj };
+      
+      // Fix invalid textBaseline values
+      if (cleanObj.textBaseline && cleanObj.textBaseline === 'alphabetical') {
+        cleanObj.textBaseline = 'alphabetic';
+      }
+      
+      // Fix other common issues
+      if (cleanObj.textAlign && typeof cleanObj.textAlign === 'string') {
+        const validAligns = ['left', 'center', 'right', 'justify', 'justify-left', 'justify-center', 'justify-right'];
+        if (!validAligns.includes(cleanObj.textAlign)) {
+          cleanObj.textAlign = 'left';
+        }
+      }
+      
+      return cleanObj;
+    });
+
+    return {
+      ...templateData,
+      objects: cleanObjects
+    };
+  };
+
+  // Function to add edit functionality to canvas
+  const addEditFunctionality = (canvas: any) => {
+    // Prevent duplicate event listeners
+    if (canvas.hasEditListeners) {
+      return;
+    }
+    
+    // Cache fabric instance to avoid repeated loadFabric calls
+    let fabricInstance: any = null;
+    
+    // Helper function to get fabric instance
+    const getFabricInstance = async () => {
+      if (!fabricInstance) {
+        const { loadFabric } = await import('@/lib/fabric-loader');
+        fabricInstance = await loadFabric();
+      }
+      return fabricInstance;
+    };
+    
+    // Add double-click to edit text functionality
+    canvas.on('mouse:dblclick', async (e: any) => {
+      const obj = e.target;
+      
+      if (!obj || (obj.type !== 'textbox' && obj.type !== 'text')) {
+        return;
+      }
+
+      // Prevent default behavior
+      e.e.preventDefault();
+      e.e.stopPropagation();
+
+      // Enter text editing mode
+      try {
+        // Check if the object has enterEditing method
+        if (typeof obj.enterEditing === 'function') {
+          obj.enterEditing();
+          obj.selectAll();
+          canvas.renderAll();
+        } else {
+          // Get cached fabric instance
+          const fabric = await getFabricInstance();
+          
+          if (!fabric) {
+            return;
+          }
+          
+          // Convert Text to Textbox for editing
+          const textbox = new fabric.Textbox(obj.text, {
+            left: obj.left,
+            top: obj.top,
+            width: obj.width || 200,
+            fontSize: obj.fontSize || 16,
+            fontFamily: obj.fontFamily || 'Arial',
+            fill: obj.fill || '#000000',
+            fontWeight: obj.fontWeight || 'normal',
+            fontStyle: obj.fontStyle || 'normal',
+            textAlign: obj.textAlign || 'left',
+            lineHeight: obj.lineHeight || 1.2,
+            charSpacing: obj.charSpacing || 0,
+            underline: obj.underline || false,
+            originX: obj.originX || 'left',
+            originY: obj.originY || 'top'
+          });
+          
+          // Remove the old object and add the new textbox
+          canvas.remove(obj);
+          canvas.add(textbox);
+          canvas.setActiveObject(textbox);
+          textbox.enterEditing();
+          textbox.selectAll();
+          canvas.renderAll();
+        }
+      } catch (error) {
+        console.error('Error entering edit mode:', error);
+      }
+    });
+
+    // Handle text editing events
+    canvas.on('text:editing:entered', (e: any) => {
+      const obj = e.target;
+      if (obj) {
+        // Add visual indicator for edit mode
+        obj.set({
+          borderColor: '#10b981',
+          borderScaleFactor: 3,
+          cornerColor: '#10b981',
+          cornerStrokeColor: '#10b981'
+        });
+        canvas.renderAll();
+      }
+    });
+
+    canvas.on('text:editing:exited', (e: any) => {
+      const obj = e.target;
+      if (obj) {
+        // Restore normal border styling
+        obj.set({
+          borderColor: '#3b82f6',
+          borderScaleFactor: 2,
+          cornerColor: '#ffffff',
+          cornerStrokeColor: '#999999'
+        });
+        canvas.renderAll();
+      }
+    });
+
+    // Add hover effects for textbox objects
+    let hoveredObject = null;
+    let hoverOverlay = null;
+    
+    // Store hover variables on canvas for access in selection handlers
+    canvas.hoveredObject = hoveredObject;
+    canvas.hoverOverlay = hoverOverlay;
+    
+    canvas.on('mouse:over', async (e: any) => {
+      const obj = e.target;
+      
+      // Don't show hover effects if any object is currently selected
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        return; // Exit early if any object is selected
+      }
+      
+      if (obj && (obj.type === 'textbox' || obj.type === 'text')) {
+        // Only show hover effect if not in edit mode
+        if (!obj.isEditing) {
+          canvas.hoveredObject = obj;
+          
+          // Create a visual overlay rectangle
+          const bounds = obj.getBoundingRect();
+          const padding = 5;
+          
+          // Remove existing overlay
+          if (canvas.hoverOverlay) {
+            canvas.remove(canvas.hoverOverlay);
+          }
+          
+          // Get cached fabric instance
+          const fabric = await getFabricInstance();
+          if (!fabric) return;
+          
+          canvas.hoverOverlay = new fabric.Rect({
+            left: bounds.left - padding,
+            top: bounds.top - padding,
+            width: bounds.width + (padding * 2),
+            height: bounds.height + (padding * 2),
+            fill: 'transparent',
+            stroke: '#10b981',
+            strokeWidth: 3,
+            strokeDashArray: [5, 5],
+            selectable: false,
+            evented: false,
+            absolutePositioned: true
+          });
+          
+          canvas.add(canvas.hoverOverlay);
+          canvas.sendToBack(canvas.hoverOverlay);
+          canvas.renderAll();
+        }
+      }
+    });
+
+    canvas.on('mouse:out', (e: any) => {
+      const obj = e.target;
+      
+      // Don't process hover effects if any object is currently selected
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        return; // Exit early if any object is selected
+      }
+      
+      if (obj && (obj.type === 'textbox' || obj.type === 'text')) {
+        canvas.hoveredObject = null;
+        
+        // Hide overlay on mouse out
+        if (!obj.isEditing) {
+          
+          // Remove overlay
+          if (canvas.hoverOverlay) {
+            canvas.remove(canvas.hoverOverlay);
+            canvas.hoverOverlay = null;
+            canvas.renderAll();
+          }
+        }
+      }
+    });
+
+    // Also add mouse move event for better hover detection
+    canvas.on('mouse:move', async (e: any) => {
+      // Don't process hover effects if any object is currently selected
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        return; // Exit early if any object is selected
+      }
+      
+      const pointer = canvas.getPointer(e.e);
+      const obj = canvas.findTarget(e.e, false);
+      
+      if (obj && (obj.type === 'textbox' || obj.type === 'text')) {
+        if (canvas.hoveredObject !== obj) {
+          // Mouse moved to a different object
+          // Remove existing overlay
+          if (canvas.hoverOverlay) {
+            canvas.remove(canvas.hoverOverlay);
+            canvas.hoverOverlay = null;
+          }
+          
+          canvas.hoveredObject = obj;
+          
+          if (!obj.isEditing) {
+            // Create new overlay for the new object
+            const bounds = obj.getBoundingRect();
+            const padding = 5;
+            
+            // Get cached fabric instance
+            const fabric = await getFabricInstance();
+            if (!fabric) return;
+            
+            canvas.hoverOverlay = new fabric.Rect({
+              left: bounds.left - padding,
+              top: bounds.top - padding,
+              width: bounds.width + (padding * 2),
+              height: bounds.height + (padding * 2),
+              fill: 'transparent',
+              stroke: '#10b981',
+              strokeWidth: 3,
+              strokeDashArray: [5, 5],
+              selectable: false,
+              evented: false,
+              absolutePositioned: true
+            });
+            
+            canvas.add(canvas.hoverOverlay);
+            canvas.sendToBack(canvas.hoverOverlay);
+            canvas.renderAll();
+          }
+        }
+      } else if (canvas.hoveredObject) {
+        // Mouse moved away from text object
+        if (!canvas.hoveredObject.isEditing) {
+          // Remove overlay
+          if (canvas.hoverOverlay) {
+            canvas.remove(canvas.hoverOverlay);
+            canvas.hoverOverlay = null;
+            canvas.renderAll();
+          }
+        }
+        canvas.hoveredObject = null;
+      }
+    });
+
+    // Handle keyboard shortcuts for edit operations
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (!canvas) return;
+
+      const activeObject = canvas.getActiveObject();
+      if (!activeObject) return;
+
+      // Handle Enter key to exit editing mode
+      if (e.key === 'Enter' && activeObject.isEditing) {
+        activeObject.exitEditing();
+        canvas.renderAll();
+        e.preventDefault();
+      }
+
+      // Handle Escape key to cancel editing
+      if (e.key === 'Escape' && activeObject.isEditing) {
+        activeObject.exitEditing();
+        canvas.renderAll();
+        e.preventDefault();
+      }
+
+      // Handle F2 key to enter editing mode
+      if (e.key === 'F2' && (activeObject.type === 'textbox' || activeObject.type === 'text')) {
+        try {
+          if (typeof activeObject.enterEditing === 'function') {
+            activeObject.enterEditing();
+            activeObject.selectAll();
+            canvas.renderAll();
+            e.preventDefault();
+            } else {
+              // Convert Text to Textbox for editing
+              const fabric = await getFabricInstance();
+              
+              if (fabric) {
+                const textbox = new fabric.Textbox(activeObject.text, {
+                  left: activeObject.left,
+                  top: activeObject.top,
+                  width: activeObject.width || 200,
+                  fontSize: activeObject.fontSize || 16,
+                  fontFamily: activeObject.fontFamily || 'Arial',
+                  fill: activeObject.fill || '#000000',
+                  fontWeight: activeObject.fontWeight || 'normal',
+                  fontStyle: activeObject.fontStyle || 'normal',
+                  textAlign: activeObject.textAlign || 'left',
+                  lineHeight: activeObject.lineHeight || 1.2,
+                  charSpacing: activeObject.charSpacing || 0,
+                  underline: activeObject.underline || false,
+                  originX: activeObject.originX || 'left',
+                  originY: activeObject.originY || 'top'
+                });
+                
+                canvas.remove(activeObject);
+                canvas.add(textbox);
+                canvas.setActiveObject(textbox);
+                textbox.enterEditing();
+                textbox.selectAll();
+                canvas.renderAll();
+              }
+              e.preventDefault();
+            }
+        } catch (error) {
+          console.error('Error entering edit mode with F2:', error);
+        }
+      }
+    };
+
+    // Add keyboard event listener
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Store the handler for cleanup
+    canvas.keyboardHandler = handleKeyDown;
+    
+    // Add selection event listeners for delete button
+    canvas.on('selection:created', (e: any) => {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        setSelectedObject(activeObject);
+        setShowDeleteButton(true);
+        
+        // Clear any hover effects when object is selected
+        if (canvas.hoverOverlay) {
+          canvas.remove(canvas.hoverOverlay);
+          canvas.hoverOverlay = null;
+        }
+        
+        // Calculate position relative to selected object - top right corner at 95% width
+        const objBounds = activeObject.getBoundingRect();
+        const canvasElement = canvas.getElement();
+        const canvasOffset = canvasElement.getBoundingClientRect();
+        const zoom = zoomLevel / 100;
+        
+        const x = canvasOffset.left + (objBounds.left + objBounds.width * 0.95) * zoom;
+        const y = canvasOffset.top + (objBounds.top - 40) * zoom;
+        
+        setEditToolbarPosition({ x, y });
+      } else {
+        setSelectedObject(null);
+        setShowDeleteButton(false);
+      }
+    });
+
+    canvas.on('selection:updated', (e: any) => {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        setSelectedObject(activeObject);
+        setShowDeleteButton(true);
+        
+        // Calculate position relative to selected object - top right corner at 95% width
+        const objBounds = activeObject.getBoundingRect();
+        const canvasElement = canvas.getElement();
+        const canvasOffset = canvasElement.getBoundingClientRect();
+        const zoom = zoomLevel / 100;
+        
+        const x = canvasOffset.left + (objBounds.left + objBounds.width * 0.95) * zoom;
+        const y = canvasOffset.top + (objBounds.top - 5) * zoom;
+        
+        setEditToolbarPosition({ x, y });
+      } else {
+        setSelectedObject(null);
+        setShowDeleteButton(false);
+      }
+    });
+
+    canvas.on('selection:cleared', () => {
+      setSelectedObject(null);
+      setShowDeleteButton(false);
+    });
+    
+    // Mark that edit listeners have been added
+    canvas.hasEditListeners = true;
+
+    // Add function to highlight all text objects
+    canvas.highlightAllTextObjects = () => {
+      canvas.forEachObject((obj: any) => {
+        if (obj.type === 'textbox' || obj.type === 'text') {
+          obj.set({
+            borderColor: '#10b981',
+            borderScaleFactor: 1.5,
+            borderDashArray: [3, 3],
+            cornerColor: '#10b981',
+            cornerStrokeColor: '#10b981'
+          });
+        }
+      });
+      canvas.renderAll();
+    };
+
+    // Add function to clear all highlights
+    canvas.clearAllHighlights = () => {
+      canvas.forEachObject((obj: any) => {
+        if (obj.type === 'textbox' || obj.type === 'text' && !obj.isEditing) {
+          obj.set({
+            borderColor: '#3b82f6',
+            borderScaleFactor: 2,
+            borderDashArray: null,
+            cornerColor: '#ffffff',
+            cornerStrokeColor: '#999999'
+          });
+        }
+      });
+      canvas.renderAll();
+    };
   };
 
 
@@ -117,14 +629,27 @@ export default function ResumeBuilderPage() {
                 // Dispose of the old canvas to clean up
                 fabricCanvas.dispose();
                 
-                // Create a new canvas instance
+                // Clean the template data before loading
+                const cleanedTemplateData = cleanTemplateForFabric(templateData);
+                
+                // Create a new canvas instance at base dimensions
+                const baseWidth = 800;
+                const baseHeight = 1000;
+                const currentZoom = zoomLevel / 100;
+                
                 const newCanvas = new fabric.Canvas(canvasElement, {
-          width: 800,
-          height: 1000,
+          width: baseWidth,
+          height: baseHeight,
           backgroundColor: '#ffffff',
           selection: true,
                   preserveObjectStacking: true,
                 });
+                
+                // Apply zoom (canvas always renders at 100% internally)
+                newCanvas.setZoom(1);
+                
+                // Ensure initial render
+                newCanvas.renderAll();
                 
                 // Configure canvas controls
         fabric.Object.prototype.set({
@@ -151,6 +676,12 @@ export default function ResumeBuilderPage() {
                 // Initialize undo/redo system for new canvas
                 newCanvas.history = [];
                 newCanvas.historyIndex = -1;
+                
+                // Re-add edit functionality to the new canvas
+                if (!newCanvas.hasEditFunctionality) {
+                  addEditFunctionality(newCanvas);
+                  newCanvas.hasEditFunctionality = true;
+                }
                 
                 const saveState = () => {
                   const state = JSON.stringify(newCanvas.toJSON());
@@ -236,6 +767,7 @@ export default function ResumeBuilderPage() {
                       fontFamily: elementData.fontFamily || 'Arial',
                       fill: elementData.fill || '#000000',
                       fontWeight: elementData.fontWeight || 'normal',
+                      textBaseline: elementData.textBaseline === 'alphabetical' ? 'alphabetic' : (elementData.textBaseline || 'alphabetic'),
                       fontStyle: elementData.fontStyle || 'normal',
                       textAlign: elementData.textAlign || 'left',
                       width: elementData.width || 200,
@@ -315,13 +847,24 @@ export default function ResumeBuilderPage() {
                       </div>
           
           {/* Canvas Area with Scroll */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Scrollable Canvas Content */}
-            <div className="flex-1 overflow-auto">
-              <div className="pb-4">
-                <ResumeBuilderCanvas onCanvasReady={handleCanvasReady} zoomLevel={zoomLevel} />
-                      </div>
-                      </div>
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+            <ResumeBuilderCanvas onCanvasReady={handleCanvasReady} zoomLevel={zoomLevel} />
+            
+            {/* Delete Button - appears when object is selected */}
+            {showDeleteButton && selectedObject && (
+              <div 
+                className="fixed z-50 cursor-pointer transition-colors"
+                style={{
+                  left: `${editToolbarPosition.x}px`,
+                  top: `${editToolbarPosition.y}px`
+                }}
+                onClick={handleDeleteSelected}
+                title="Delete Selected Element"
+              >
+                <Trash2 className="w-4 h-4 text-red-500 hover:text-red-600" />
+              </div>
+            )}
+            
             
             {/* Fixed Footer with Controls */}
             <div className="flex-shrink-0 h-12 bg-white border-t border-gray-200 flex items-center justify-between px-4">
@@ -398,11 +941,19 @@ export default function ResumeBuilderPage() {
                   <Download className="w-4 h-4" />
                   <span>Export</span>
                 </button>
-                      </div>
-                      </div>
-                      </div>
-                      </div>
-                      </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Edit Toolbar */}
+      <CanvasEditToolbar
+        fabricCanvas={fabricCanvas}
+        isVisible={showEditToolbar}
+        position={editToolbarPosition}
+        onClose={handleCloseEditToolbar}
+      />
     </div>
   );
 }
