@@ -14,6 +14,9 @@ export default function ResumeBuilderPage() {
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [zoomLevel, setZoomLevel] = useState(65);
   const [currentTemplateId, setCurrentTemplateId] = useState<string>('');
+  const [canvasState, setCanvasState] = useState<string | null>(null);
+  const isRestoringRef = useRef<boolean>(false);
+  const lastRestoreAttemptRef = useRef<number>(0);
   
   // Calculate display dimensions based on zoom
   const canvasDimensions = {
@@ -28,6 +31,12 @@ export default function ResumeBuilderPage() {
 
   const handleCanvasReady = useCallback((canvas: any) => {
       setFabricCanvas(canvas);
+      
+      // Save initial empty canvas state
+      setTimeout(() => {
+        const initialState = JSON.stringify(canvas.toJSON());
+        setCanvasState(initialState);
+      }, 100);
 
       // Add event listeners for edit toolbar
       const handleSelectionChange = (e: any) => {
@@ -100,23 +109,127 @@ export default function ResumeBuilderPage() {
     }
   };
 
+  // Function to save current canvas state
+  const saveCanvasState = () => {
+    if (fabricCanvas) {
+      try {
+        const state = JSON.stringify(fabricCanvas.toJSON());
+        setCanvasState(state);
+      } catch (error) {
+        console.error('Error saving canvas state:', error);
+      }
+    }
+  };
+
+  // Function to restore canvas state
+  const restoreCanvasState = () => {
+    if (fabricCanvas && canvasState && !isRestoringRef.current) {
+      // Add cooldown to prevent excessive restoration attempts
+      const now = Date.now();
+      if (now - lastRestoreAttemptRef.current < 1000) { // 1 second cooldown
+        return;
+      }
+      lastRestoreAttemptRef.current = now;
+      
+      // Additional validation to ensure canvas is ready
+      try {
+        const canvasElement = fabricCanvas.getElement();
+        if (!canvasElement || !canvasElement.getContext) {
+          return;
+        }
+        
+        const context = fabricCanvas.getContext();
+        if (!context || context.isContextLost()) {
+          return;
+        }
+      } catch (validationError) {
+        return;
+      }
+      
+      isRestoringRef.current = true;
+      try {
+        // Clean the state data before loading
+        const cleanState = (jsonString: string) => {
+          try {
+            const data = JSON.parse(jsonString);
+            if (data.objects && Array.isArray(data.objects)) {
+              data.objects = data.objects.map((obj: any) => {
+                if (obj.textBaseline === 'alphabetical') {
+                  obj.textBaseline = 'alphabetic';
+                }
+                return obj;
+              });
+            }
+            return JSON.stringify(data);
+          } catch (e) {
+            return jsonString; // Return original if parsing fails
+          }
+        };
+        
+        const cleanedState = cleanState(canvasState);
+        
+        // Use the canvas's restore method if available
+        if (fabricCanvas.restoreFromState) {
+          fabricCanvas.restoreFromState(cleanedState);
+          isRestoringRef.current = false;
+        } else {
+          // Fallback to direct loadFromJSON
+          fabricCanvas.loadFromJSON(cleanedState, () => {
+            fabricCanvas.renderAll();
+            isRestoringRef.current = false;
+          });
+        }
+      } catch (error) {
+        console.error('Error restoring canvas state:', error);
+        isRestoringRef.current = false;
+      }
+    }
+  };
+
   const handleZoomIn = () => {
+    // Save state before zoom change
+    saveCanvasState();
     const newZoom = Math.min(zoomLevel + 10, 200);
     setZoomLevel(newZoom);
   };
 
   const handleZoomOut = () => {
+    // Save state before zoom change
+    saveCanvasState();
     const newZoom = Math.max(zoomLevel - 10, 25);
     setZoomLevel(newZoom);
   };
 
   const handleFitToScreen = () => {
+    // Save state before zoom change
+    saveCanvasState();
     setZoomLevel(100);
   };
 
   const handleCloseEditToolbar = () => {
     setShowEditToolbar(false);
   };
+
+  // Effect to restore canvas state when zoom changes and canvas is empty
+  useEffect(() => {
+    if (fabricCanvas && canvasState) {
+      // Only restore if canvas is truly empty (not just the default empty state)
+      const hasObjects = fabricCanvas.getObjects().length > 0;
+      const isEmptyState = canvasState === '{"version":"5.3.0","objects":[],"background":"#ffffff"}' || 
+                          canvasState === '{"version":"5.1.0","objects":[],"background":"#ffffff"}';
+      
+      if (!hasObjects && !isEmptyState) {
+        // Restore state after a longer delay to ensure canvas is fully ready
+        setTimeout(() => {
+          // Double-check canvas is still available and ready
+          if (fabricCanvas && fabricCanvas.getElement && fabricCanvas.getElement()) {
+            restoreCanvasState();
+          }
+        }, 200);
+      }
+    }
+  }, [zoomLevel, fabricCanvas, canvasState]);
+
 
   const handleDeleteSelected = () => {
     if (fabricCanvas && selectedObject) {
@@ -130,33 +243,70 @@ export default function ResumeBuilderPage() {
 
   // Function to clean template data for Fabric.js compatibility
   const cleanTemplateForFabric = (templateData: any) => {
-    if (!templateData || !templateData.objects) {
+    if (!templateData) {
       return templateData;
     }
 
-    const cleanObjects = templateData.objects.map((obj: any) => {
-      const cleanObj = { ...obj };
+    // Helper function to clean objects array
+    const cleanObjectsArray = (objects: any[]) => {
+      if (!Array.isArray(objects)) return objects;
       
-      // Fix invalid textBaseline values
-      if (cleanObj.textBaseline && cleanObj.textBaseline === 'alphabetical') {
-        cleanObj.textBaseline = 'alphabetic';
-      }
-      
-      // Fix other common issues
-      if (cleanObj.textAlign && typeof cleanObj.textAlign === 'string') {
-        const validAligns = ['left', 'center', 'right', 'justify', 'justify-left', 'justify-center', 'justify-right'];
-        if (!validAligns.includes(cleanObj.textAlign)) {
-          cleanObj.textAlign = 'left';
+      return objects.map((obj: any) => {
+        const cleanObj = { ...obj };
+        
+        // Fix invalid textBaseline values
+        if (cleanObj.textBaseline && cleanObj.textBaseline === 'alphabetical') {
+          cleanObj.textBaseline = 'alphabetic';
         }
-      }
-      
-      return cleanObj;
-    });
-
-    return {
-      ...templateData,
-      objects: cleanObjects
+        
+        // Fix other common issues
+        if (cleanObj.textAlign && typeof cleanObj.textAlign === 'string') {
+          const validAligns = ['left', 'center', 'right', 'justify', 'justify-left', 'justify-center', 'justify-right'];
+          if (!validAligns.includes(cleanObj.textAlign)) {
+            cleanObj.textAlign = 'left';
+          }
+        }
+        
+        return cleanObj;
+      });
     };
+
+    const cleanedData = { ...templateData };
+
+    // Clean objects in various possible locations
+    if (cleanedData.objects) {
+      cleanedData.objects = cleanObjectsArray(cleanedData.objects);
+    }
+    
+    if (cleanedData.canvasData) {
+      if (cleanedData.canvasData.objects) {
+        cleanedData.canvasData.objects = cleanObjectsArray(cleanedData.canvasData.objects);
+      }
+      if (cleanedData.canvasData.elements) {
+        cleanedData.canvasData.elements = cleanObjectsArray(cleanedData.canvasData.elements);
+      }
+    }
+    
+    if (cleanedData.builderData) {
+      if (cleanedData.builderData.elements) {
+        cleanedData.builderData.elements = cleanObjectsArray(cleanedData.builderData.elements);
+      }
+      if (cleanedData.builderData.objects) {
+        cleanedData.builderData.objects = cleanObjectsArray(cleanedData.builderData.objects);
+      }
+      if (cleanedData.builderData.canvas && cleanedData.builderData.canvas.objects) {
+        cleanedData.builderData.canvas.objects = cleanObjectsArray(cleanedData.builderData.canvas.objects);
+      }
+      if (cleanedData.builderData.stage && cleanedData.builderData.stage.objects) {
+        cleanedData.builderData.stage.objects = cleanObjectsArray(cleanedData.builderData.stage.objects);
+      }
+    }
+    
+    if (cleanedData.elements) {
+      cleanedData.elements = cleanObjectsArray(cleanedData.elements);
+    }
+
+    return cleanedData;
   };
 
   // Function to add edit functionality to canvas
@@ -219,6 +369,7 @@ export default function ResumeBuilderPage() {
             lineHeight: obj.lineHeight || 1.2,
             charSpacing: obj.charSpacing || 0,
             underline: obj.underline || false,
+            textBaseline: 'alphabetic',
             originX: obj.originX || 'left',
             originY: obj.originY || 'top'
           });
@@ -457,6 +608,7 @@ export default function ResumeBuilderPage() {
                   lineHeight: activeObject.lineHeight || 1.2,
                   charSpacing: activeObject.charSpacing || 0,
                   underline: activeObject.underline || false,
+                  textBaseline: 'alphabetic',
                   originX: activeObject.originX || 'left',
                   originY: activeObject.originY || 'top'
                 });
@@ -616,6 +768,17 @@ export default function ResumeBuilderPage() {
             elementsToLoad = templateData.elements;
           }
           
+          // Clean the elementsToLoad array to fix any textBaseline issues
+          if (elementsToLoad && Array.isArray(elementsToLoad)) {
+            elementsToLoad = elementsToLoad.map((obj: any) => {
+              const cleanObj = { ...obj };
+              if (cleanObj.textBaseline && cleanObj.textBaseline === 'alphabetical') {
+                cleanObj.textBaseline = 'alphabetic';
+              }
+              return cleanObj;
+            });
+          }
+          
           if (elementsToLoad && elementsToLoad.length > 0) {
             // Create a completely new canvas instance to avoid context corruption
             const { loadFabric } = await import('@/lib/fabric-loader');
@@ -767,7 +930,8 @@ export default function ResumeBuilderPage() {
                       fontFamily: elementData.fontFamily || 'Arial',
                       fill: elementData.fill || '#000000',
                       fontWeight: elementData.fontWeight || 'normal',
-                      textBaseline: elementData.textBaseline === 'alphabetical' ? 'alphabetic' : (elementData.textBaseline || 'alphabetic'),
+                      textBaseline: elementData.textBaseline === 'alphabetical' ? 'alphabetic' : 
+                                   (elementData.textBaseline === 'alphabetic' ? 'alphabetic' : 'alphabetic'),
                       fontStyle: elementData.fontStyle || 'normal',
                       textAlign: elementData.textAlign || 'left',
                       width: elementData.width || 200,
@@ -780,6 +944,11 @@ export default function ResumeBuilderPage() {
                       obj = new fabric.Textbox(elementData.text, cleanData);
                     } else if (elementData.type === 'text' && elementData.text) {
                       obj = new fabric.Text(elementData.text, cleanData);
+                    }
+                    
+                    // Ensure textBaseline is set correctly for all text objects
+                    if (obj && (obj.type === 'text' || obj.type === 'textbox')) {
+                      obj.set({ textBaseline: 'alphabetic' });
                     }
                     
                     if (obj) {
@@ -804,6 +973,12 @@ export default function ResumeBuilderPage() {
                 
                 // Update the fabricCanvas reference
                 setFabricCanvas(newCanvas);
+                
+                // Save the initial canvas state after template is loaded
+                setTimeout(() => {
+                  const initialState = JSON.stringify(newCanvas.toJSON());
+                  setCanvasState(initialState);
+                }, 100);
                 
       } catch (error) {
                 console.error('Error loading template:', error);
@@ -848,7 +1023,11 @@ export default function ResumeBuilderPage() {
           
           {/* Canvas Area with Scroll */}
           <div className="flex-1 flex flex-col overflow-hidden relative">
-            <ResumeBuilderCanvas onCanvasReady={handleCanvasReady} zoomLevel={zoomLevel} />
+            <ResumeBuilderCanvas 
+              onCanvasReady={handleCanvasReady} 
+              zoomLevel={zoomLevel} 
+              onStateChange={setCanvasState}
+            />
             
             {/* Delete Button - appears when object is selected */}
             {showDeleteButton && selectedObject && (

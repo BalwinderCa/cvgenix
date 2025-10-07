@@ -6,17 +6,29 @@ import { loadFabric } from '@/lib/fabric-loader';
 interface ResumeBuilderCanvasProps {
   onCanvasReady: (canvas: any) => void;
   zoomLevel: number;
+  onStateChange?: (state: string) => void;
 }
 
-export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel }: ResumeBuilderCanvasProps) {
+export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel, onStateChange }: ResumeBuilderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
+  const canvasStateRef = useRef<string | null>(null);
+  const isRestoringRef = useRef<boolean>(false);
 
   // Apply zoom to existing canvas when zoomLevel changes
   useEffect(() => {
     if (fabricCanvasRef.current) {
       try {
         const canvas = fabricCanvasRef.current;
+        
+        // Save current canvas state before zoom change
+        const currentState = JSON.stringify(canvas.toJSON());
+        canvasStateRef.current = currentState;
+        
+        // Notify parent of state change
+        if (onStateChange) {
+          onStateChange(currentState);
+        }
         
         // Canvas always renders at 100% internally, CSS transform handles visual scaling
         canvas.setZoom(1);
@@ -27,7 +39,44 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel }: Resume
         // Additional render after a small delay to ensure content appears
         setTimeout(() => {
           canvas.renderAll();
-        }, 10);
+          
+          // Only restore if content is missing and we have a non-empty state
+          const hasObjects = canvas.getObjects().length > 0;
+          const isEmptyState = canvasStateRef.current === '{"version":"5.3.0","objects":[],"background":"#ffffff"}' || 
+                              canvasStateRef.current === '{"version":"5.1.0","objects":[],"background":"#ffffff"}';
+          
+          if (!hasObjects && canvasStateRef.current && !isEmptyState && !isRestoringRef.current) {
+            isRestoringRef.current = true;
+            try {
+              // Clean the state data before loading
+              const cleanState = (jsonString: string) => {
+                try {
+                  const data = JSON.parse(jsonString);
+                  if (data.objects && Array.isArray(data.objects)) {
+                    data.objects = data.objects.map((obj: any) => {
+                      if (obj.textBaseline === 'alphabetical') {
+                        obj.textBaseline = 'alphabetic';
+                      }
+                      return obj;
+                    });
+                  }
+                  return JSON.stringify(data);
+                } catch (e) {
+                  return jsonString; // Return original if parsing fails
+                }
+              };
+              
+              const cleanedState = cleanState(canvasStateRef.current);
+              canvas.loadFromJSON(cleanedState, () => {
+                canvas.renderAll();
+                isRestoringRef.current = false;
+              });
+            } catch (restoreError) {
+              console.error('Error restoring canvas state:', restoreError);
+              isRestoringRef.current = false;
+            }
+          }
+        }, 50);
       } catch (error) {
         console.error('Error applying zoom:', error);
       }
@@ -87,6 +136,42 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel }: Resume
             tl: true, tr: true, bl: true, br: true
           });
 
+          // Override textBaseline for all text objects to prevent 'alphabetical' values
+          const originalTextInit = fabric.Text.prototype.initialize;
+          const originalTextboxInit = fabric.Textbox.prototype.initialize;
+          
+          fabric.Text.prototype.initialize = function(text: any, options: any) {
+            if (options && options.textBaseline === 'alphabetical') {
+              options.textBaseline = 'alphabetic';
+            }
+            return originalTextInit.call(this, text, options);
+          };
+          
+          fabric.Textbox.prototype.initialize = function(text: any, options: any) {
+            if (options && options.textBaseline === 'alphabetical') {
+              options.textBaseline = 'alphabetic';
+            }
+            return originalTextboxInit.call(this, text, options);
+          };
+
+          // Override fromObject methods to clean textBaseline during deserialization
+          const originalTextFromObject = fabric.Text.fromObject;
+          const originalTextboxFromObject = fabric.Textbox.fromObject;
+          
+          fabric.Text.fromObject = function(object: any, callback: any) {
+            if (object && object.textBaseline === 'alphabetical') {
+              object.textBaseline = 'alphabetic';
+            }
+            return originalTextFromObject.call(this, object, callback);
+          };
+          
+          fabric.Textbox.fromObject = function(object: any, callback: any) {
+            if (object && object.textBaseline === 'alphabetical') {
+              object.textBaseline = 'alphabetic';
+            }
+            return originalTextboxFromObject.call(this, object, callback);
+          };
+
           // Initialize undo/redo system
           canvas.history = [];
           canvas.historyIndex = -1;
@@ -128,11 +213,67 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel }: Resume
           canvas.saveState = saveState;
           canvas.undo = undo;
           canvas.redo = redo;
+          
+          // Add method to restore state from parent
+          canvas.restoreFromState = (state: string) => {
+            try {
+              // Check if canvas context is available
+              const canvasElement = canvas.getElement();
+              if (!canvasElement || !canvasElement.getContext) {
+                return;
+              }
+              
+              // Check if canvas is properly initialized
+              if (!canvas.getContext() || canvas.getContext().isContextLost()) {
+                return;
+              }
+              
+              // Clean the state data before loading
+              const cleanState = (jsonString: string) => {
+                try {
+                  const data = JSON.parse(jsonString);
+                  if (data.objects && Array.isArray(data.objects)) {
+                    data.objects = data.objects.map((obj: any) => {
+                      if (obj.textBaseline === 'alphabetical') {
+                        obj.textBaseline = 'alphabetic';
+                      }
+                      return obj;
+                    });
+                  }
+                  return JSON.stringify(data);
+                } catch (e) {
+                  return jsonString; // Return original if parsing fails
+                }
+              };
+              
+              const cleanedState = cleanState(state);
+              canvas.loadFromJSON(cleanedState, () => {
+                canvas.renderAll();
+              });
+            } catch (error) {
+              console.error('Error restoring canvas state from parent:', error);
+            }
+          };
 
           // Enable undo/redo
           canvas.on('object:added', saveState);
           canvas.on('object:removed', saveState);
           canvas.on('object:modified', saveState);
+          
+          // Also save state for parent component (debounced)
+          let stateChangeTimeout: NodeJS.Timeout;
+          const debouncedStateChange = () => {
+            clearTimeout(stateChangeTimeout);
+            stateChangeTimeout = setTimeout(() => {
+              if (onStateChange) {
+                onStateChange(JSON.stringify(canvas.toJSON()));
+              }
+            }, 100);
+          };
+          
+          canvas.on('object:added', debouncedStateChange);
+          canvas.on('object:removed', debouncedStateChange);
+          canvas.on('object:modified', debouncedStateChange);
 
           // Disable scaling for text objects and use custom resize
           canvas.on('object:scaling', (e: any) => {
@@ -348,18 +489,25 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel }: Resume
           try {
             const element = fabricCanvasRef.current.getElement();
             if (element && element.parentNode) {
-              fabricCanvasRef.current.dispose();
+              // Check if context is still valid before disposing
+              const context = fabricCanvasRef.current.getContext();
+              if (context && !context.isContextLost()) {
+                fabricCanvasRef.current.dispose();
+              }
             } else {
               // If element doesn't exist, just clear the canvas
-              fabricCanvasRef.current.clear();
+              try {
+                fabricCanvasRef.current.clear();
+              } catch (clearError) {
+                // Canvas cleanup failed, continue silently
+              }
             }
           } catch (disposeError) {
             // If dispose fails, try to clear the canvas
             try {
               fabricCanvasRef.current.clear();
             } catch (clearError) {
-              // If even clear fails, just log and continue
-              console.warn('Could not clear canvas during cleanup');
+              // If even clear fails, continue silently
             }
           }
         } catch (error) {

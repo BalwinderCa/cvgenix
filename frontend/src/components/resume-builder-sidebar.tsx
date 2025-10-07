@@ -114,6 +114,9 @@ export default function ResumeBuilderSidebar({
           break;
         case 'Textbox':
           obj = new fabric.Textbox(options.text, options);
+          if (obj) {
+            obj.set({ textBaseline: 'alphabetic' });
+          }
           break;
         case 'Ellipse':
           obj = new fabric.Ellipse(options);

@@ -93,6 +93,7 @@ export default function CanvasEditToolbar({
               lineHeight: activeObject.lineHeight || 1.2,
               charSpacing: activeObject.charSpacing || 0,
               underline: activeObject.underline || false,
+              textBaseline: 'alphabetic',
               originX: activeObject.originX || 'left',
               originY: activeObject.originY || 'top'
             });
