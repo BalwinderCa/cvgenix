@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -43,6 +44,9 @@ interface ATSResult {
   recommendations: string[];
   // Additional data from enhanced analyzer
   overallGrade?: string;
+  parsingMethod?: string;
+  processingMode?: string;
+  confidence?: number;
   detailedMetrics?: {
     sectionCompleteness: number;
     keywordDensity: number;
@@ -274,6 +278,7 @@ export default function ATSSummaryPage() {
             </div>
           </div>
 
+
           {/* Overall Score */}
           <Card className="border border-gray-200 mb-8">
             <CardContent className="p-8 text-center">
@@ -283,19 +288,13 @@ export default function ATSSummaryPage() {
                 </span>
               </div>
               <div className="flex items-center justify-center gap-2 mb-4">
-                <Badge variant={getScoreBadgeVariant(atsResult.overallScore)} className="text-base">
-                  {atsResult.overallScore >= 80 ? 'Excellent' : 
-                   atsResult.overallScore >= 60 ? 'Good' : 'Needs Improvement'}
+                <Badge variant="outline" className="text-base">
+                  {atsResult.overallGrade}
                 </Badge>
-                {atsResult.overallGrade && (
-                  <Badge variant="outline" className="text-base">
-                    Grade: {atsResult.overallGrade}
-                  </Badge>
-                )}
               </div>
               {atsResult.quickStats && (
                 <p className="text-gray-600">
-                  {atsResult.quickStats.wordCount} words • {atsResult.quickStats.sectionsFound} sections
+                  {atsResult.quickStats.wordCount} words • {atsResult.quickStats.sectionsFound} sections found
                 </p>
               )}
             </CardContent>

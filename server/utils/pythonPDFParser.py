@@ -371,36 +371,60 @@ def parse_with_pdfminer(pdf_path):
     except Exception as e:
         return {"success": False, "error": f"pdfminer error: {str(e)}"}
 
-def parse_with_docstrange_local(pdf_path):
-    """Parse PDF using DocStrange local processing"""
+def parse_with_llamaparse_local(pdf_path):
+    """Parse PDF using LlamaParse local processing"""
     try:
-        # Try to use DocStrange library directly
-        from docstrange import DocumentExtractor
+        # Try to use LlamaParse library directly
+        from llama_cloud_services import LlamaParse
+        import os
         
-        # Initialize the extractor
-        extractor = DocumentExtractor()
+        # Get API key from environment variable
+        api_key = os.getenv('LLAMA_CLOUD_API_KEY')
+        if not api_key:
+            return {"success": False, "error": "LLAMA_CLOUD_API_KEY environment variable not set"}
         
-        # Extract the document
-        result = extractor.extract(pdf_path)
+        # Create parser with configuration
+        parser = LlamaParse(
+            api_key=api_key,
+            parse_mode="parse_page_with_llm",
+            high_res_ocr=True,
+            adaptive_long_table=True,
+            outlined_table_extraction=True,
+            output_tables_as_HTML=True,
+            target_pages="0-1",  # Parse first 2 pages by default
+            page_separator="\n\n---\n\n",
+        )
         
-        # Get markdown text
-        markdown_text = result.extract_markdown()
+        # Parse the document
+        result = parser.parse(pdf_path)
         
-        # Count pages (rough estimate from text length)
-        page_count = max(1, len(markdown_text) // 2000)  # Rough estimate
+        # Get markdown documents
+        markdown_documents = result.get_markdown_documents(split_by_page=True)
+        if markdown_documents:
+            markdown_text = "\n\n".join([doc.text for doc in markdown_documents])
+            page_count = len(markdown_documents)
+        else:
+            # Fallback to text documents
+            text_documents = result.get_text_documents(split_by_page=False)
+            if text_documents:
+                markdown_text = "\n\n".join([doc.text for doc in text_documents])
+                page_count = 1
+            else:
+                markdown_text = "No content extracted"
+                page_count = 1
         
         return {
             "success": True,
             "text": markdown_text.strip(),
             "page_count": page_count,
-            "method": "docstrange_local",
-            "library": "DocStrange Local"
+            "method": "llamaparse_local",
+            "library": "LlamaParse Local"
         }
         
     except ImportError:
-        return {"success": False, "error": "DocStrange not properly installed"}
+        return {"success": False, "error": "LlamaParse not properly installed"}
     except Exception as e:
-        return {"success": False, "error": f"DocStrange error: {str(e)}"}
+        return {"success": False, "error": f"LlamaParse error: {str(e)}"}
 
 def clean_text(text):
     """Clean and normalize extracted text"""
@@ -504,7 +528,7 @@ def main():
         ("tabula_py", parse_with_tabula_py),
         ("camelot", parse_with_camelot),
         ("pdfkit", parse_with_pdfkit),
-        ("docstrange_local", parse_with_docstrange_local)
+        ("llamaparse_local", parse_with_llamaparse_local)
     ]
     
     best_result = None

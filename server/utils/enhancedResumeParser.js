@@ -29,21 +29,23 @@ class EnhancedResumeParser {
   }
 
   /**
-   * Parse PDF using DocStrange with GPU-first processing (same as PDF parser)
+   * Parse PDF using LlamaParse with LLM processing
    */
-  async parsePDFWithDocStrange(pdfPath) {
+  async parsePDFWithLlamaParse(pdfPath) {
     // Use the exact same logic as the PDF parser
     const { spawn } = require('child_process');
     const path = require('path');
     
     return new Promise((resolve, reject) => {
-      const pythonScript = path.join(__dirname, 'docstrangeParser.py');
+      const pythonScript = path.join(__dirname, 'llamaparseParser.py');
       const pythonEnv = path.join(__dirname, '../python_env/bin/python');
       
       // Build command arguments exactly like PDF parser
-      const args = [pythonScript, pdfPath, 'markdown', '', '', 'gpu'];
+      const args = [pythonScript, pdfPath, 'markdown', '', '', 'llm'];
       
-      const pythonProcess = spawn(pythonEnv, args);
+      const pythonProcess = spawn(pythonEnv, args, {
+        env: { ...process.env }
+      });
       
       let stdout = '';
       let stderr = '';
@@ -79,18 +81,18 @@ class EnhancedResumeParser {
                 outputFormat: result.outputFormat
               });
             } else {
-              reject(new Error(result.error || 'DocStrange parser failed'));
+              reject(new Error(result.error || 'LlamaParse parser failed'));
             }
           } catch (parseError) {
-            reject(new Error('Failed to parse DocStrange output: ' + parseError.message));
+            reject(new Error('Failed to parse LlamaParse output: ' + parseError.message));
           }
         } else {
-          reject(new Error(`DocStrange parser exited with code ${code}: ${stderr}`));
+          reject(new Error(`LlamaParse parser exited with code ${code}: ${stderr}`));
         }
       });
       
       pythonProcess.on('error', (error) => {
-        reject(new Error(`Failed to start DocStrange process: ${error.message}`));
+        reject(new Error(`Failed to start LlamaParse process: ${error.message}`));
       });
     });
   }
@@ -102,23 +104,23 @@ class EnhancedResumeParser {
     try {
       console.log(`🔍 Parsing resume: ${path.basename(filePath)} (${mimeType})`);
       
-      // For PDF files, try DocStrange first (GPU with CPU fallback)
+      // For PDF files, try LlamaParse first (LLM processing)
       if (mimeType === 'application/pdf') {
         try {
-          console.log('🚀 Attempting DocStrange parsing (GPU-first with CPU fallback)...');
-          const docstrangeResult = await this.parsePDFWithDocStrange(filePath);
-          console.log(`✅ DocStrange parsing successful (${docstrangeResult.processingMode} mode, ${docstrangeResult.confidence}% confidence)`);
+          console.log('🚀 Attempting LlamaParse parsing (LLM processing)...');
+          const llamaparseResult = await this.parsePDFWithLlamaParse(filePath);
+          console.log(`✅ LlamaParse parsing successful (${llamaparseResult.processingMode} mode, ${llamaparseResult.confidence}% confidence)`);
           
           
           return {
             success: true,
-            text: docstrangeResult.text,
-            method: `docstrange-${docstrangeResult.processingMode}`,
-            confidence: docstrangeResult.confidence,
-            processingMode: docstrangeResult.processingMode
+            text: llamaparseResult.text,
+            method: `llamaparse-${llamaparseResult.processingMode}`,
+            confidence: llamaparseResult.confidence,
+            processingMode: llamaparseResult.processingMode
           };
-        } catch (docstrangeError) {
-          console.log(`⚠️ DocStrange parsing failed: ${docstrangeError.message}`);
+        } catch (llamaparseError) {
+          console.log(`⚠️ LlamaParse parsing failed: ${llamaparseError.message}`);
           console.log('🔄 Falling back to traditional PDF parsing methods...');
           // Continue to traditional parsing methods
         }

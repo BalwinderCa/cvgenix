@@ -43,6 +43,9 @@ interface ATSResult {
   recommendations: string[];
   // Additional data from enhanced analyzer
   overallGrade?: string;
+  parsingMethod?: string;
+  processingMode?: string;
+  confidence?: number;
   detailedMetrics?: {
     sectionCompleteness: number;
     keywordDensity: number;
@@ -144,6 +147,8 @@ export default function ATSScorePage() {
 
       if (response.ok) {
         const result = await response.json();
+        
+        
         const analysisId = generateAnalysisId();
         setCurrentAnalysisId(analysisId);
         
