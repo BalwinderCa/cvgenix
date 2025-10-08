@@ -138,7 +138,7 @@ class StructuredParserNoAI {
     const lines = [];
     let currentLine = [];
     let currentY = sortedElements[0].y;
-    const Y_TOLERANCE = 0.5; // Elements within 0.5 units are considered same line
+    const Y_TOLERANCE = 0.6; // Elements within 0.5 units are considered same line
 
     sortedElements.forEach(element => {
       if (Math.abs(element.y - currentY) <= Y_TOLERANCE) {
@@ -169,7 +169,32 @@ class StructuredParserNoAI {
     // Sort elements by X coordinate to maintain reading order
     const sortedElements = elements.sort((a, b) => a.x - b.x);
     
-    const text = sortedElements.map(el => el.text).join('');
+    // Smart text joining with minimal spacing
+    let text = '';
+    for (let i = 0; i < sortedElements.length; i++) {
+      const currentElement = sortedElements[i];
+      const nextElement = sortedElements[i + 1];
+      
+      text += currentElement.text;
+      
+      // Only add space for significant gaps (word boundaries)
+      if (nextElement) {
+        const gap = nextElement.x - (currentElement.x + currentElement.width);
+        // Only add space for large gaps (likely word boundaries)
+        if (gap > 3) {
+          text += ' ';
+        }
+      }
+    }
+    
+    // Clean up the text
+    text = text
+      .replace(/([a-z])([A-Z])/g, '$1 $2')  // Add space between lowercase and uppercase
+      .replace(/([a-zA-Z])(\d)/g, '$1 $2')  // Add space between letters and numbers  
+      .replace(/(\d)([a-zA-Z])/g, '$1 $2')  // Add space between numbers and letters
+      .replace(/\s+/g, ' ')                 // Replace multiple spaces with single space
+      .trim();
+    
     const avgY = elements.reduce((sum, el) => sum + el.y, 0) / elements.length;
     const minX = Math.min(...elements.map(el => el.x));
     const maxX = Math.max(...elements.map(el => el.x + el.width));
@@ -212,154 +237,39 @@ class StructuredParserNoAI {
 
     const processingTime = Date.now() - startTime;
     
-    // Calculate quality and confidence
-    const quality = this.calculateQuality(organizedText, sections);
-    const confidence = this.calculateConfidence(organizedText, structuredData);
-
     return {
       text: organizedText.trim(),
       sections: sections,
-      confidence: confidence,
-      quality: quality,
+      confidence: 100, // Fixed confidence since we successfully parsed
+      quality: 100,    // Fixed quality since we successfully parsed
       processingTime: processingTime
     };
   }
 
   /**
-   * Organize lines within a page
+   * Organize lines within a page (simplified - no section detection)
    */
   organizePageLines(lines) {
     const organizedLines = [];
-    const sections = [];
-    let currentSection = '';
-    let lastLineWasHeader = false;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
       if (!line.text || line.text.trim().length === 0) continue;
       
-      // Check if this is a section header
-      if (this.isSectionHeader(line.text)) {
-        // Add spacing before new section (except for first section)
-        if (organizedLines.length > 0 && !lastLineWasHeader) {
-          organizedLines.push('');
-        }
-        
-        organizedLines.push(line.text.toUpperCase());
-        sections.push(line.text);
-        currentSection = line.text.toLowerCase();
-        lastLineWasHeader = true;
-        continue;
-      }
-      
-      // Check if this is a date line
-      if (this.isDateLine(line.text)) {
-        // Try to associate with previous line if it's not already associated
-        if (organizedLines.length > 0 && !lastLineWasHeader) {
-          const lastLine = organizedLines[organizedLines.length - 1];
-          if (!this.isDateLine(lastLine) && !this.isSectionHeader(lastLine)) {
-            organizedLines[organizedLines.length - 1] = `${lastLine} - ${line.text}`;
-            lastLineWasHeader = false;
-            continue;
-          }
-        }
-      }
-      
-      // Regular content line
+      // Just add the line as-is
       organizedLines.push(line.text);
-      lastLineWasHeader = false;
     }
     
     return {
       text: organizedLines.join('\n'),
-      sections: sections
+      sections: [] // No sections tracked anymore
     };
   }
 
-  /**
-   * Check if a line is a section header
-   */
-  isSectionHeader(text) {
-    const sectionKeywords = [
-      'experience', 'education', 'skills', 'summary', 'objective', 'profile',
-      'contact', 'certifications', 'awards', 'honors', 'projects', 'work',
-      'technical', 'professional', 'academic', 'credentials', 'achievements'
-    ];
-    
-    const lowerText = text.toLowerCase().trim();
-    
-    // Check for exact matches or starts with
-    return sectionKeywords.some(keyword => 
-      lowerText === keyword || 
-      lowerText.startsWith(keyword + ' ') ||
-      lowerText.includes(keyword + ':') ||
-      (lowerText.length < 20 && lowerText.includes(keyword))
-    );
-  }
+  // Removed section header and date detection functions - not needed anymore
 
-  /**
-   * Check if a line contains date information
-   */
-  isDateLine(text) {
-    // Look for date patterns
-    const datePatterns = [
-      /^\d{4}\s*-\s*\d{4}$/, // 2010 - 2015
-      /^\d{4}\s*-\s*(present|current)$/i, // 2010 - Present
-      /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}\s*-\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$/i,
-      /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}\s*-\s*(present|current)$/i,
-      /issued on/i,
-      /^\d{4}$/ // Just a year
-    ];
-    
-    return datePatterns.some(pattern => pattern.test(text.trim()));
-  }
-
-  /**
-   * Calculate quality score
-   */
-  calculateQuality(text, sections) {
-    let score = 50; // Base score
-    
-    // Bonus for having multiple sections
-    if (sections.length >= 3) score += 20;
-    if (sections.length >= 5) score += 10;
-    
-    // Bonus for reasonable text length
-    if (text.length > 1000) score += 10;
-    if (text.length > 2000) score += 10;
-    
-    // Penalty for very short text
-    if (text.length < 500) score -= 20;
-    
-    // Bonus for having common resume sections
-    const commonSections = ['experience', 'education', 'skills', 'contact'];
-    const foundSections = commonSections.filter(section => 
-      sections.some(s => s.toLowerCase().includes(section))
-    );
-    score += foundSections.length * 5;
-    
-    return Math.min(100, Math.max(0, score));
-  }
-
-  /**
-   * Calculate confidence score
-   */
-  calculateConfidence(text, structuredData) {
-    let confidence = 60; // Base confidence
-    
-    // Bonus for having structured data
-    if (structuredData.totalTextElements > 100) confidence += 10;
-    if (structuredData.totalTextElements > 500) confidence += 10;
-    
-    // Bonus for multiple pages
-    if (structuredData.pages.length > 1) confidence += 10;
-    
-    // Bonus for reasonable text length
-    if (text.length > 1000) confidence += 10;
-    
-    return Math.min(100, Math.max(0, confidence));
-  }
+  // Removed quality and confidence calculation functions - not needed anymore
 
   /**
    * Get detailed analysis of the structured data
@@ -385,16 +295,7 @@ class StructuredParserNoAI {
         textElements: page.textElements.length
       };
       
-      // Detect potential sections
-      page.lines.forEach(line => {
-        if (this.isSectionHeader(line.text)) {
-          analysis.sections.push({
-            name: line.text,
-            page: page.pageNumber,
-            position: { x: line.x, y: line.y }
-          });
-        }
-      });
+      // No section detection - simplified analysis
     });
 
     return analysis;

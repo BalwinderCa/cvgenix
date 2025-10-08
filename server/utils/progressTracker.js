@@ -29,7 +29,7 @@ class ProgressTracker {
 
     const stepProgress = {
       0: 10,   // Upload
-      1: 40,   // Parsing
+      1: 30,   // Parsing (optimized - no AI parsing)
       2: 80,   // Analysis
       3: 100   // Complete
     };

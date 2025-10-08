@@ -1,4 +1,3 @@
-const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
 const IndustryBenchmarks = require('./industryBenchmarks');
 const DynamicKeywordService = require('./dynamicKeywordService');
@@ -6,12 +5,7 @@ const EnhancedResumeParser = require('./enhancedResumeParser');
 
 class SimpleATSAnalyzer {
   constructor() {
-    // Initialize OpenAI
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-
-    // Initialize Anthropic
+    // Initialize only Anthropic (Claude Sonnet 4.5)
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY
     });
@@ -28,7 +22,7 @@ class SimpleATSAnalyzer {
 
   async analyzeResume(resumeData, targetIndustry = 'technology', targetRole = 'Senior') {
     try {
-      console.log('🤖 Starting dual-model ATS analysis (Claude Sonnet 4 + GPT-4o)...');
+      console.log('🤖 Starting ATS analysis with Claude Sonnet 4.5...');
       
       let resumeText = resumeData.text || resumeData.rawText || '';
       
@@ -57,42 +51,36 @@ class SimpleATSAnalyzer {
       // Create the same comprehensive prompt for both models with dynamic keywords
       const analysisPrompt = this.createAnalysisPrompt(resumeText, targetIndustry, targetRole, industryKeywords);
       
-      // Log the prompt being sent to both AI models
-      console.log('🤖 COMPREHENSIVE ANALYSIS PROMPT (Used by both Claude Sonnet 4 and GPT-4o):');
+      // Log the prompt being sent to Claude Sonnet 4.5
+      console.log('🤖 COMPREHENSIVE ANALYSIS PROMPT (Used by Claude Sonnet 4.5):');
       console.log('=' .repeat(100));
       console.log(analysisPrompt);
       console.log('=' .repeat(100));
       
-      // Run both analyses in parallel using the same comprehensive prompt
-      console.log('🤖 Running Claude Sonnet 4 and GPT-4o with comprehensive analysis prompt in parallel...');
-      const [claudeAnalysis, gpt4oAnalysis] = await Promise.allSettled([
-        this.getClaudeSonnetAnalysis(analysisPrompt),
-        this.getGPT4oAnalysis(analysisPrompt)
-      ]);
+      // Run analysis with Claude Sonnet 4.5 only
+      console.log('🤖 Running Claude Sonnet 4.5 with comprehensive analysis prompt...');
+      const claudeAnalysis = await this.getClaudeSonnetAnalysis(analysisPrompt);
 
       // Process results
-      const claudeResult = claudeAnalysis.status === 'fulfilled' ? claudeAnalysis.value : null;
-      const gpt4oResult = gpt4oAnalysis.status === 'fulfilled' ? gpt4oAnalysis.value : null;
+      const claudeResult = claudeAnalysis;
 
       console.log('📊 Analysis Results:', {
         claudeSuccess: !!claudeResult,
-        gpt4oSuccess: !!gpt4oResult,
-        claudeScore: claudeResult?.atsScore,
-        gpt4oScore: gpt4oResult?.atsScore
+        claudeScore: claudeResult?.atsScore
       });
 
-      // Combine and average the results
-      const combinedAnalysis = this.combineAnalysisResults(claudeResult, gpt4oResult, targetIndustry, targetRole);
+      // Use Claude result directly
+      const combinedAnalysis = claudeResult;
       
       // Add industry benchmarking
       const benchmarkData = this.benchmarks.compareWithBenchmark(combinedAnalysis, targetIndustry, targetRole);
       combinedAnalysis.industryBenchmark = benchmarkData;
       
-      console.log('✅ Dual-model analysis completed');
-      console.log('📊 Final Combined Analysis Summary:', {
+      console.log('✅ Claude Sonnet 4.5 analysis completed');
+      console.log('📊 Final Analysis Summary:', {
         atsScore: combinedAnalysis.atsScore,
         overallGrade: combinedAnalysis.overallGrade,
-        modelsUsed: combinedAnalysis.modelsUsed,
+        modelUsed: 'Claude Sonnet 4.5',
         hasStrengths: !!combinedAnalysis.strengths?.length,
         hasWeaknesses: !!combinedAnalysis.weaknesses?.length,
         hasRecommendations: !!combinedAnalysis.recommendations?.length
@@ -293,95 +281,7 @@ Return only valid JSON. No additional text or explanations outside the JSON stru
     }
   }
 
-  async getGPT4oAnalysis(prompt) {
-    try {
-      console.log('🤖 Calling GPT-4o API for numeric analysis...');
-      console.log('📤 Sending to GPT-4o - Prompt length:', prompt.length, 'characters');
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{
-          role: "user",
-          content: prompt
-        }],
-        temperature: 0.1,
-        max_tokens: 1000
-      });
 
-      const content = response.choices[0].message.content;
-      console.log('📥 GPT-4o Response received - Length:', content.length, 'characters');
-      
-      // Extract JSON from markdown code blocks if present
-      const jsonContent = this.extractJSONFromResponse(content);
-      
-      // Parse JSON response
-      const analysis = JSON.parse(jsonContent);
-      console.log('✅ GPT-4o analysis parsed successfully');
-      console.log('📊 GPT-4o Analysis Summary:', {
-        atsScore: analysis.atsScore,
-        overallGrade: analysis.overallGrade,
-        detailedMetrics: analysis.detailedMetrics
-      });
-      
-      return analysis;
-    } catch (error) {
-      console.error('❌ GPT-4o analysis failed:', error);
-      throw error;
-    }
-  }
-
-  combineAnalysisResults(claudeResult, gpt4oResult, targetIndustry, targetRole) {
-    console.log('🔄 Combining analysis results from both models...');
-    
-    // If we have both results, combine them intelligently
-    if (claudeResult && gpt4oResult) {
-      console.log('✅ Both models succeeded - combining results');
-      
-      // Average the numeric scores
-      const combinedScore = Math.round((claudeResult.atsScore + gpt4oResult.atsScore) / 2);
-      
-      // Use Claude's detailed analysis but incorporate GPT-4o's numeric precision
-      const combined = {
-        ...claudeResult,
-        atsScore: combinedScore,
-        detailedMetrics: {
-          sectionCompleteness: Math.round((claudeResult.detailedMetrics?.sectionCompleteness + gpt4oResult.detailedMetrics?.sectionCompleteness) / 2),
-          keywordDensity: Math.round((claudeResult.detailedMetrics?.keywordDensity + gpt4oResult.detailedMetrics?.keywordDensity) / 2),
-          formatConsistency: Math.round((claudeResult.detailedMetrics?.formatConsistency + gpt4oResult.detailedMetrics?.formatConsistency) / 2),
-          actionVerbs: Math.round((claudeResult.detailedMetrics?.actionVerbs + gpt4oResult.detailedMetrics?.actionVerbs) / 2),
-          quantifiedAchievements: Math.round((claudeResult.detailedMetrics?.quantifiedAchievements + gpt4oResult.detailedMetrics?.quantifiedAchievements) / 2)
-        },
-        industryAlignment: Math.round((claudeResult.industryAlignment + gpt4oResult.industryAlignment) / 2),
-        contentQuality: Math.round((claudeResult.contentQuality + gpt4oResult.contentQuality) / 2),
-        modelsUsed: ['Claude Sonnet 4', 'GPT-4o']
-      };
-      
-      // Update overall grade based on combined score
-      combined.overallGrade = this.calculateGrade(combinedScore);
-      
-      return combined;
-    }
-    
-    // If only one model succeeded, use that result
-    if (claudeResult) {
-      console.log('⚠️ Only Claude Sonnet 4 succeeded - using Claude result');
-      return {
-        ...claudeResult,
-        modelsUsed: ['Claude Sonnet 4']
-      };
-    }
-    
-    if (gpt4oResult) {
-      console.log('⚠️ Only GPT-4o succeeded - using GPT-4o result');
-      return {
-        ...gpt4oResult,
-        modelsUsed: ['GPT-4o']
-      };
-    }
-    
-    // If both failed, return fallback
-    console.log('❌ Both models failed - returning fallback analysis');
-    return this.getFallbackAnalysis(targetIndustry, targetRole);
-  }
 
   calculateGrade(score) {
     if (score >= 95) return 'A+';

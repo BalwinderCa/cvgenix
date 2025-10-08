@@ -4,10 +4,8 @@ const pdfParse = require('pdf-parse');
 const pdf2json = require('pdf2json');
 const mammoth = require('mammoth');
 const cheerio = require('cheerio');
-const Tesseract = require('tesseract.js');
-const AdvancedPDFParser = require('./advancedPDFParser');
-const AIStructuredParser = require('./aiStructuredParser');
 const StructuredParserNoAI = require('./structuredParserNoAI');
+const { spawn } = require('child_process');
 
 /**
  * Enhanced Resume Parser - Only handles text extraction from files
@@ -22,20 +20,79 @@ class EnhancedResumeParser {
       'text/html': this.parseHTML.bind(this)
     };
     
-    // Initialize advanced PDF parser for OCR
-    this.advancedPDFParser = new AdvancedPDFParser();
     
-    // Initialize AI-enhanced parsers (with fallback if no API key)
-    try {
-      this.aiStructuredParser = new AIStructuredParser();
-      this.hasAI = true;
-    } catch (error) {
-      console.log('⚠️ AI parser not available (no API key), using structured parser without AI');
-      this.aiStructuredParser = null;
-      this.hasAI = false;
-    }
+    // AI parsing disabled to save tokens - using only non-AI methods
+    this.hasAI = false;
+    console.log('💡 AI parsing disabled - using optimized non-AI parsing methods only');
     
     this.structuredParserNoAI = new StructuredParserNoAI();
+  }
+
+  /**
+   * Parse PDF using DocStrange with GPU-first processing (same as PDF parser)
+   */
+  async parsePDFWithDocStrange(pdfPath) {
+    // Use the exact same logic as the PDF parser
+    const { spawn } = require('child_process');
+    const path = require('path');
+    
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, 'docstrangeParser.py');
+      const pythonEnv = path.join(__dirname, '../python_env/bin/python');
+      
+      // Build command arguments exactly like PDF parser
+      const args = [pythonScript, pdfPath, 'markdown', '', '', 'gpu'];
+      
+      const pythonProcess = spawn(pythonEnv, args);
+      
+      let stdout = '';
+      let stderr = '';
+      
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code === 0) {
+          try {
+            const result = JSON.parse(stdout);
+            if (result.success) {
+              resolve({
+                success: true,
+                text: result.markdownText || result.extractedText, // Exact same as PDF parser
+                method: result.method,
+                confidence: result.confidence,
+                processingMode: result.processingMode,
+                // Include all the same fields as PDF parser
+                markdownText: result.markdownText,
+                htmlText: result.htmlText,
+                csvText: result.csvText,
+                jsonData: result.jsonData,
+                pageCount: result.pageCount,
+                wordCount: result.wordCount,
+                characterCount: result.characterCount,
+                library: result.library,
+                outputFormat: result.outputFormat
+              });
+            } else {
+              reject(new Error(result.error || 'DocStrange parser failed'));
+            }
+          } catch (parseError) {
+            reject(new Error('Failed to parse DocStrange output: ' + parseError.message));
+          }
+        } else {
+          reject(new Error(`DocStrange parser exited with code ${code}: ${stderr}`));
+        }
+      });
+      
+      pythonProcess.on('error', (error) => {
+        reject(new Error(`Failed to start DocStrange process: ${error.message}`));
+      });
+    });
   }
 
   /**
@@ -45,12 +102,35 @@ class EnhancedResumeParser {
     try {
       console.log(`🔍 Parsing resume: ${path.basename(filePath)} (${mimeType})`);
       
+      // For PDF files, try DocStrange first (GPU with CPU fallback)
+      if (mimeType === 'application/pdf') {
+        try {
+          console.log('🚀 Attempting DocStrange parsing (GPU-first with CPU fallback)...');
+          const docstrangeResult = await this.parsePDFWithDocStrange(filePath);
+          console.log(`✅ DocStrange parsing successful (${docstrangeResult.processingMode} mode, ${docstrangeResult.confidence}% confidence)`);
+          
+          
+          return {
+            success: true,
+            text: docstrangeResult.text,
+            method: `docstrange-${docstrangeResult.processingMode}`,
+            confidence: docstrangeResult.confidence,
+            processingMode: docstrangeResult.processingMode
+          };
+        } catch (docstrangeError) {
+          console.log(`⚠️ DocStrange parsing failed: ${docstrangeError.message}`);
+          console.log('🔄 Falling back to traditional PDF parsing methods...');
+          // Continue to traditional parsing methods
+        }
+      }
+      
       const parser = this.supportedFormats[mimeType];
       if (!parser) {
         throw new Error(`Unsupported file type: ${mimeType}`);
       }
 
       // Try primary parsing method
+      console.log(`📄 Using traditional parsing method for ${mimeType}`);
       let result = await parser(filePath);
       
       // If primary method fails or returns poor results, try fallbacks
@@ -60,10 +140,23 @@ class EnhancedResumeParser {
       }
 
       if (result.success && result.text) {
+        console.log(`✅ Traditional parsing successful: ${result.method || 'unknown method'}`);
+        
+        
         // Add file metadata
         result.fileName = path.basename(filePath);
         result.fileSize = fs.statSync(filePath).size;
         result.parsedAt = new Date().toISOString();
+        // Ensure method is set for traditional parsing
+        if (!result.method) {
+          result.method = 'traditional-pdf-parse';
+        }
+        if (!result.processingMode) {
+          result.processingMode = 'traditional';
+        }
+        if (!result.confidence) {
+          result.confidence = 75; // Default confidence for traditional parsing
+        }
       }
 
       return result;
@@ -81,23 +174,12 @@ class EnhancedResumeParser {
    * Parse PDF files with multiple methods for better accuracy
    */
   async parsePDF(filePath) {
-    console.log('🔍 Starting multi-method PDF parsing...');
+    console.log('🔍 Starting multi-method PDF parsing (non-AI optimized)...');
     
-    // Try multiple parsing methods and select the best one
-    const methods = [];
-    
-    // Add AI-structured method if available
-    if (this.hasAI) {
-      methods.push({ name: 'ai-structured', method: this.parsePDFWithAIStructured.bind(this) });
-    }
-    
-    // Add other methods
-    methods.push(
-      { name: 'structured-no-ai', method: this.parsePDFWithStructuredNoAI.bind(this) },
-      { name: 'pdf2json', method: this.parsePDFWithPDF2JSON.bind(this) },
-      { name: 'pdf-parse', method: this.parsePDFWithPDFParse.bind(this) },
-      { name: 'ocr-fallback', method: this.parsePDFWithOCR.bind(this) }
-    );
+    // Use only Structured Parser (No AI) - best method
+    const methods = [
+      { name: 'structured-no-ai', method: this.parsePDFWithStructuredNoAI.bind(this) }
+    ];
 
     const results = [];
     
@@ -236,37 +318,6 @@ class EnhancedResumeParser {
     }
   }
 
-  /**
-   * Parse PDF using OCR as fallback for scanned documents
-   */
-  async parsePDFWithOCR(filePath) {
-    try {
-      console.log('🔍 Attempting OCR parsing for scanned PDF...');
-      
-      const result = await this.advancedPDFParser.parsePDFWithOCR(filePath);
-      
-      if (result.success) {
-        // Clean and validate the OCR text
-        const cleanedText = this.advancedPDFParser.cleanOCRText(result.text);
-        const isValidResume = this.advancedPDFParser.validateResumeContent(cleanedText);
-        
-        return {
-          ...result,
-          text: cleanedText,
-          isValidResume: isValidResume,
-          method: 'ocr-advanced'
-        };
-      }
-      
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        text: null
-      };
-    }
-  }
 
   /**
    * Simple text cleaning - just normalize spacing and add clear section separators
@@ -319,7 +370,7 @@ class EnhancedResumeParser {
   }
 
   /**
-   * Assess text quality for ATS scoring (similar to parserComparison)
+   * Assess text quality for ATS scoring
    */
   assessTextQuality(text) {
     if (!text || text.length < 10) return 0;
@@ -498,30 +549,15 @@ class EnhancedResumeParser {
   }
 
   /**
-   * Parse PDF using AI-enhanced structured approach
+   * Parse PDF using AI-enhanced structured approach (DISABLED to save tokens)
    */
   async parsePDFWithAIStructured(filePath) {
-    try {
-      if (!this.hasAI || !this.aiStructuredParser) {
-        throw new Error('AI parser not available');
-      }
-      
-      console.log('🤖 Trying AI-structured parsing...');
-      const result = await this.aiStructuredParser.parsePDF(filePath);
-      
-      if (result.success) {
-        console.log(`✅ AI-structured parsing succeeded - quality: ${result.quality}/100, confidence: ${result.confidence}/100`);
-      }
-      
-      return result;
-    } catch (error) {
-      console.log(`❌ AI-structured parsing failed: ${error.message}`);
-      return {
-        success: false,
-        error: error.message,
-        text: null
-      };
-    }
+    console.log('🚫 AI parsing disabled to save tokens');
+    return {
+      success: false,
+      error: 'AI parsing disabled to save tokens',
+      text: null
+    };
   }
 
   /**

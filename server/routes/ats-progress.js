@@ -4,12 +4,12 @@ const router = express.Router();
 // Store progress for each analysis session
 const progressStore = new Map();
 
-// Progress steps that match your backend processing
+// Progress steps that match your backend processing (optimized for non-AI parsing)
 const PROGRESS_STEPS = {
   UPLOAD: { id: 'upload', name: 'Uploading Resume', progress: 5 },
-  PARSING_AND_REORGANIZE: { id: 'parsing_reorganize', name: 'Extracting & Reorganizing', progress: 40 },
-  DUAL_ANALYSIS: { id: 'dual_analysis', name: 'Dual AI Analysis', progress: 80 },
-  RESULT_ANALYSIS: { id: 'result_analysis', name: 'Analyzing Results', progress: 95 },
+  PARSING_AND_REORGANIZE: { id: 'parsing_reorganize', name: 'Extracting Text', progress: 30 },
+  DUAL_ANALYSIS: { id: 'dual_analysis', name: 'AI Analysis', progress: 80 },
+  RESULT_ANALYSIS: { id: 'result_analysis', name: 'Generating Results', progress: 95 },
   COMPLETE: { id: 'complete', name: 'Complete', progress: 100 }
 };
 

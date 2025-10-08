@@ -10,6 +10,7 @@ const router = express.Router();
 const analyzer = new SimpleATSAnalyzer();
 const resumeParser = new EnhancedResumeParser();
 
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -77,38 +78,27 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     console.log(`🎯 Target: ${role} ${industry}`);
     progressTracker.updateProgress(sessionId, 1, `Extracting text from ${req.file.originalname}...`);
 
-    // Parse the resume using EnhancedResumeParser
-    const parseResult = await resumeParser.parseResume(req.file.path, req.file.mimetype);
+    // Parse the resume using the best method
+    console.log('🔍 Parsing resume with optimized method...');
+    const resumeData = await resumeParser.parseResume(req.file.path, req.file.mimetype);
     
-    if (!parseResult.success) {
-      progressTracker.errorProgress(sessionId, { message: parseResult.error || 'Failed to parse resume' });
+    if (!resumeData.success || !resumeData.text) {
+      progressTracker.errorProgress(sessionId, { message: 'Failed to extract text from resume' });
       return res.status(400).json({
         success: false,
-        error: parseResult.error || 'Failed to parse resume'
+        error: 'Failed to extract text from resume'
       });
     }
     
-    if (!parseResult.text || parseResult.text.trim().length === 0) {
-      progressTracker.errorProgress(sessionId, { message: 'No text content found in the uploaded file' });
-      return res.status(400).json({
-        success: false,
-        error: 'No text content found in the uploaded file'
-      });
-    }
-
-    // Prepare resume data for analysis
-    const resumeData = {
-      text: parseResult.text,
-      fileName: parseResult.fileName,
-      fileSize: parseResult.fileSize,
-      parsedAt: parseResult.parsedAt
-    };
-
-    console.log(`📝 Extracted text length: ${resumeData.text.length} characters`);
-    progressTracker.updateProgress(sessionId, 1, `Successfully extracted ${resumeData.text.length} characters from resume`);
+    console.log(`✅ Resume parsed successfully - ${resumeData.text.length} characters extracted`);
+    console.log(`📊 Parsing method: ${resumeData.method || 'unknown'}, Processing mode: ${resumeData.processingMode || 'unknown'}, Confidence: ${resumeData.confidence || 'unknown'}`);
     
-    // Analyze with ATS analyzer
-    progressTracker.updateProgress(sessionId, 2, 'Running dual AI analysis with Claude Sonnet 4 and GPT-4o...');
+    
+    progressTracker.updateProgress(sessionId, 1, `Text extracted successfully (${resumeData.text.length} characters)`);
+    
+    // Perform full ATS analysis with Sonnet
+    progressTracker.updateProgress(sessionId, 2, 'Analyzing resume with AI...');
+    
     const analysis = await analyzer.analyzeResume(resumeData, industry, role);
 
     // Clean up uploaded file
@@ -119,7 +109,7 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       console.warn('⚠️ Could not delete uploaded file:', cleanupError.message);
     }
 
-    progressTracker.updateProgress(sessionId, 3, 'Combining and analyzing results from both AI models...');
+    progressTracker.updateProgress(sessionId, 3, 'Analyzing results and generating recommendations...');
 
     // Transform the analysis result to match frontend expectations
     const transformedResult = {
@@ -154,8 +144,13 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       detailedInsights: analysis.detailedInsights,
       industryAlignment: analysis.industryAlignment,
       contentQuality: analysis.contentQuality,
-      industryBenchmark: analysis.industryBenchmark
+      industryBenchmark: analysis.industryBenchmark,
+      // Parsing method information
+      parsingMethod: resumeData.method || 'traditional',
+      processingMode: resumeData.processingMode || 'unknown',
+      confidence: resumeData.confidence || 0
     };
+
 
     // Complete the progress
     progressTracker.completeProgress(sessionId, transformedResult);
