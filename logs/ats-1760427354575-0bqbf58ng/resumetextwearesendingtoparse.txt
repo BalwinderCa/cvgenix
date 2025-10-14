@@ -1,0 +1,80 @@
+RESUME TEXT EXTRACTED FROM PDF:
+=====================================
+
+              BALWINDER SINGH | WEB DEVELOPER
+
+Saskatoon , SK | +1 306-261-1944 | balwinder98.ca@gmail.com
+          https://www.linkedin.com/in/balwinderca/
+
+                             SKILLS
+
+    Full Stack Web Developer with Expertise in PHP, Laravel, Node.js, Codeigniter, React.js, Angular, Vue.js,
+    Express.js, WordPress, Drupal, Magento, SQL, MySQL, PostgreSQL, Git, Docker, AWS (Amazon Web
+    Services), Azure, RDS, HTML, CSS, JavaScript.
+
+    Other Notable languages including GraphQL, Bootstrap, Redux, RESTful APIs, Firebase, Next.js, OAuth,
+    JSON, XML, Apache, Nginx.
+
+                        PROFESSIONAL EXPERIENCE
+
+    Technical Consultant, Upwork (Multiple Clients)    August 2022 - Present
+
+    Developed a custom CRM (Customer Relationship Management) system using Laravel to enable
+    efficient tracking of client, user activities, including project management and time tracking.
+    Performed a seamless upgrade of the backend admin panel from PHP 5 to the latest PHP 8 version,
+    ensuring enhanced performance, improved security, and compatibility with modern PHP frameworks.
+    Optimized application performance and reduced      database load by implementing data         caching
+    strategies using Redis or Memcached.
+    Streamlined the deployment process by implementing Jenkins and Docker, resulting in a 50%
+    reduction in deployment time.
+    Ensured smooth collaboration and code management across distributed teams by implementing Git
+    for version control.
+    Implemented secure    user authentication and      authorization mechanisms, including multi-factor
+    authentication and role-based access control (RBAC), ensuring data confidentiality and system
+    integrity.
+
+    Senior Web Developer, Owninfotech                              February 2021 - July 2022
+
+    Worked as a full-stack developer utilizing agile methodologies.
+    Developed visually stunning web pages using front-end technologies Bootstrap & React.js.
+    Utilized cloud infrastructure for developing and deploying scalable SaaS/PaaS solutions.
+    Integrated RESTful APIs for payment gateways (Stripe, Paypal), social media APIs (Discord,Twitter).
+    Utilized back-end technologies       such as Laravel, Node.js, and database technologies such as
+    MySQL, MongoDB to develop high-performance, secure, and scalable web applications.
+    Collaborated with cross-functional teams to gather requirements and provide technical guidance,
+    ensuring high-quality and timely project delivery.
+    Optimized website performance by implementing lazy loading techniques, reducing page load time
+    and improving overall user experience.
+    Actively participated in code reviews and provided constructive feedback to ensure code quality,
+    maintainability, and adherence to coding standards.
+
+---
+
+Web Developer, TechLive      September 2019 - January 2021
+
+Developed an admin portal for a school management system using Laravel & Node.js.
+Revamped an outdated legacy system for a healthcare organization (Blood Donation App).
+Mentored a team of 5 developers on best practices for Laravel backend development.
+Designed and implemented an intuitive user interface for a cross-platform mobile app.
+Created a complex data architecture for a financial institution, improved data processing.
+Developed a custom WordPress plugin that optimized site performance and increased website traffic by
+50% through SEO optimization.
+
+                                EDUCATION
+
+Cybersecurity
+Saskatchewan Polytechnic, Saskatoon, SK | Aug 2022 - June 2023
+
+Bachelor of Software Development
+Khalsa College Anandpur Sahib, India | June 2016 - June 2019
+
+            ACHIEVEMENTS
+
+Owninfotech
+Received "Best Programmer of the Year" award | June 2023
+
+Google
+Received "Google Ads Video" Certification | February 2020
+
+Design Suite
+Created and implemented "Online Chat" project during internship, awarded Best Project | May 2019

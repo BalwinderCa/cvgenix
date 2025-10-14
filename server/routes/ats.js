@@ -32,12 +32,12 @@ const upload = multer({
     fileSize: 15 * 1024 * 1024 // 15MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.docx', '.doc', '.txt', '.html'];
+    const allowedTypes = ['.pdf', '.docx', '.doc', '.txt'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, DOCX, DOC, TXT, and HTML files are allowed.'));
+      cb(new Error('Invalid file type. Only PDF, DOCX, DOC and TXT files are allowed.'));
     }
   }
 });
@@ -80,7 +80,7 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
 
     // Parse the resume using the best method
     console.log('🔍 Parsing resume with optimized method...');
-    const resumeData = await resumeParser.parseResume(req.file.path, req.file.mimetype);
+    const resumeData = await resumeParser.parseResume(req.file.path, req.file.mimetype, sessionId);
     
     if (!resumeData.success || !resumeData.text) {
       progressTracker.errorProgress(sessionId, { message: 'Failed to extract text from resume' });
@@ -99,7 +99,7 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     // Perform full ATS analysis with Sonnet
     progressTracker.updateProgress(sessionId, 2, 'Analyzing resume with AI...');
     
-    const analysis = await analyzer.analyzeResume(resumeData, industry, role);
+    const analysis = await analyzer.analyzeResume(resumeData, industry, role, sessionId);
 
     // Clean up uploaded file
     try {
@@ -144,7 +144,6 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       detailedInsights: analysis.detailedInsights,
       industryAlignment: analysis.industryAlignment,
       contentQuality: analysis.contentQuality,
-      industryBenchmark: analysis.industryBenchmark,
       // Parsing method information
       parsingMethod: resumeData.method || 'traditional',
       processingMode: resumeData.processingMode || 'unknown',

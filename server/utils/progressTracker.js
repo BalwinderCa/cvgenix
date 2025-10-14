@@ -1,7 +1,10 @@
 // Simple progress tracking system
+const AnalysisLogger = require('./analysisLogger');
+
 class ProgressTracker {
   constructor() {
     this.progressStore = new Map();
+    this.logger = new AnalysisLogger();
   }
 
   // Initialize progress for a session
@@ -29,7 +32,7 @@ class ProgressTracker {
 
     const stepProgress = {
       0: 10,   // Upload
-      1: 30,   // Parsing (optimized - no AI parsing)
+      1: 50,   // LlamaParse parsing (takes longer)
       2: 80,   // Analysis
       3: 100   // Complete
     };
@@ -100,6 +103,9 @@ class ProgressTracker {
     if (cleaned > 0) {
       console.log(`🧹 Cleaned up ${cleaned} old progress entries`);
     }
+    
+    // Also clean up old log files
+    this.logger.cleanupOldLogs();
   }
 }
 

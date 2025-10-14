@@ -1,0 +1,281 @@
+
+You are an expert ATS (Applicant Tracking System) analyst and resume optimization specialist. Analyze this resume with the precision of a professional recruiter and ATS system.
+
+RESUME TEXT (EXTRACTED FROM PDF):
+              BALWINDER SINGH | WEB DEVELOPER
+
+Saskatoon , SK | +1 306-261-1944 | balwinder98.ca@gmail.com
+          https://www.linkedin.com/in/balwinderca/
+
+                             SKILLS
+
+    Full Stack Web Developer with Expertise in PHP, Laravel, Node.js, Codeigniter, React.js, Angular, Vue.js,
+    Express.js, WordPress, Drupal, Magento, SQL, MySQL, PostgreSQL, Git, Docker, AWS (Amazon Web
+    Services), Azure, RDS, HTML, CSS, JavaScript.
+
+    Other Notable languages including GraphQL, Bootstrap, Redux, RESTful APIs, Firebase, Next.js, OAuth,
+    JSON, XML, Apache, Nginx.
+
+                        PROFESSIONAL EXPERIENCE
+
+    Technical Consultant, Upwork (Multiple Clients)    August 2022 - Present
+
+    Developed a custom CRM (Customer Relationship Management) system using Laravel to enable
+    efficient tracking of client, user activities, including project management and time tracking.
+    Performed a seamless upgrade of the backend admin panel from PHP 5 to the latest PHP 8 version,
+    ensuring enhanced performance, improved security, and compatibility with modern PHP frameworks.
+    Optimized application performance and reduced      database load by implementing data         caching
+    strategies using Redis or Memcached.
+    Streamlined the deployment process by implementing Jenkins and Docker, resulting in a 50%
+    reduction in deployment time.
+    Ensured smooth collaboration and code management across distributed teams by implementing Git
+    for version control.
+    Implemented secure    user authentication and      authorization mechanisms, including multi-factor
+    authentication and role-based access control (RBAC), ensuring data confidentiality and system
+    integrity.
+
+    Senior Web Developer, Owninfotech                              February 2021 - July 2022
+
+    Worked as a full-stack developer utilizing agile methodologies.
+    Developed visually stunning web pages using front-end technologies Bootstrap & React.js.
+    Utilized cloud infrastructure for developing and deploying scalable SaaS/PaaS solutions.
+    Integrated RESTful APIs for payment gateways (Stripe, Paypal), social media APIs (Discord,Twitter).
+    Utilized back-end technologies       such as Laravel, Node.js, and database technologies such as
+    MySQL, MongoDB to develop high-performance, secure, and scalable web applications.
+    Collaborated with cross-functional teams to gather requirements and provide technical guidance,
+    ensuring high-quality and timely project delivery.
+    Optimized website performance by implementing lazy loading techniques, reducing page load time
+    and improving overall user experience.
+    Actively participated in code reviews and provided constructive feedback to ensure code quality,
+    maintainability, and adherence to coding standards.
+
+---
+
+Web Developer, TechLive      September 2019 - January 2021
+
+Developed an admin portal for a school management system using Laravel & Node.js.
+Revamped an outdated legacy system for a healthcare organization (Blood Donation App).
+Mentored a team of 5 developers on best practices for Laravel backend development.
+Designed and implemented an intuitive user interface for a cross-platform mobile app.
+Created a complex data architecture for a financial institution, improved data processing.
+Developed a custom WordPress plugin that optimized site performance and increased website traffic by
+50% through SEO optimization.
+
+                                EDUCATION
+
+Cybersecurity
+Saskatchewan Polytechnic, Saskatoon, SK | Aug 2022 - June 2023
+
+Bachelor of Software Development
+Khalsa College Anandpur Sahib, India | June 2016 - June 2019
+
+            ACHIEVEMENTS
+
+Owninfotech
+Received "Best Programmer of the Year" award | June 2023
+
+Google
+Received "Google Ads Video" Certification | February 2020
+
+Design Suite
+Created and implemented "Online Chat" project during internship, awarded Best Project | May 2019
+
+IMPORTANT CONTEXT: The above text has been extracted from a PDF resume using LlamaParse AI and converted to clean plain text format. The text you see is the actual content from the resume without any markdown formatting or HTML entities. Focus on analyzing the content quality, structure, and ATS compatibility of this clean text.
+
+TARGET POSITION: Senior technology
+
+INDUSTRY KEYWORDS TO FOCUS ON: javascript, python, java, c#, c++, php, ruby, swift, kotlin, go, rust, typescript, scala, r, matlab, perl, haskell, clojure, erlang, elixir
+
+ANALYSIS REQUIREMENTS:
+Provide a comprehensive ATS compatibility assessment in the following JSON format.
+
+IMPORTANT: All text content in the JSON response must be in PLAIN TEXT format. Do NOT use any markdown formatting, HTML entities, or special symbols like:
+- No markdown symbols: **bold**, *italic*, # headers, - lists, etc.
+- No HTML entities: &amp;, &lt;, &gt;, etc.
+- No tables or complex formatting
+- No special characters or symbols
+
+Use only plain text with standard punctuation and line breaks for readability.
+
+{
+  "atsScore": <number between 0-100>,
+  "overallGrade": "<A+, A, B+, B, C+, C, D, F>",
+  "detailedMetrics": {
+    "sectionCompleteness": <number between 0-100>,
+    "keywordDensity": <number between 0-100>,
+    "structureConsistency": <number between 0-100>,
+    "actionVerbs": <number between 0-100>,
+    "quantifiedAchievements": <number between 0-100>
+  },
+  "quickStats": {
+    "wordCount": <number>,
+    "sectionsFound": <number>,
+    "keywordsMatched": <number>,
+    "improvementAreas": <number>
+  },
+  "strengths": ["<detailed_strength1>", "<detailed_strength2>", "<detailed_strength3>", "<detailed_strength4>", "<detailed_strength5>"],
+  "weaknesses": ["<detailed_weakness1>", "<detailed_weakness2>", "<detailed_weakness3>", "<detailed_weakness4>", "<detailed_weakness5>"],
+  "recommendations": ["<detailed_recommendation1>", "<detailed_recommendation2>", "<detailed_recommendation3>", "<detailed_recommendation4>", "<detailed_recommendation5>"],
+  "detailedInsights": {
+    "keywordAnalysis": "<detailed analysis of keyword usage and optimization opportunities>",
+    "structureAnalysis": "<detailed analysis of resume structure and organization>",
+    "contentAnalysis": "<detailed analysis of content quality and impact - DO NOT mention formatting or visual issues>",
+    "industryAlignment": "<detailed analysis of industry-specific alignment>",
+    "atsCompatibility": "<detailed analysis of ATS system compatibility>"
+  },
+  "sectionAnalysis": {
+    "contactInfo": "<analysis of contact information completeness and ATS compatibility>",
+    "professionalSummary": "<analysis of summary section presence, quality, and keyword usage>",
+    "experience": "<analysis of work experience section including action verbs, quantification, and relevance>",
+    "education": "<analysis of education section completeness and relevance>",
+    "skills": "<analysis of skills section organization, keyword coverage, and ATS compatibility>",
+    "certifications": "<analysis of certifications and additional qualifications>",
+    "achievements": "<analysis of quantified achievements and measurable results>"
+  },
+  "industryAlignment": <number between 0-100>,
+  "contentQuality": <number between 0-100>
+}
+
+DETAILED SCORING CRITERIA:
+
+ATS SCORE (0-100):
+- 90-100: Exceptional ATS optimization, perfect structure, industry keywords, quantified achievements
+- 80-89: Strong ATS compatibility, minor improvements needed
+- 70-79: Good ATS compatibility, several areas for improvement
+- 60-69: Moderate ATS compatibility, significant improvements needed
+- 50-59: Poor ATS compatibility, major restructuring required
+- 0-49: Very poor ATS compatibility, complete overhaul needed
+
+SECTION COMPLETENESS (0-100):
+Required sections: Contact Info, Professional Summary, Experience, Education, Skills
+Optional sections: Certifications, Projects, Achievements, Languages
+Score based on presence and quality of each section.
+
+KEYWORD DENSITY (0-100):
+- Industry-specific keywords relevant to technology
+- Role-level keywords appropriate for Senior position
+- Technical skills and competencies
+- Action verbs and power words
+- Job posting language alignment
+
+STRUCTURE CONSISTENCY (0-100):
+- Consistent structure throughout
+- Proper use of headers and subheaders
+- Clean, ATS-friendly layout
+- Standard fonts and spacing
+- Proper bullet points and numbering
+
+ACTION VERBS (0-100):
+- Strong action verbs (led, developed, implemented, optimized, etc.)
+- Past tense for previous roles
+- Present tense for current role
+- Variety and impact of verbs used
+
+QUANTIFIED ACHIEVEMENTS (0-100):
+- Specific metrics and numbers (where applicable to the role/industry)
+- Percentage improvements
+- Dollar amounts saved/generated
+- Team sizes managed (for leadership roles)
+- Project scopes and timelines
+- Measurable business impact (where relevant)
+
+INDUSTRY ALIGNMENT (0-100):
+- Relevance to technology sector
+- Appropriate for Senior level
+- Industry-specific terminology
+- Current trends and technologies
+- Market knowledge demonstration
+
+CONTENT QUALITY (0-100):
+- Professional tone and language
+- Clear, concise communication
+- No spelling or grammar errors
+- Logical flow and organization
+- Compelling value proposition
+- Professional presentation
+
+ANALYSIS FOCUS:
+1. ATS parsing compatibility (can the system read and categorize the content?)
+2. Keyword optimization for technology Senior positions
+3. Structure that passes ATS filters
+4. Content quality and professional presentation
+5. Industry relevance and role-level appropriateness
+6. Quantified achievements and measurable impact (where applicable)
+7. Action-oriented language and strong verbs (appropriate for role level)
+8. Complete sections with comprehensive information (relevant to the role)
+
+TEXT ANALYSIS INSTRUCTIONS:
+- The text you are analyzing has been extracted from a PDF and converted to clean plain text
+- Focus on the actual content quality, structure, and ATS compatibility of the resume information
+- Analyze the resume as it would appear to ATS systems and human recruiters
+- DO NOT analyze or mention formatting, spacing, visual presentation, or how text appears
+- Treat the text as perfectly formatted and focus only on content quality
+
+SCORING GUIDELINES:
+- Be realistic but thorough in assessment
+- Consider both ATS compatibility and human readability
+- Focus on actionable improvements
+- Provide specific, constructive feedback with examples
+- Consider industry standards and best practices for technology
+- Evaluate against Senior level expectations
+- Provide detailed explanations for each score
+- Include specific examples from the resume
+- Suggest exact improvements with before/after examples
+- Analyze keyword density and suggest specific keywords relevant to technology Senior positions
+- Include specific action verbs appropriate for the role level
+- Suggest quantified achievements where applicable to the industry/role
+
+DETAILED ANALYSIS REQUIREMENTS:
+- Provide 5+ detailed strengths with specific examples
+- Provide 5+ detailed weaknesses with specific improvements
+- Provide 5+ detailed recommendations with actionable steps
+- Include comprehensive keyword analysis with specific suggestions
+- Include detailed content analysis with examples
+- Analyze industry alignment with specific recommendations
+- Provide detailed ATS compatibility analysis
+- Provide section-by-section analysis for each resume section (contactInfo, professionalSummary, experience, education, skills, certifications, achievements)
+
+IMPORTANT: When identifying weaknesses, focus on actual resume content issues like:
+- Missing sections that are relevant to the target role/industry
+- Poor keyword usage for the specific industry
+- Lack of quantified achievements (where applicable)
+- Weak action verbs or passive language
+- Incomplete information for the role level
+- Poor content organization
+
+Be role-appropriate and industry-specific in your assessment.
+
+CRITICAL: DO NOT mention any formatting, spacing, visual, or presentation issues such as:
+- "Inconsistent formatting"
+- "Run-on sentences with irregular spacing"
+- "Bullet point formatting"
+- "Line breaks" or "spacing issues"
+- "Visual presentation" problems
+- Any mention of how text appears visually
+
+Focus ONLY on content quality, not how it looks or is formatted.
+
+SECTION-BY-SECTION ANALYSIS REQUIREMENTS:
+For each section in sectionAnalysis, provide:
+- Assessment of section presence and completeness (if applicable to the role/industry)
+- Quality of content within the section
+- ATS compatibility and keyword usage
+- Specific recommendations for improvement
+- Examples of what's working well or needs improvement
+
+IMPORTANT: Be flexible and industry-appropriate. Not all sections are required for every role:
+- Entry-level roles may not need extensive experience sections
+- Academic roles may prioritize education and publications
+- Creative roles may focus on portfolio and projects
+- Technical roles may emphasize skills and certifications
+- Leadership roles may highlight management experience
+
+DO NOT mention formatting, spacing, or visual presentation in any section analysis.
+
+Return only valid JSON. No additional text or explanations outside the JSON structure.
+
+RESPONSE FORMAT REQUIREMENTS:
+- All text content in your JSON response must be in plain text format
+- Use simple bullet points (•) for lists in your analysis output
+- Keep all analysis text clean and professional
+- This is especially important for the detailedInsights fields which will be displayed to users

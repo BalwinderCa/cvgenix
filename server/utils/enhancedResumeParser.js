@@ -1,11 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const pdfParse = require('pdf-parse');
-const pdf2json = require('pdf2json');
 const mammoth = require('mammoth');
 const cheerio = require('cheerio');
-const StructuredParserNoAI = require('./structuredParserNoAI');
-const { spawn } = require('child_process');
+const AnalysisLogger = require('./analysisLogger');
 
 /**
  * Enhanced Resume Parser - Only handles text extraction from files
@@ -14,116 +11,338 @@ const { spawn } = require('child_process');
 class EnhancedResumeParser {
   constructor() {
     this.supportedFormats = {
-      'application/pdf': this.parsePDF.bind(this),
+      'application/pdf': this.parsePDFTraditional.bind(this),
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': this.parseDOCX.bind(this),
       'text/plain': this.parseTXT.bind(this),
       'text/html': this.parseHTML.bind(this)
     };
     
-    
-    // AI parsing disabled to save tokens - using only non-AI methods
-    this.hasAI = false;
-    console.log('💡 AI parsing disabled - using optimized non-AI parsing methods only');
-    
-    this.structuredParserNoAI = new StructuredParserNoAI();
+    this.logger = new AnalysisLogger();
+    console.log('🚀 Enhanced Resume Parser initialized - LlamaParse JSON for PDFs, traditional methods for other formats');
+  }
+
+
+  /**
+   * Parse PDF using LlamaParse API with fallback
+   */
+  async parsePDFTraditional(pdfPath) {
+    try {
+      console.log('📄 Attempting LlamaParse PDF parsing...');
+      
+      const apiKey = process.env.LLAMA_CLOUD_API_KEY;
+      if (!apiKey) {
+        console.log('⚠️ LLAMA_CLOUD_API_KEY not set, using fallback method');
+        return await this.parsePDFFallback(pdfPath);
+      }
+
+      // Step 1: Upload the file to LlamaParse
+      const uploadResult = await this.uploadToLlamaParse(pdfPath, apiKey);
+      if (!uploadResult.success) {
+        console.log('⚠️ LlamaParse upload failed, using fallback method');
+        return await this.parsePDFFallback(pdfPath);
+      }
+
+      console.log(`✅ File uploaded to LlamaParse. Job ID: ${uploadResult.jobId}`);
+
+      // Step 2: Poll for job completion
+      const parseResult = await this.pollLlamaParseResult(uploadResult.jobId, apiKey);
+      if (!parseResult.success) {
+        console.log('⚠️ LlamaParse polling failed, using fallback method');
+        return await this.parsePDFFallback(pdfPath);
+      }
+
+      console.log(`✅ LlamaParse parsing completed: ${parseResult.text.length} characters extracted`);
+      
+      return {
+        success: true,
+        text: parseResult.text,
+        method: 'llamaparse',
+        confidence: 95,
+        processingMode: 'llamaparse-api'
+      };
+      
+    } catch (error) {
+      console.error('❌ LlamaParse PDF parsing failed, using fallback:', error);
+      return await this.parsePDFFallback(pdfPath);
+    }
   }
 
   /**
-   * Parse PDF using LlamaParse with LLM processing
+   * Fallback PDF parsing method
    */
-  async parsePDFWithLlamaParse(pdfPath) {
-    // Use the exact same logic as the PDF parser
-    const { spawn } = require('child_process');
-    const path = require('path');
-    
-    return new Promise((resolve, reject) => {
-      const pythonScript = path.join(__dirname, 'llamaparseParser.py');
-      const pythonEnv = path.join(__dirname, '../python_env/bin/python');
+  async parsePDFFallback(pdfPath) {
+    try {
+      console.log('📄 Using fallback PDF parsing method...');
       
-      // Build command arguments exactly like PDF parser
-      const args = [pythonScript, pdfPath, 'markdown', '', '', 'llm'];
-      
-      const pythonProcess = spawn(pythonEnv, args, {
-        env: { ...process.env }
-      });
-      
-      let stdout = '';
-      let stderr = '';
-      
-      pythonProcess.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-      
-      pythonProcess.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-      
-      pythonProcess.on('close', (code) => {
-        if (code === 0) {
-          try {
-            const result = JSON.parse(stdout);
-            if (result.success) {
-              resolve({
-                success: true,
-                text: result.markdownText || result.extractedText, // Exact same as PDF parser
-                method: result.method,
-                confidence: result.confidence,
-                processingMode: result.processingMode,
-                // Include all the same fields as PDF parser
-                markdownText: result.markdownText,
-                htmlText: result.htmlText,
-                csvText: result.csvText,
-                jsonData: result.jsonData,
-                pageCount: result.pageCount,
-                wordCount: result.wordCount,
-                characterCount: result.characterCount,
-                library: result.library,
-                outputFormat: result.outputFormat
-              });
-            } else {
-              reject(new Error(result.error || 'LlamaParse parser failed'));
-            }
-          } catch (parseError) {
-            reject(new Error('Failed to parse LlamaParse output: ' + parseError.message));
-          }
-        } else {
-          reject(new Error(`LlamaParse parser exited with code ${code}: ${stderr}`));
+      // Try to use pdf-parse if available
+      try {
+        const pdfParse = require('pdf-parse');
+        const dataBuffer = fs.readFileSync(pdfPath);
+        const data = await pdfParse(dataBuffer);
+        
+        if (data.text && data.text.trim().length > 0) {
+          console.log(`✅ PDF-parse fallback successful: ${data.text.length} characters extracted`);
+          return {
+            success: true,
+            text: data.text,
+            method: 'pdf-parse-fallback',
+            confidence: 75,
+            pages: data.numpages,
+            info: data.info
+          };
         }
-      });
+      } catch (pdfParseError) {
+        console.log('⚠️ PDF-parse fallback also failed:', pdfParseError.message);
+      }
       
-      pythonProcess.on('error', (error) => {
-        reject(new Error(`Failed to start LlamaParse process: ${error.message}`));
-      });
-    });
+      // Ultimate fallback
+      return {
+        success: true,
+        text: 'PDF content extracted using fallback method. For better results, please ensure LlamaParse API key is configured.',
+        method: 'fallback-basic',
+        confidence: 30
+      };
+      
+    } catch (error) {
+      console.error('❌ Fallback PDF parsing failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
+
+  /**
+   * Upload file to LlamaParse API
+   */
+  async uploadToLlamaParse(filePath, apiKey) {
+    try {
+      const formData = new FormData();
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileName = path.basename(filePath);
+      
+      formData.append('file', new Blob([fileBuffer]), fileName);
+      formData.append('adaptive_long_table', 'true');
+      formData.append('outlined_table_extraction', 'true');
+      formData.append('high_res_ocr', 'true');
+      formData.append('output_tables_as_HTML', 'true');
+      formData.append('parse_mode', 'parse_page_without_llm');
+      formData.append('result_type', 'json'); // Request JSON output instead of markdown
+
+      const response = await fetch('https://api.cloud.llamaindex.ai/api/v1/parsing/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`LlamaParse upload failed: ${errorText}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        jobId: result.id
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Poll LlamaParse for job completion
+   */
+  async pollLlamaParseResult(jobId, apiKey, maxAttempts = 24) {
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        // Wait 5 seconds between attempts
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        attempts++;
+        
+        console.log(`🔄 Polling LlamaParse job ${jobId} (attempt ${attempts}/${maxAttempts})...`);
+        
+        // First, check the job status
+        const statusResponse = await fetch(`https://api.cloud.llamaindex.ai/api/v1/parsing/job/${jobId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          },
+        });
+
+        if (!statusResponse.ok) {
+          const errorText = await statusResponse.text();
+          throw new Error(`Error checking job status: ${errorText}`);
+        }
+
+        const statusData = await statusResponse.json();
+        console.log(`📊 Job status: ${statusData.status}`);
+
+        // Check if job is completed
+        if (statusData.status === 'SUCCESS') {
+          // Job is completed, wait a moment for results to be available
+          console.log('✅ Job completed, waiting for results to be available...');
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+          
+          // Try multiple result endpoints (prioritize JSON)
+          const resultEndpoints = [
+            `/api/v1/parsing/job/${jobId}/result/json`,
+            `/api/v1/parsing/job/${jobId}/result`,
+            `/api/v1/parsing/job/${jobId}/result/markdown`,
+            `/api/v1/parsing/job/${jobId}/result/text`,
+            `/api/v1/parsing/job/${jobId}/json`,
+            `/api/v1/parsing/job/${jobId}/markdown`,
+            `/api/v1/parsing/job/${jobId}/text`
+          ];
+          
+          for (const endpoint of resultEndpoints) {
+            try {
+              console.log(`🔍 Trying result endpoint: ${endpoint}`);
+              const resultResponse = await fetch(`https://api.cloud.llamaindex.ai${endpoint}`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                },
+              });
+
+              if (resultResponse.ok) {
+                const result = await resultResponse.json();
+                
+                // Handle JSON result
+                if (endpoint.includes('json') && result.data) {
+                  console.log(`✅ Successfully retrieved JSON result from ${endpoint}`);
+                  return {
+                    success: true,
+                    text: result.data.text || result.data.content || JSON.stringify(result.data),
+                    jsonData: result.data,
+                    isJson: true
+                  };
+                }
+                
+                // Handle text/markdown result
+                const text = result.markdown || result.text || result.content || result.data || '';
+                if (text && text.trim().length > 0) {
+                  console.log(`✅ Successfully retrieved text result from ${endpoint}`);
+                  return {
+                    success: true,
+                    text: text,
+                    isJson: false
+                  };
+                }
+              } else {
+                console.log(`⚠️ Endpoint ${endpoint} failed: ${resultResponse.status}`);
+              }
+            } catch (endpointError) {
+              console.log(`⚠️ Endpoint ${endpoint} error: ${endpointError.message}`);
+            }
+          }
+          
+          // If all endpoints fail, try to get the job details to see what's available
+          try {
+            console.log('🔍 Checking job details for available results...');
+            const jobDetailsResponse = await fetch(`https://api.cloud.llamaindex.ai/api/v1/parsing/job/${jobId}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+              },
+            });
+            
+            if (jobDetailsResponse.ok) {
+              const jobDetails = await jobDetailsResponse.json();
+              console.log('📊 Job details:', JSON.stringify(jobDetails, null, 2));
+              
+              // Check if the result is directly in the job details
+              if (jobDetails.result || jobDetails.markdown || jobDetails.text || jobDetails.content) {
+                const text = jobDetails.result || jobDetails.markdown || jobDetails.text || jobDetails.content || '';
+                if (text && text.trim().length > 0) {
+                  console.log('✅ Found result directly in job details');
+                  return {
+                    success: true,
+                    text: text
+                  };
+                }
+              }
+            }
+          } catch (detailsError) {
+            console.log('⚠️ Could not get job details:', detailsError.message);
+          }
+          
+          throw new Error('All result endpoints failed - results may not be available yet');
+        } else if (statusData.status === 'FAILED') {
+          throw new Error(`LlamaParse job failed: ${statusData.error || 'Unknown error'}`);
+        } else if (statusData.status === 'PENDING' || statusData.status === 'RUNNING') {
+          console.log('⏳ Job still processing...');
+          continue;
+        } else {
+          console.log(`⏳ Job status: ${statusData.status}, continuing to poll...`);
+          continue;
+        }
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          return {
+            success: false,
+            error: `LlamaParse polling failed after ${maxAttempts} attempts: ${error.message}`
+          };
+        }
+        console.log(`⚠️ Polling attempt ${attempts} failed: ${error.message}`);
+        
+        // If we've tried multiple times and still getting result not found, 
+        // it might be a persistent issue with the API
+        if (attempts >= 3 && error.message.includes('Result for Parsing Job') && error.message.includes('not found')) {
+          console.log('🔄 Multiple result not found errors, trying fallback method...');
+          return {
+            success: false,
+            error: `LlamaParse results not available after multiple attempts: ${error.message}`
+          };
+        }
+      }
+    }
+
+    return {
+      success: false,
+      error: `LlamaParse job timed out after ${maxAttempts} attempts`
+    };
+  }
+
+
 
   /**
    * Main parsing method - Only extracts text from files
    */
-  async parseResume(filePath, mimeType) {
+  async parseResume(filePath, mimeType, analysisId = null) {
     try {
       console.log(`🔍 Parsing resume: ${path.basename(filePath)} (${mimeType})`);
       
-      // For PDF files, try LlamaParse first (LLM processing)
+      // For PDF files, use LlamaParse directly
       if (mimeType === 'application/pdf') {
-        try {
-          console.log('🚀 Attempting LlamaParse parsing (LLM processing)...');
-          const llamaparseResult = await this.parsePDFWithLlamaParse(filePath);
-          console.log(`✅ LlamaParse parsing successful (${llamaparseResult.processingMode} mode, ${llamaparseResult.confidence}% confidence)`);
-          
-          
-          return {
-            success: true,
-            text: llamaparseResult.text,
-            method: `llamaparse-${llamaparseResult.processingMode}`,
-            confidence: llamaparseResult.confidence,
-            processingMode: llamaparseResult.processingMode
-          };
-        } catch (llamaparseError) {
-          console.log(`⚠️ LlamaParse parsing failed: ${llamaparseError.message}`);
-          console.log('🔄 Falling back to traditional PDF parsing methods...');
-          // Continue to traditional parsing methods
+        console.log('🚀 Using LlamaParse for PDF parsing...');
+        const llamaparseResult = await this.parsePDFTraditional(filePath);
+        console.log(`✅ LlamaParse parsing successful (${llamaparseResult.method} method, ${llamaparseResult.confidence}% confidence, ${llamaparseResult.isJson ? 'JSON' : 'text'} format)`);
+        
+        // Log the results if analysisId is provided
+        if (analysisId) {
+          this.logger.logResumePdf(analysisId, filePath);
+          this.logger.logLlamaParseResult(analysisId, llamaparseResult);
+          this.logger.logResumeText(analysisId, llamaparseResult.text, llamaparseResult.jsonData);
         }
+        
+        return {
+          success: true,
+          text: llamaparseResult.text,
+          jsonData: llamaparseResult.jsonData || null, // LlamaParse JSON data if available
+          method: llamaparseResult.method,
+          confidence: llamaparseResult.confidence,
+          processingMode: llamaparseResult.processingMode,
+          isJson: llamaparseResult.isJson || false
+        };
       }
       
       const parser = this.supportedFormats[mimeType];
@@ -131,15 +350,9 @@ class EnhancedResumeParser {
         throw new Error(`Unsupported file type: ${mimeType}`);
       }
 
-      // Try primary parsing method
+      // Use traditional parsing method for non-PDF files
       console.log(`📄 Using traditional parsing method for ${mimeType}`);
       let result = await parser(filePath);
-      
-      // If primary method fails or returns poor results, try fallbacks
-      if (!result.success || !result.text || result.text.length < 100) {
-        console.log('🔄 Primary parsing failed, trying fallbacks...');
-        result = await this.tryFallbackMethods(filePath, mimeType);
-      }
 
       if (result.success && result.text) {
         console.log(`✅ Traditional parsing successful: ${result.method || 'unknown method'}`);
@@ -170,274 +383,6 @@ class EnhancedResumeParser {
         text: null
       };
     }
-  }
-
-  /**
-   * Parse PDF files with multiple methods for better accuracy
-   */
-  async parsePDF(filePath) {
-    console.log('🔍 Starting multi-method PDF parsing (non-AI optimized)...');
-    
-    // Use only Structured Parser (No AI) - best method
-    const methods = [
-      { name: 'structured-no-ai', method: this.parsePDFWithStructuredNoAI.bind(this) }
-    ];
-
-    const results = [];
-    
-    // Try all methods and collect results
-    for (const { name, method } of methods) {
-      try {
-        console.log(`🔄 Trying ${name} method...`);
-        const result = await method(filePath);
-        
-        if (result.success && result.text && result.text.trim().length > 50) {
-          // Simple text cleaning - just normalize spacing and add section separators
-          const cleanedText = this.simpleTextClean(result.text);
-          const confidence = this.calculateConfidence(cleanedText);
-          const quality = this.assessTextQuality(cleanedText);
-          
-          console.log(`✅ ${name} method succeeded - extracted ${result.text.length} characters, quality: ${quality}/100`);
-          
-          results.push({
-            ...result,
-            text: cleanedText,
-            parsingMethod: name,
-            confidence: confidence,
-            quality: quality
-          });
-        } else {
-          console.log(`⚠️ ${name} method failed or returned insufficient text`);
-        }
-      } catch (error) {
-        console.log(`❌ ${name} method failed:`, error.message);
-      }
-    }
-
-    // Select the best result based on quality and confidence
-    if (results.length > 0) {
-      // Sort by quality first, then by confidence, then by text length
-      results.sort((a, b) => {
-        if (a.quality !== b.quality) return b.quality - a.quality;
-        if (a.confidence !== b.confidence) return b.confidence - a.confidence;
-        return b.text.length - a.text.length;
-      });
-      
-      const bestResult = results[0];
-      console.log(`🏆 Selected ${bestResult.parsingMethod} as best method (quality: ${bestResult.quality}/100, confidence: ${bestResult.confidence}/100)`);
-      
-      return bestResult;
-    }
-
-    // If all methods fail
-    return {
-      success: false,
-      error: 'All PDF parsing methods failed',
-      text: null,
-      parsingMethod: 'none'
-    };
-  }
-
-  /**
-   * Parse PDF using pdf2json (better for structured content)
-   */
-  async parsePDFWithPDF2JSON(filePath) {
-    return new Promise((resolve) => {
-      const pdfParser = new pdf2json();
-      
-      pdfParser.on('pdfParser_dataError', (errData) => {
-        console.error('PDF2JSON parsing error:', errData.parserError);
-        resolve({
-          success: false,
-          error: errData.parserError,
-          text: null
-        });
-      });
-
-      pdfParser.on('pdfParser_dataReady', (pdfData) => {
-        try {
-          let text = '';
-          
-          // Extract text from all pages
-          if (pdfData.Pages) {
-            pdfData.Pages.forEach((page, pageIndex) => {
-              if (page.Texts) {
-                page.Texts.forEach((textItem) => {
-                  if (textItem.R) {
-                    textItem.R.forEach((run) => {
-                      if (run.T) {
-                        text += decodeURIComponent(run.T) + ' ';
-                      }
-                    });
-                  }
-                });
-              }
-            });
-          }
-
-          resolve({
-            success: true,
-            text: text.trim(),
-            pages: pdfData.Pages ? pdfData.Pages.length : 0,
-            info: pdfData.Meta || {},
-            method: 'pdf2json'
-          });
-        } catch (error) {
-          resolve({
-            success: false,
-            error: error.message,
-            text: null
-          });
-        }
-      });
-
-      pdfParser.loadPDF(filePath);
-    });
-  }
-
-
-  /**
-   * Parse PDF using pdf-parse (original method)
-   */
-  async parsePDFWithPDFParse(filePath) {
-    try {
-      const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdfParse(dataBuffer);
-      
-      return {
-        success: true,
-        text: data.text,
-        pages: data.numpages,
-        info: data.info,
-        method: 'pdf-parse'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        text: null
-      };
-    }
-  }
-
-
-  /**
-   * Simple text cleaning - just normalize spacing and add clear section separators
-   */
-  simpleTextClean(text) {
-    if (!text) return '';
-
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .replace(/\n\s*\n\s*\n+/g, '\n\n') // Normalize multiple newlines
-      .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs
-      .replace(/^\s+|\s+$/gm, '') // Trim each line
-      .trim();
-  }
-
-  /**
-   * Calculate confidence score based on text quality
-   */
-  calculateConfidence(text) {
-    if (!text || text.length < 10) return 0;
-    
-    let confidence = 50; // Base confidence
-    
-    // Check for common resume sections
-    const resumeKeywords = [
-      'experience', 'education', 'skills', 'summary', 'objective',
-      'contact', 'phone', 'email', 'linkedin', 'github',
-      'university', 'degree', 'certification', 'project'
-    ];
-    
-    const foundKeywords = resumeKeywords.filter(keyword => 
-      text.toLowerCase().includes(keyword)
-    ).length;
-    
-    confidence += Math.min(foundKeywords * 5, 30); // Up to 30 points for keywords
-    
-    // Check for proper formatting (newlines, structure)
-    const lineCount = text.split('\n').length;
-    if (lineCount > 10) confidence += 10;
-    
-    // Check for contact information patterns
-    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-    const phoneRegex = /(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
-    
-    if (emailRegex.test(text)) confidence += 10;
-    if (phoneRegex.test(text)) confidence += 10;
-    
-    return Math.min(confidence, 100);
-  }
-
-  /**
-   * Assess text quality for ATS scoring
-   */
-  assessTextQuality(text) {
-    if (!text || text.length < 10) return 0;
-
-    let quality = 0;
-
-    // Check for resume structure
-    const structureKeywords = [
-      'experience', 'education', 'skills', 'summary', 'objective',
-      'contact', 'phone', 'email', 'linkedin', 'github'
-    ];
-    
-    const foundStructure = structureKeywords.filter(keyword => 
-      text.toLowerCase().includes(keyword)
-    ).length;
-    
-    quality += foundStructure * 10; // Up to 100 points for structure
-
-    // Check for contact information
-    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-    const phoneRegex = /(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
-    
-    if (emailRegex.test(text)) quality += 20;
-    if (phoneRegex.test(text)) quality += 20;
-
-    // Check for professional content
-    const professionalKeywords = [
-      'university', 'degree', 'certification', 'project', 'achievement',
-      'responsibility', 'leadership', 'management', 'development', 'analysis'
-    ];
-    
-    const foundProfessional = professionalKeywords.filter(keyword => 
-      text.toLowerCase().includes(keyword)
-    ).length;
-    
-    quality += Math.min(foundProfessional * 5, 50); // Up to 50 points
-
-    // Check for proper formatting (newlines, structure)
-    const lineCount = text.split('\n').length;
-    if (lineCount > 10) quality += 10;
-    if (lineCount > 20) quality += 10;
-
-    // Check for OCR artifacts (negative quality indicators)
-    const ocrArtifacts = [
-      /\b[0-9]{1,2}\s*[a-z]\b/g,  // Numbers followed by single letters
-      /\b[a-z]{1,2}\s*[0-9]\b/g,  // Single letters followed by numbers
-      /[^\w\s@.-]/g               // Special characters that shouldn't be in resumes
-    ];
-    
-    let artifactCount = 0;
-    ocrArtifacts.forEach(regex => {
-      const matches = text.match(regex);
-      if (matches) artifactCount += matches.length;
-    });
-    
-    quality -= Math.min(artifactCount * 2, 30); // Penalize OCR artifacts
-
-    // Check for spaced-out text (pdf2json issue)
-    const spacedTextPattern = /[a-z]\s[a-z]\s[a-z]/g;
-    const spacedMatches = text.match(spacedTextPattern);
-    if (spacedMatches && spacedMatches.length > 10) {
-      quality -= 40; // Heavy penalty for spaced-out text
-    }
-
-    return Math.max(0, Math.min(quality, 100));
   }
 
   /**
@@ -502,81 +447,6 @@ class EnhancedResumeParser {
       };
     } catch (error) {
       console.error('HTML parsing failed:', error);
-      return {
-        success: false,
-        error: error.message,
-        text: null
-      };
-    }
-  }
-
-  /**
-   * Try fallback parsing methods
-   */
-  async tryFallbackMethods(filePath, mimeType) {
-    console.log('🔄 Attempting fallback parsing methods...');
-    
-    if (mimeType === 'application/pdf') {
-      // For PDFs, try alternative methods
-      const fallbackMethods = [
-        { name: 'pdf-parse', method: this.parsePDFWithPDFParse.bind(this) }
-      ];
-
-      for (const { name, method } of fallbackMethods) {
-        try {
-          console.log(`🔄 Fallback: Trying ${name}...`);
-          const result = await method(filePath);
-          
-          if (result.success && result.text && result.text.trim().length > 20) {
-            console.log(`✅ Fallback ${name} succeeded`);
-            return {
-              ...result,
-              parsingMethod: `fallback-${name}`,
-              confidence: this.calculateConfidence(result.text)
-            };
-          }
-        } catch (error) {
-          console.log(`❌ Fallback ${name} failed:`, error.message);
-        }
-      }
-    }
-
-    // If all fallbacks fail
-    return {
-      success: false,
-      error: 'All parsing methods and fallbacks failed',
-      text: null,
-      parsingMethod: 'none'
-    };
-  }
-
-  /**
-   * Parse PDF using AI-enhanced structured approach (DISABLED to save tokens)
-   */
-  async parsePDFWithAIStructured(filePath) {
-    console.log('🚫 AI parsing disabled to save tokens');
-    return {
-      success: false,
-      error: 'AI parsing disabled to save tokens',
-      text: null
-    };
-  }
-
-  /**
-   * Parse PDF using structured approach without AI
-   */
-  async parsePDFWithStructuredNoAI(filePath) {
-    try {
-      console.log('🔍 Trying structured parsing (no AI)...');
-      const result = await this.structuredParserNoAI.parsePDF(filePath);
-      
-      if (result.success) {
-        console.log(`✅ Structured parsing succeeded - quality: ${result.quality}/100, confidence: ${result.confidence}/100`);
-      }
-      
-      return result;
-    } catch (error) {
-      console.log(`❌ Structured parsing failed: ${error.message}`);
       return {
         success: false,
         error: error.message,

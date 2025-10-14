@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
+// Removed ReactMarkdown import - using plain text rendering for ATS analysis
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -69,6 +69,15 @@ interface ATSResult {
     industryAlignment: string;
     atsCompatibility: string;
   };
+  sectionAnalysis?: {
+    contactInfo: string;
+    professionalSummary: string;
+    experience: string;
+    education: string;
+    skills: string;
+    certifications: string;
+    achievements: string;
+  };
   industryAlignment?: number;
   contentQuality?: number;
   industryBenchmark?: any;
@@ -90,6 +99,37 @@ export default function ATSSummaryPage() {
   const [error, setError] = useState('');
 
   const analysisId = params.id as string;
+
+  // Utility function to clean and format text content
+  const formatTextContent = (text: string): string => {
+    if (!text) return '';
+    
+    return text
+      // Remove any remaining markdown formatting
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/_(.*?)_/g, '$1')
+      // Remove markdown headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Convert markdown lists to simple bullet points
+      .replace(/^[\s]*[-*+]\s+/gm, '• ')
+      .replace(/^[\s]*\d+\.\s+/gm, '')
+      // Remove markdown links but keep the text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove code blocks and inline code
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      // Clean up HTML entities
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      // Clean up extra whitespace
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
+  };
 
   useEffect(() => {
     if (analysisId) {
@@ -486,19 +526,104 @@ export default function ATSSummaryPage() {
                   {atsResult.detailedInsights.keywordAnalysis && (
                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                       <h5 className="font-medium text-blue-900 mb-2">Keyword Analysis</h5>
-                      <p className="text-sm text-blue-800">{atsResult.detailedInsights.keywordAnalysis}</p>
+                      <p className="text-sm text-blue-800 whitespace-pre-line">{formatTextContent(atsResult.detailedInsights.keywordAnalysis)}</p>
                     </div>
                   )}
                   {atsResult.detailedInsights.formatAnalysis && (
                     <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                       <h5 className="font-medium text-green-900 mb-2">Format Analysis</h5>
-                      <p className="text-sm text-green-800">{atsResult.detailedInsights.formatAnalysis}</p>
+                      <p className="text-sm text-green-800 whitespace-pre-line">{formatTextContent(atsResult.detailedInsights.formatAnalysis)}</p>
                     </div>
                   )}
                   {atsResult.detailedInsights.contentAnalysis && (
                     <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
                       <h5 className="font-medium text-purple-900 mb-2">Content Analysis</h5>
-                      <p className="text-sm text-purple-800">{atsResult.detailedInsights.contentAnalysis}</p>
+                      <p className="text-sm text-purple-800 whitespace-pre-line">{formatTextContent(atsResult.detailedInsights.contentAnalysis)}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Section-by-Section Analysis */}
+          {atsResult.sectionAnalysis && (
+            <Card className="border border-gray-200 mb-8">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Section-by-Section Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6">
+                  {atsResult.sectionAnalysis.contactInfo && (
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h5 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        Contact Information
+                      </h5>
+                      <p className="text-sm text-blue-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.contactInfo)}</p>
+                    </div>
+                  )}
+                  
+                  {atsResult.sectionAnalysis.professionalSummary && (
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <h5 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        Professional Summary
+                      </h5>
+                      <p className="text-sm text-green-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.professionalSummary)}</p>
+                    </div>
+                  )}
+                  
+                  {atsResult.sectionAnalysis.experience && (
+                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <h5 className="font-medium text-purple-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        Work Experience
+                      </h5>
+                      <p className="text-sm text-purple-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.experience)}</p>
+                    </div>
+                  )}
+                  
+                  {atsResult.sectionAnalysis.education && (
+                    <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                      <h5 className="font-medium text-orange-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                        Education
+                      </h5>
+                      <p className="text-sm text-orange-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.education)}</p>
+                    </div>
+                  )}
+                  
+                  {atsResult.sectionAnalysis.skills && (
+                    <div className="p-4 bg-teal-50 rounded-lg border border-teal-200">
+                      <h5 className="font-medium text-teal-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                        Skills
+                      </h5>
+                      <p className="text-sm text-teal-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.skills)}</p>
+                    </div>
+                  )}
+                  
+                  {atsResult.sectionAnalysis.certifications && (
+                    <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                      <h5 className="font-medium text-indigo-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                        Certifications
+                      </h5>
+                      <p className="text-sm text-indigo-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.certifications)}</p>
+                    </div>
+                  )}
+                  
+                  {atsResult.sectionAnalysis.achievements && (
+                    <div className="p-4 bg-pink-50 rounded-lg border border-pink-200">
+                      <h5 className="font-medium text-pink-900 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+                        Achievements
+                      </h5>
+                      <p className="text-sm text-pink-800 whitespace-pre-line">{formatTextContent(atsResult.sectionAnalysis.achievements)}</p>
                     </div>
                   )}
                 </div>
@@ -522,7 +647,7 @@ export default function ATSSummaryPage() {
                       <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-white font-bold text-xs">{index + 1}</span>
                       </div>
-                      <p className="text-sm text-gray-900">{rec}</p>
+                      <p className="text-sm text-gray-900 whitespace-pre-line">{formatTextContent(rec)}</p>
                     </div>
                   ))}
                 </div>

@@ -66,7 +66,7 @@ export function SimpleProgressModal({
       id: 1,
       name: 'Parsing Resume',
       icon: <FileSearch className="w-5 h-5" />,
-      description: 'Extracting text and structure from PDF'
+      description: 'Using LlamaParse AI to extract text and structure from PDF'
     },
     {
       id: 2,
@@ -391,7 +391,7 @@ export function SimpleProgressModal({
           {!isCompleted && !hasError && (
             <div className="text-center">
               <p className="text-xs text-gray-500">
-                This process typically takes 45-60 seconds. Please don't close this window.
+                This process typically takes 60-90 seconds with LlamaParse AI. Please don't close this window.
               </p>
             </div>
           )}

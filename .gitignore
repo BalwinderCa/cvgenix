@@ -58,3 +58,4 @@ server/uploads/
 
 # PM2 configuration (generated during deployment)
 ecosystem.config.js
+logs/
