@@ -1,6 +1,7 @@
 const DynamicKeywordService = require('./dynamicKeywordService');
 const EnhancedResumeParser = require('./enhancedResumeParser');
 const AnalysisLogger = require('./analysisLogger');
+const KeywordExtractor = require('./keywordExtractor');
 
 class SimpleATSAnalyzer {
   constructor() {
@@ -16,6 +17,9 @@ class SimpleATSAnalyzer {
     
     // Initialize Analysis Logger
     this.logger = new AnalysisLogger();
+    
+    // Initialize Keyword Extractor
+    this.keywordExtractor = new KeywordExtractor();
     
     console.log('🚀 ATS Analyzer initialized with GPT-OSS-120b (Groq) only');
   }
@@ -91,9 +95,26 @@ class SimpleATSAnalyzer {
         hasRecommendations: !!analysis.recommendations?.length
       });
       
+      // Extract keywords from the analysis
+      console.log('🔍 Keyword Extraction Debug:');
+      console.log('targetIndustry:', targetIndustry);
+      console.log('targetRole:', targetRole);
+      
+      const extractedKeywords = this.keywordExtractor.extractKeywords(
+        resumeText, 
+        null, // No detailedInsights available anymore
+        targetIndustry,
+        targetRole
+      );
+      
+      console.log('extractedKeywords:', JSON.stringify(extractedKeywords, null, 2));
+      
+      // Add extracted keywords to the analysis
+      analysis.extractedKeywords = extractedKeywords;
+      
       // Log the final analysis summary to file if analysisId is provided
       if (analysisId) {
-        this.logger.logAnalysisSummary(analysisId, analysis);
+        this.logger.logAnalysisSummary(analysisId, analysis, targetIndustry, targetRole);
       }
       
       return analysis;
@@ -107,7 +128,7 @@ class SimpleATSAnalyzer {
 
   createAnalysisPrompt(resumeText, targetIndustry, targetRole, industryKeywords = [], resumeJsonData = null) {
     return `
-You are an expert ATS (Applicant Tracking System) analyst and resume optimization specialist. Analyze this resume with the precision of a professional recruiter and ATS system.
+You are an expert ATS (Applicant Tracking System) analyst with 20 years of experience and resume optimization specialist. Analyze this resume with the precision of a professional recruiter and ATS system.
 
 RESUME TEXT (EXTRACTED FROM PDF):
 ${resumeText}
@@ -150,14 +171,6 @@ Use only plain text with standard punctuation and line breaks for readability.
   },
   "strengths": ["<detailed_strength1>", "<detailed_strength2>", "<detailed_strength3>", "<detailed_strength4>", "<detailed_strength5>"],
   "weaknesses": ["<detailed_weakness1>", "<detailed_weakness2>", "<detailed_weakness3>", "<detailed_weakness4>", "<detailed_weakness5>"],
-  "recommendations": ["<detailed_recommendation1>", "<detailed_recommendation2>", "<detailed_recommendation3>", "<detailed_recommendation4>", "<detailed_recommendation5>"],
-  "detailedInsights": {
-    "keywordAnalysis": "<detailed analysis of keyword usage and optimization opportunities>",
-    "structureAnalysis": "<detailed analysis of resume structure and organization>",
-    "contentAnalysis": "<detailed analysis of content quality and impact - DO NOT mention formatting or visual issues>",
-    "industryAlignment": "<detailed analysis of industry-specific alignment>",
-    "atsCompatibility": "<detailed analysis of ATS system compatibility>"
-  },
   "sectionAnalysis": {
     "contactInfo": "<analysis of contact information completeness and ATS compatibility>",
     "professionalSummary": "<analysis of summary section presence, quality, and keyword usage>",

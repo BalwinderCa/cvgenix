@@ -77,6 +77,11 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     console.log(`📄 Processing file: ${req.file.originalname}`);
     console.log(`🎯 Target: ${role} ${industry}`);
     progressTracker.updateProgress(sessionId, 1, `Extracting text from ${req.file.originalname}...`);
+    
+    // Log analysis context
+    const AnalysisLogger = require('../utils/analysisLogger');
+    const logger = new AnalysisLogger();
+    logger.logAnalysisContext(sessionId, industry, role);
 
     // Parse the resume using the best method
     console.log('🔍 Parsing resume with optimized method...');
@@ -111,11 +116,18 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
 
     progressTracker.updateProgress(sessionId, 3, 'Analyzing results and generating recommendations...');
 
+    // Debug: Log what GPT actually returned
+    console.log('🔍 GPT Analysis Debug:');
+    console.log('atsScore:', analysis.atsScore);
+    console.log('detailedMetrics:', JSON.stringify(analysis.detailedMetrics, null, 2));
+    console.log('industryAlignment:', analysis.industryAlignment);
+    console.log('contentQuality:', analysis.contentQuality);
+
     // Transform the analysis result to match frontend expectations
     const transformedResult = {
       overallScore: analysis.atsScore || 0,
       keywordScore: analysis.detailedMetrics?.keywordDensity || 0,
-      formatScore: analysis.detailedMetrics?.formatConsistency || 0,
+      formatScore: analysis.detailedMetrics?.structureConsistency || 0, // Using structureConsistency for format score
       structureScore: analysis.detailedMetrics?.sectionCompleteness || 0,
       issues: [
         ...(analysis.weaknesses || []).map(weakness => ({
@@ -129,25 +141,27 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
           suggestion: 'This is a strong point in your resume'
         }))
       ],
-      keywords: {
-        found: [], // Will be populated from detailedInsights if available
-        missing: [], // Will be populated from detailedInsights if available
-        suggested: [] // Will be populated from detailedInsights if available
+      keywords: analysis.extractedKeywords || {
+        found: [],
+        missing: [],
+        suggested: []
       },
-      recommendations: analysis.recommendations || [],
       // Additional data from the analyzer
       overallGrade: analysis.overallGrade,
       detailedMetrics: analysis.detailedMetrics,
       quickStats: analysis.quickStats,
       strengths: analysis.strengths || [],
       weaknesses: analysis.weaknesses || [],
-      detailedInsights: analysis.detailedInsights,
+      sectionAnalysis: analysis.sectionAnalysis,
       industryAlignment: analysis.industryAlignment,
       contentQuality: analysis.contentQuality,
       // Parsing method information
       parsingMethod: resumeData.method || 'traditional',
       processingMode: resumeData.processingMode || 'unknown',
-      confidence: resumeData.confidence || 0
+      confidence: resumeData.confidence || 0,
+      // Analysis context
+      targetIndustry: industry,
+      targetRole: role
     };
 
 

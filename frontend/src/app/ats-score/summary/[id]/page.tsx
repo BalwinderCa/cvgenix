@@ -41,7 +41,6 @@ interface ATSResult {
     missing: string[];
     suggested: string[];
   };
-  recommendations: string[];
   // Additional data from enhanced analyzer
   overallGrade?: string;
   parsingMethod?: string;
@@ -50,7 +49,7 @@ interface ATSResult {
   detailedMetrics?: {
     sectionCompleteness: number;
     keywordDensity: number;
-    formatConsistency: number;
+    structureConsistency: number; // Fixed: GPT provides structureConsistency, not formatConsistency
     actionVerbs: number;
     quantifiedAchievements: number;
   };
@@ -62,13 +61,6 @@ interface ATSResult {
   };
   strengths?: string[];
   weaknesses?: string[];
-  detailedInsights?: {
-    keywordAnalysis: string;
-    formatAnalysis: string;
-    contentAnalysis: string;
-    industryAlignment: string;
-    atsCompatibility: string;
-  };
   sectionAnalysis?: {
     contactInfo: string;
     professionalSummary: string;
@@ -81,6 +73,9 @@ interface ATSResult {
   industryAlignment?: number;
   contentQuality?: number;
   industryBenchmark?: any;
+  // Analysis context
+  targetIndustry?: string;
+  targetRole?: string;
 }
 
 interface AnalysisData {
@@ -273,278 +268,214 @@ export default function ATSSummaryPage() {
   const { result: atsResult, fileName, fileSize, analyzedAt } = analysisData;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <NavigationHeader />
       
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 pt-24">
-        <div className="max-w-6xl mx-auto">
+      <div className="container mx-auto px-6 py-8 pt-24">
+        <div className="max-w-7xl mx-auto">
           
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium mb-6">
-              <Award className="w-4 h-4" />
-              Analysis Complete
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900 mb-1">ATS Analysis Results</h1>
+                <p className="text-sm text-gray-500">Resume optimization insights and recommendations</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleNewAnalysis}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  New Analysis
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleShare}>
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </Button>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              ATS Resume Analysis Results
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
-              Your resume has been analyzed using advanced AI technology
-            </p>
             
-            {/* File Info and Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <FileText className="w-4 h-4" />
-                <span className="font-medium">{fileName}</span>
-                <span className="text-gray-500">({formatFileSize(fileSize)})</span>
+            {/* File Info */}
+            <div className="flex items-center gap-6 text-xs text-gray-500 mb-6">
+              <div className="flex items-center gap-1">
+                <FileText className="w-3 h-3" />
+                <span>{fileName}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>Analyzed on {formatDate(analyzedAt)}</span>
+              <div className="flex items-center gap-1">
+                <span>{formatFileSize(fileSize)}</span>
               </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Button onClick={handleShare} variant="outline">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share Results
-              </Button>
-              <Button onClick={handleNewAnalysis}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Analyze Another Resume
-              </Button>
+              <div className="flex items-center gap-1">
+                <span>Analyzed {formatDate(analyzedAt)}</span>
+              </div>
             </div>
           </div>
 
 
-          {/* Overall Score */}
-          <Card className="border border-gray-200 mb-8">
-            <CardContent className="p-8 text-center">
-              <div className="text-5xl font-bold mb-4">
-                <span className={getScoreColor(atsResult.overallScore)}>
-                  {atsResult.overallScore}%
-                </span>
-              </div>
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Badge variant="outline" className="text-base">
-                  {atsResult.overallGrade}
-                </Badge>
-              </div>
-              {atsResult.quickStats && (
-                <p className="text-gray-600">
-                  {atsResult.quickStats.wordCount} words • {atsResult.quickStats.sectionsFound} sections found
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Score Breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <Card className="border border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium text-gray-900">Keywords</span>
-                  <span className="text-2xl font-bold text-blue-600">{atsResult.keywordScore}%</span>
-                </div>
-                <Progress value={atsResult.keywordScore} className="h-2" />
-              </CardContent>
-            </Card>
+          {/* Main Layout - Two Columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <Card className="border border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium text-gray-900">Format</span>
-                  <span className="text-2xl font-bold text-green-600">{atsResult.formatScore}%</span>
-                </div>
-                <Progress value={atsResult.formatScore} className="h-2" />
-              </CardContent>
-            </Card>
-            
-            <Card className="border border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium text-gray-900">Structure</span>
-                  <span className="text-2xl font-bold text-purple-600">{atsResult.structureScore}%</span>
-                </div>
-                <Progress value={atsResult.structureScore} className="h-2" />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Detailed Metrics */}
-          {atsResult.detailedMetrics && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <Card className="border border-gray-200">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-orange-600 mb-1">{atsResult.detailedMetrics.actionVerbs}%</div>
-                  <div className="text-sm font-medium text-gray-900">Action Verbs</div>
-                </CardContent>
-              </Card>
-              <Card className="border border-gray-200">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-teal-600 mb-1">{atsResult.detailedMetrics.quantifiedAchievements}%</div>
-                  <div className="text-sm font-medium text-gray-900">Quantified Results</div>
-                </CardContent>
-              </Card>
-              {atsResult.industryAlignment && (
-                <Card className="border border-gray-200">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold text-indigo-600 mb-1">{atsResult.industryAlignment}%</div>
-                    <div className="text-sm font-medium text-gray-900">Industry Alignment</div>
-                  </CardContent>
-                </Card>
-              )}
-              {atsResult.contentQuality && (
-                <Card className="border border-gray-200">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold text-pink-600 mb-1">{atsResult.contentQuality}%</div>
-                    <div className="text-sm font-medium text-gray-900">Content Quality</div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Issues */}
-          {atsResult.issues.length > 0 && (
-            <Card className="border border-gray-200 mb-8">
-              <CardHeader>
-                <CardTitle className="text-lg">Issues Found</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {atsResult.issues.map((issue, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 border border-gray-100 rounded-lg">
-                      {getIssueIcon(issue.type)}
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900">{issue.message}</p>
-                        {issue.suggestion && (
-                          <p className="text-xs text-gray-600 mt-1">
-                            💡 {issue.suggestion}
-                          </p>
-                        )}
+            {/* Left Column - PDF Preview */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-8">
+                {/* PDF Preview Placeholder */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                  <div className="text-center">
+                    <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                      <div className="text-center">
+                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">PDF Preview</p>
+                        <p className="text-xs text-gray-400 mt-1">{fileName}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Keywords */}
-          <Card className="border border-gray-200 mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg">Keywords Analysis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {atsResult.keywords.found.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-green-600 mb-2">Found Keywords</p>
-                    <div className="flex flex-wrap gap-2">
-                      {atsResult.keywords.found.map((keyword, index) => (
-                        <Badge key={index} variant="default" className="text-xs">
-                          {keyword}
-                        </Badge>
-                      ))}
-                    </div>
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Original
+                    </Button>
                   </div>
-                )}
-                
-                {atsResult.keywords.missing.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-red-600 mb-2">Missing Keywords</p>
-                    <div className="flex flex-wrap gap-2">
-                      {atsResult.keywords.missing.map((keyword, index) => (
-                        <Badge key={index} variant="destructive" className="text-xs">
-                          {keyword}
-                        </Badge>
-                      ))}
+                </div>
+
+                {/* Analysis Context */}
+                {(atsResult.targetIndustry || atsResult.targetRole) && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-3">Analysis Context</h3>
+                    <div className="space-y-2">
+                      {atsResult.targetIndustry && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Industry</span>
+                          <Badge variant="outline" className="text-xs">
+                            {atsResult.targetIndustry}
+                          </Badge>
+                        </div>
+                      )}
+                      {atsResult.targetRole && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Position</span>
+                          <Badge variant="outline" className="text-xs">
+                            {atsResult.targetRole}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Strengths and Weaknesses */}
-          {((atsResult.strengths && atsResult.strengths.length > 0) || (atsResult.weaknesses && atsResult.weaknesses.length > 0)) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {atsResult.strengths && atsResult.strengths.length > 0 && (
-                <Card className="border border-gray-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      Strengths
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {atsResult.strengths.map((strength, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
-                          <span className="text-green-500 font-bold">✓</span>
-                          <span className="text-gray-900">{strength}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-              {atsResult.weaknesses && atsResult.weaknesses.length > 0 && (
-                <Card className="border border-gray-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <XCircle className="w-5 h-5 text-red-600" />
-                      Areas for Improvement
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {atsResult.weaknesses.map((weakness, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
-                          <span className="text-red-500 font-bold">!</span>
-                          <span className="text-gray-900">{weakness}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
             </div>
-          )}
 
-          {/* Detailed Insights */}
-          {atsResult.detailedInsights && (
-            <Card className="border border-gray-200 mb-8">
-              <CardHeader>
-                <CardTitle className="text-lg">Detailed Insights</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {atsResult.detailedInsights.keywordAnalysis && (
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <h5 className="font-medium text-blue-900 mb-2">Keyword Analysis</h5>
-                      <p className="text-sm text-blue-800 whitespace-pre-line">{formatTextContent(atsResult.detailedInsights.keywordAnalysis)}</p>
-                    </div>
-                  )}
-                  {atsResult.detailedInsights.formatAnalysis && (
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                      <h5 className="font-medium text-green-900 mb-2">Format Analysis</h5>
-                      <p className="text-sm text-green-800 whitespace-pre-line">{formatTextContent(atsResult.detailedInsights.formatAnalysis)}</p>
-                    </div>
-                  )}
-                  {atsResult.detailedInsights.contentAnalysis && (
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <h5 className="font-medium text-purple-900 mb-2">Content Analysis</h5>
-                      <p className="text-sm text-purple-800 whitespace-pre-line">{formatTextContent(atsResult.detailedInsights.contentAnalysis)}</p>
-                    </div>
+            {/* Right Column - Analysis Results */}
+            <div className="lg:col-span-2 space-y-6">
+
+              {/* Overall Score */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="text-center mb-6">
+                  <div className="text-4xl font-bold mb-2">
+                    <span className={getScoreColor(atsResult.overallScore)}>
+                      {atsResult.overallScore}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Badge variant="outline" className="text-sm">
+                      {atsResult.overallGrade}
+                    </Badge>
+                  </div>
+                  {atsResult.quickStats && (
+                    <p className="text-sm text-gray-500">
+                      {atsResult.quickStats.wordCount} words • {atsResult.quickStats.sectionsFound} sections
+                    </p>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+
+              {/* Score Breakdown */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="text-sm font-medium text-gray-900 mb-4">Score Breakdown</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600 mb-1">{atsResult.keywordScore}%</div>
+                    <div className="text-xs text-gray-500">Keywords</div>
+                    <Progress value={atsResult.keywordScore} className="h-1 mt-2" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 mb-1">{atsResult.formatScore}%</div>
+                    <div className="text-xs text-gray-500">Format</div>
+                    <Progress value={atsResult.formatScore} className="h-1 mt-2" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600 mb-1">{atsResult.structureScore}%</div>
+                    <div className="text-xs text-gray-500">Structure</div>
+                    <Progress value={atsResult.structureScore} className="h-1 mt-2" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Metrics */}
+              {atsResult.detailedMetrics && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4">Detailed Metrics</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-orange-600 mb-1">{atsResult.detailedMetrics.actionVerbs}%</div>
+                      <div className="text-xs text-gray-500">Action Verbs</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-teal-600 mb-1">{atsResult.detailedMetrics.quantifiedAchievements}%</div>
+                      <div className="text-xs text-gray-500">Quantified Results</div>
+                    </div>
+                    {atsResult.industryAlignment && (
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-indigo-600 mb-1">{atsResult.industryAlignment}%</div>
+                        <div className="text-xs text-gray-500">Industry Alignment</div>
+                      </div>
+                    )}
+                    {atsResult.contentQuality && (
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-pink-600 mb-1">{atsResult.contentQuality}%</div>
+                        <div className="text-xs text-gray-500">Content Quality</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Strengths and Weaknesses */}
+              {((atsResult.strengths && atsResult.strengths.length > 0) || (atsResult.weaknesses && atsResult.weaknesses.length > 0)) && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4">Strengths & Areas for Improvement</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Strengths */}
+                    {atsResult.strengths && atsResult.strengths.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-green-700 uppercase tracking-wide">Strengths</h4>
+                        <div className="space-y-2">
+                          {atsResult.strengths.map((strength, index) => (
+                            <div key={index} className="flex items-start gap-2 p-3 bg-green-50 rounded border border-green-200">
+                              <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-green-800">{formatTextContent(strength)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Weaknesses */}
+                    {atsResult.weaknesses && atsResult.weaknesses.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-red-700 uppercase tracking-wide">Areas for Improvement</h4>
+                        <div className="space-y-2">
+                          {atsResult.weaknesses.map((weakness, index) => (
+                            <div key={index} className="flex items-start gap-2 p-3 bg-red-50 rounded border border-red-200">
+                              <AlertTriangle className="w-3 h-3 text-red-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-red-800">{formatTextContent(weakness)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
+
+
 
           {/* Section-by-Section Analysis */}
           {atsResult.sectionAnalysis && (
@@ -631,45 +562,58 @@ export default function ATSSummaryPage() {
             </Card>
           )}
 
-          {/* Recommendations */}
-          {atsResult.recommendations.length > 0 && (
-            <Card className="border border-gray-200 mb-8">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Award className="w-5 h-5 text-primary" />
-                  Recommendations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {atsResult.recommendations.map((rec, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white font-bold text-xs">{index + 1}</span>
+              {/* Keywords Analysis */}
+              {atsResult.keywords && (atsResult.keywords.found.length > 0 || atsResult.keywords.missing.length > 0 || atsResult.keywords.suggested.length > 0) && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4">Keywords Analysis</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Found Keywords */}
+                    {atsResult.keywords.found.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-green-700 uppercase tracking-wide">Found Keywords</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {atsResult.keywords.found.map((keyword, index) => (
+                            <Badge key={index} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-900 whitespace-pre-line">{formatTextContent(rec)}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    )}
 
-          {/* Bottom Actions */}
-          <div className="text-center pt-8 border-t border-gray-200">
-            <div className="flex flex-wrap gap-4 justify-center">
-              <Button onClick={handleNewAnalysis} size="lg">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Analyze Another Resume
-              </Button>
-              <Button onClick={handleShare} variant="outline" size="lg">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share These Results
-              </Button>
+                    {/* Missing Keywords */}
+                    {atsResult.keywords.missing.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-red-700 uppercase tracking-wide">Missing Keywords</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {atsResult.keywords.missing.map((keyword, index) => (
+                            <Badge key={index} variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Suggested Keywords */}
+                    {atsResult.keywords.suggested.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-blue-700 uppercase tracking-wide">Suggested Keywords</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {atsResult.keywords.suggested.map((keyword, index) => (
+                            <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
             </div>
-            <p className="text-sm text-gray-500 mt-4">
-              Analysis ID: {analysisId}
-            </p>
           </div>
         </div>
       </div>

@@ -19,7 +19,8 @@ import {
   RefreshCw,
   TrendingUp,
   Target,
-  Award
+  Award,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
@@ -40,7 +41,6 @@ interface ATSResult {
     missing: string[];
     suggested: string[];
   };
-  recommendations: string[];
   // Additional data from enhanced analyzer
   overallGrade?: string;
   parsingMethod?: string;
@@ -49,7 +49,7 @@ interface ATSResult {
   detailedMetrics?: {
     sectionCompleteness: number;
     keywordDensity: number;
-    formatConsistency: number;
+    structureConsistency: number; // Fixed: GPT provides structureConsistency, not formatConsistency
     actionVerbs: number;
     quantifiedAchievements: number;
   };
@@ -61,13 +61,6 @@ interface ATSResult {
   };
   strengths?: string[];
   weaknesses?: string[];
-  detailedInsights?: {
-    keywordAnalysis: string;
-    formatAnalysis: string;
-    contentAnalysis: string;
-    industryAlignment: string;
-    atsCompatibility: string;
-  };
   industryAlignment?: number;
   contentQuality?: number;
   industryBenchmark?: any;
@@ -85,6 +78,39 @@ export default function ATSScorePage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [stepMessage, setStepMessage] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [selectedIndustry, setSelectedIndustry] = useState('technology');
+  const [selectedRole, setSelectedRole] = useState('Senior');
+
+  // Industry options
+  const industryOptions = [
+    { value: 'technology', label: 'Technology' },
+    { value: 'healthcare', label: 'Healthcare' },
+    { value: 'finance', label: 'Finance' },
+    { value: 'education', label: 'Education' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'consulting', label: 'Consulting' },
+    { value: 'manufacturing', label: 'Manufacturing' },
+    { value: 'retail', label: 'Retail' },
+    { value: 'nonprofit', label: 'Non-profit' },
+    { value: 'government', label: 'Government' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  // Role level options
+  const roleOptions = [
+    { value: 'Entry', label: 'Entry Level' },
+    { value: 'Junior', label: 'Junior' },
+    { value: 'Mid', label: 'Mid Level' },
+    { value: 'Senior', label: 'Senior' },
+    { value: 'Lead', label: 'Lead' },
+    { value: 'Principal', label: 'Principal' },
+    { value: 'Staff', label: 'Staff' },
+    { value: 'Manager', label: 'Manager' },
+    { value: 'Director', label: 'Director' },
+    { value: 'VP', label: 'VP' },
+    { value: 'C-Level', label: 'C-Level' }
+  ];
 
   // Generate a unique analysis ID
   const generateAnalysisId = () => {
@@ -128,9 +154,11 @@ export default function ATSScorePage() {
     setSessionId(newSessionId);
 
     try {
-      const formData = new FormData();
-      formData.append('resume', uploadedFile);
-      formData.append('sessionId', newSessionId);
+    const formData = new FormData();
+    formData.append('resume', uploadedFile);
+    formData.append('sessionId', newSessionId);
+    formData.append('industry', selectedIndustry);
+    formData.append('role', selectedRole);
 
       console.log(`🚀 Starting analysis with session ID: ${newSessionId}`);
 
@@ -322,6 +350,58 @@ export default function ATSScorePage() {
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
+
+                  {/* Industry and Position Selection */}
+                  <div className="mb-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Industry Dropdown */}
+                      <div>
+                        <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
+                          Target Industry
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="industry"
+                            value={selectedIndustry}
+                            onChange={(e) => setSelectedIndustry(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none bg-white"
+                          >
+                            {industryOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Position Dropdown */}
+                      <div>
+                        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                          Target Position Level
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="role"
+                            value={selectedRole}
+                            onChange={(e) => setSelectedRole(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none bg-white"
+                          >
+                            {roleOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Select your target industry and position level to get personalized ATS analysis and recommendations.
+                    </p>
+                  </div>
 
                   <div
                     {...getRootProps()}

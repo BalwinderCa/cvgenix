@@ -60,7 +60,7 @@ class EnhancedResumeParser {
         confidence: 95,
         processingMode: 'llamaparse-api'
       };
-      
+
     } catch (error) {
       console.error('❌ LlamaParse PDF parsing failed, using fallback:', error);
       return await this.parsePDFFallback(pdfPath);

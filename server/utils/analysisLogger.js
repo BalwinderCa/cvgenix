@@ -70,7 +70,7 @@ class AnalysisLogger {
     }
   }
 
-  logAnalysisSummary(analysisId, analysis) {
+  logAnalysisSummary(analysisId, analysis, targetIndustry = null, targetRole = null) {
     try {
       const logDir = this.getAnalysisLogDir(analysisId);
       const logFile = path.join(logDir, 'summary.json');
@@ -78,6 +78,8 @@ class AnalysisLogger {
       const summary = {
         analysisId: analysisId,
         timestamp: new Date().toISOString(),
+        targetIndustry: targetIndustry,
+        targetRole: targetRole,
         atsScore: analysis.atsScore,
         overallGrade: analysis.overallGrade,
         modelUsed: analysis.modelUsed,
@@ -89,7 +91,8 @@ class AnalysisLogger {
         detailedInsights: analysis.detailedInsights,
         sectionAnalysis: analysis.sectionAnalysis,
         industryAlignment: analysis.industryAlignment,
-        contentQuality: analysis.contentQuality
+        contentQuality: analysis.contentQuality,
+        extractedKeywords: analysis.extractedKeywords
       };
       
       fs.writeFileSync(logFile, JSON.stringify(summary, null, 2), 'utf8');
@@ -133,6 +136,27 @@ class AnalysisLogger {
       console.log(`🦙 LlamaParse result saved to: ${logFile}`);
     } catch (error) {
       console.error('❌ Error logging LlamaParse result:', error);
+    }
+  }
+
+  logAnalysisContext(analysisId, targetIndustry, targetRole) {
+    try {
+      const logDir = this.getAnalysisLogDir(analysisId);
+      const logFile = path.join(logDir, 'analysis_context.json');
+      
+      const context = {
+        analysisId: analysisId,
+        timestamp: new Date().toISOString(),
+        targetIndustry: targetIndustry,
+        targetRole: targetRole,
+        analysisType: 'ATS Compatibility Analysis',
+        optimizationTarget: `${targetRole} positions in ${targetIndustry} industry`
+      };
+      
+      fs.writeFileSync(logFile, JSON.stringify(context, null, 2), 'utf8');
+      console.log(`🎯 Analysis context saved to: ${logFile}`);
+    } catch (error) {
+      console.error('❌ Error logging analysis context:', error);
     }
   }
 
