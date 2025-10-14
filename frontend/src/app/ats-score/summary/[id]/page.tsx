@@ -20,11 +20,16 @@ import {
   ArrowLeft,
   Share2,
   Copy,
-  FileText
+  FileText,
+  FileDown,
+  Clock,
+  Star,
+  Percent
 } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
 import FooterSection from '@/components/footer-section';
+import { PDFThumbnailPreview } from '@/components/pdf-thumbnail-preview';
 
 interface ATSResult {
   overallScore: number;
@@ -73,9 +78,50 @@ interface ATSResult {
   industryAlignment?: number;
   contentQuality?: number;
   industryBenchmark?: any;
+  // PDF content for preview
+  pdfContent?: string;
+  // PDF URL for thumbnail
+  pdfUrl?: string;
+  // Years of experience
+  yearsOfExperience?: {
+    years: number;
+    source: string;
+    confidence: number;
+  };
   // Analysis context
   targetIndustry?: string;
   targetRole?: string;
+  // Action plan from GPT-OSS
+  actionPlan?: {
+    highPriority: Array<{
+      title: string;
+      description: string;
+      estimatedImpact: string;
+      reason: string;
+    }>;
+    mediumPriority: Array<{
+      title: string;
+      description: string;
+      estimatedImpact: string;
+      reason: string;
+    }>;
+    lowPriority: Array<{
+      title: string;
+      description: string;
+      estimatedImpact: string;
+      reason: string;
+    }>;
+  };
+  // Section completeness scores from GPT-OSS
+  sectionCompleteness?: {
+    contactInfo: number;
+    professionalSummary: number;
+    experience: number;
+    education: number;
+    skills: number;
+    certifications: number;
+    achievements: number;
+  };
 }
 
 interface AnalysisData {
@@ -202,6 +248,60 @@ export default function ATSSummaryPage() {
     router.push('/ats-score');
   };
 
+  const handleDownloadReport = async () => {
+    try {
+      // Create a comprehensive report data
+      const reportData = {
+        fileName,
+        fileSize,
+        analyzedAt,
+        analysisId,
+        overallScore: atsResult.overallScore,
+        overallGrade: atsResult.overallGrade,
+        scores: {
+          keyword: atsResult.keywordScore,
+          format: atsResult.formatScore,
+          structure: atsResult.structureScore
+        },
+        detailedMetrics: atsResult.detailedMetrics,
+        strengths: atsResult.strengths,
+        weaknesses: atsResult.weaknesses,
+        sectionAnalysis: atsResult.sectionAnalysis,
+        keywords: atsResult.keywords,
+        yearsOfExperience: atsResult.yearsOfExperience,
+        targetIndustry: atsResult.targetIndustry,
+        targetRole: atsResult.targetRole
+      };
+
+      // Send to backend to generate PDF
+      const response = await fetch('/api/ats/generate-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reportData),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ATS-Analysis-Report-${fileName.replace('.pdf', '')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Report downloaded successfully!');
+      } else {
+        toast.error('Failed to generate report');
+      }
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      toast.error('Failed to download report');
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -283,6 +383,10 @@ export default function ATSSummaryPage() {
                 <p className="text-sm text-gray-500">Resume optimization insights and recommendations</p>
               </div>
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleDownloadReport}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Download Report
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleNewAnalysis}>
                   <RefreshCw className="w-4 h-4 mr-2" />
                   New Analysis
@@ -316,22 +420,13 @@ export default function ATSSummaryPage() {
             {/* Left Column - PDF Preview */}
             <div className="lg:col-span-1">
               <div className="sticky top-8">
-                {/* PDF Preview Placeholder */}
-                <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-                  <div className="text-center">
-                    <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                      <div className="text-center">
-                        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">PDF Preview</p>
-                        <p className="text-xs text-gray-400 mt-1">{fileName}</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Original
-                    </Button>
-                  </div>
-                </div>
+          {/* PDF Thumbnail Preview */}
+          <PDFThumbnailPreview
+            fileName={fileName}
+            fileSize={fileSize}
+            pdfUrl={atsResult.pdfUrl}
+            className="mb-6"
+          />
 
                 {/* Analysis Context */}
                 {(atsResult.targetIndustry || atsResult.targetRole) && (
@@ -379,6 +474,9 @@ export default function ATSSummaryPage() {
                   {atsResult.quickStats && (
                     <p className="text-sm text-gray-500">
                       {atsResult.quickStats.wordCount} words • {atsResult.quickStats.sectionsFound} sections
+                      {atsResult.yearsOfExperience && atsResult.yearsOfExperience.years > 0 && (
+                        <span> • {atsResult.yearsOfExperience.years} years experience</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -431,6 +529,31 @@ export default function ATSSummaryPage() {
                         <div className="text-xs text-gray-500">Content Quality</div>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Section Completeness */}
+              {atsResult.sectionCompleteness && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <Percent className="w-4 h-4" />
+                    Section Completeness
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(atsResult.sectionCompleteness).map(([section, completeness]) => {
+                      const sectionName = section.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      const hasSection = completeness > 0;
+                      
+                      return (
+                        <div key={section} className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">{sectionName}</span>
+                          <span className="text-lg">
+                            {hasSection ? '✅' : '❌'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -612,6 +735,96 @@ export default function ATSSummaryPage() {
                 </div>
               )}
 
+              {/* Prioritized Action Plan */}
+              {atsResult.actionPlan && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    Prioritized Action Plan
+                  </h3>
+                  <div className="space-y-4">
+                    {/* High Priority Actions */}
+                    {atsResult.actionPlan?.highPriority && atsResult.actionPlan.highPriority.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-red-700 uppercase tracking-wide flex items-center gap-2">
+                          <AlertTriangle className="w-3 h-3" />
+                          High Priority (Immediate Impact)
+                        </h4>
+                        <div className="space-y-2">
+                          {atsResult.actionPlan?.highPriority?.map((action, index) => (
+                            <div key={index} className="flex items-start gap-3 p-3 bg-red-50 rounded border border-red-200">
+                              <div className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{index + 1}</div>
+                              <div>
+                                <p className="text-sm font-medium text-red-900">{action.title}</p>
+                                <p className="text-xs text-red-700 mt-1">{action.description}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Clock className="w-3 h-3 text-red-600" />
+                                  <span className="text-xs text-red-600">Estimated impact: +{action.estimatedImpact} points</span>
+                                </div>
+                                <p className="text-xs text-red-600 mt-1 italic">Why: {action.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Medium Priority Actions */}
+                    {atsResult.actionPlan?.mediumPriority && atsResult.actionPlan.mediumPriority.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-yellow-700 uppercase tracking-wide flex items-center gap-2">
+                          <Clock className="w-3 h-3" />
+                          Medium Priority (Short-term Impact)
+                        </h4>
+                        <div className="space-y-2">
+                          {atsResult.actionPlan?.mediumPriority?.map((action, index) => (
+                            <div key={index} className="flex items-start gap-3 p-3 bg-yellow-50 rounded border border-yellow-200">
+                              <div className="w-6 h-6 bg-yellow-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{(atsResult.actionPlan?.highPriority?.length || 0) + index + 1}</div>
+                              <div>
+                                <p className="text-sm font-medium text-yellow-900">{action.title}</p>
+                                <p className="text-xs text-yellow-700 mt-1">{action.description}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Clock className="w-3 h-3 text-yellow-600" />
+                                  <span className="text-xs text-yellow-600">Estimated impact: +{action.estimatedImpact} points</span>
+                                </div>
+                                <p className="text-xs text-yellow-600 mt-1 italic">Why: {action.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Low Priority Actions */}
+                    {atsResult.actionPlan?.lowPriority && atsResult.actionPlan.lowPriority.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-green-700 uppercase tracking-wide flex items-center gap-2">
+                          <Star className="w-3 h-3" />
+                          Low Priority (Long-term Enhancement)
+                        </h4>
+                        <div className="space-y-2">
+                          {atsResult.actionPlan?.lowPriority?.map((action, index) => (
+                            <div key={index} className="flex items-start gap-3 p-3 bg-green-50 rounded border border-green-200">
+                              <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                {(atsResult.actionPlan?.highPriority?.length || 0) + (atsResult.actionPlan?.mediumPriority?.length || 0) + index + 1}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-green-900">{action.title}</p>
+                                <p className="text-xs text-green-700 mt-1">{action.description}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Clock className="w-3 h-3 text-green-600" />
+                                  <span className="text-xs text-green-600">Estimated impact: +{action.estimatedImpact} points</span>
+                                </div>
+                                <p className="text-xs text-green-600 mt-1 italic">Why: {action.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             </div>
           </div>

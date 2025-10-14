@@ -16,7 +16,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  outputFileTracingRoot: path.resolve(__dirname, '../../')
+  outputFileTracingRoot: path.resolve(__dirname, '../../'),
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3001/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

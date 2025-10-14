@@ -21,8 +21,8 @@ class SimpleATSAnalyzer {
     // Initialize Keyword Extractor
     this.keywordExtractor = new KeywordExtractor();
     
-    console.log('🚀 ATS Analyzer initialized with GPT-OSS-120b (Groq) only');
   }
+
 
   async analyzeResume(resumeData, targetIndustry = 'technology', targetRole = 'Senior', analysisId = null) {
     try {
@@ -40,10 +40,6 @@ class SimpleATSAnalyzer {
           resumeText = parseResult.text;
           resumeJsonData = parseResult.jsonData;
           console.log(`✅ File parsed successfully using ${parseResult.parsingMethod} method`);
-          console.log(`📊 Parsing confidence: ${parseResult.confidence}/100`);
-          if (resumeJsonData) {
-            console.log(`📋 Structured JSON data available: ${Object.keys(resumeJsonData).length} fields`);
-          }
         } else {
           throw new Error(`File parsing failed: ${parseResult.error}`);
         }
@@ -55,7 +51,6 @@ class SimpleATSAnalyzer {
 
       // Get dynamic keywords for the target industry
       const industryKeywords = await this.keywordService.getIndustryKeywords(targetIndustry, targetRole);
-      console.log(`📋 Using ${industryKeywords.length} dynamic keywords for ${targetIndustry} ${targetRole}`);
       
       // Create the comprehensive prompt with dynamic keywords
       const analysisPrompt = this.createAnalysisPrompt(resumeText, targetIndustry, targetRole, industryKeywords, resumeJsonData);
@@ -65,52 +60,7 @@ class SimpleATSAnalyzer {
         this.logger.logAnalysisPrompt(analysisId, analysisPrompt);
       }
       
-      // Log the prompt being sent to GPT-OSS-120b
-      console.log('🤖 COMPREHENSIVE ANALYSIS PROMPT (GPT-OSS-120b analyzing LlamaParse JSON + text):');
-      console.log('=' .repeat(100));
-      console.log(analysisPrompt);
-      console.log('=' .repeat(100));
-      
-      // Run GPT-OSS-120b analysis
-      console.log('🤖 Running GPT-OSS-120b analysis via Groq...');
       const analysis = await this.getGroqAnalysis(analysisPrompt, analysisId);
-      const modelUsed = 'GPT-OSS-120b (Groq)';
-
-      console.log('📊 Analysis Results:', {
-        modelUsed: modelUsed,
-        success: !!analysis,
-        score: analysis?.atsScore
-      });
-
-      // Set model used
-      analysis.modelUsed = modelUsed;
-      
-      console.log(`✅ ${modelUsed} analysis completed`);
-      console.log('📊 Final Analysis Summary:', {
-        atsScore: analysis.atsScore,
-        overallGrade: analysis.overallGrade,
-        modelUsed: modelUsed,
-        hasStrengths: !!analysis.strengths?.length,
-        hasWeaknesses: !!analysis.weaknesses?.length,
-        hasRecommendations: !!analysis.recommendations?.length
-      });
-      
-      // Extract keywords from the analysis
-      console.log('🔍 Keyword Extraction Debug:');
-      console.log('targetIndustry:', targetIndustry);
-      console.log('targetRole:', targetRole);
-      
-      const extractedKeywords = this.keywordExtractor.extractKeywords(
-        resumeText, 
-        null, // No detailedInsights available anymore
-        targetIndustry,
-        targetRole
-      );
-      
-      console.log('extractedKeywords:', JSON.stringify(extractedKeywords, null, 2));
-      
-      // Add extracted keywords to the analysis
-      analysis.extractedKeywords = extractedKeywords;
       
       // Log the final analysis summary to file if analysisId is provided
       if (analysisId) {
@@ -169,6 +119,11 @@ Use only plain text with standard punctuation and line breaks for readability.
     "keywordsMatched": <number>,
     "improvementAreas": <number>
   },
+  "yearsOfExperience": {
+    "years": <number>,
+    "source": "<how the years were determined>",
+    "confidence": <number between 0-100>
+  },
   "strengths": ["<detailed_strength1>", "<detailed_strength2>", "<detailed_strength3>", "<detailed_strength4>", "<detailed_strength5>"],
   "weaknesses": ["<detailed_weakness1>", "<detailed_weakness2>", "<detailed_weakness3>", "<detailed_weakness4>", "<detailed_weakness5>"],
   "sectionAnalysis": {
@@ -180,8 +135,43 @@ Use only plain text with standard punctuation and line breaks for readability.
     "certifications": "<analysis of certifications and additional qualifications>",
     "achievements": "<analysis of quantified achievements and measurable results>"
   },
+  "sectionCompleteness": {
+    "contactInfo": <number between 0-100>,
+    "professionalSummary": <number between 0-100>,
+    "experience": <number between 0-100>,
+    "education": <number between 0-100>,
+    "skills": <number between 0-100>,
+    "certifications": <number between 0-100>,
+    "achievements": <number between 0-100>
+  },
   "industryAlignment": <number between 0-100>,
-  "contentQuality": <number between 0-100>
+  "contentQuality": <number between 0-100>,
+  "actionPlan": {
+    "highPriority": [
+      {
+        "title": "<action title>",
+        "description": "<detailed description of the action>",
+        "estimatedImpact": "<number of points this could improve the score>",
+        "reason": "<why this is high priority>"
+      }
+    ],
+    "mediumPriority": [
+      {
+        "title": "<action title>",
+        "description": "<detailed description of the action>",
+        "estimatedImpact": "<number of points this could improve the score>",
+        "reason": "<why this is medium priority>"
+      }
+    ],
+    "lowPriority": [
+      {
+        "title": "<action title>",
+        "description": "<detailed description of the action>",
+        "estimatedImpact": "<number of points this could improve the score>",
+        "reason": "<why this is low priority>"
+      }
+    ]
+  }
 }
 
 DETAILED SCORING CRITERIA:
@@ -274,6 +264,7 @@ SCORING GUIDELINES:
 - Suggest quantified achievements where applicable to the industry/role
 
 DETAILED ANALYSIS REQUIREMENTS:
+- Extract years of experience from the resume (look for explicit mentions like "X+ years of experience" or calculate from work experience dates)
 - Provide 5+ detailed strengths with specific examples
 - Provide 5+ detailed weaknesses with specific improvements
 - Provide 5+ detailed recommendations with actionable steps
@@ -282,6 +273,25 @@ DETAILED ANALYSIS REQUIREMENTS:
 - Analyze industry alignment with specific recommendations
 - Provide detailed ATS compatibility analysis
 - Provide section-by-section analysis for each resume section (contactInfo, professionalSummary, experience, education, skills, certifications, achievements)
+- Generate a prioritized action plan with specific, actionable steps to improve the ATS score
+- Calculate section completeness scores (0-100) for each section based on:
+  * Presence of the section in the resume
+  * Quality and depth of content in each section
+  * ATS compatibility and completeness for the target role/industry
+  * Industry-specific requirements for each section
+
+ACTION PLAN REQUIREMENTS:
+- Create 2-3 high priority actions that will have immediate impact on the ATS score
+- Create 2-3 medium priority actions for short-term improvements
+- Create 2-3 low priority actions for long-term enhancements
+- Each action should include:
+  * Clear, specific title
+  * Detailed description of what to do
+  * Estimated impact on the overall score (realistic number of points)
+  * Reason why this priority level was assigned
+- Base priorities on actual scores and weaknesses identified in the analysis
+- Make actions specific to the resume content and target role/industry
+- Focus on actionable, concrete steps rather than vague suggestions
 
 IMPORTANT: When identifying weaknesses, focus on actual resume content issues like:
 - Missing sections that are relevant to the target role/industry
@@ -333,7 +343,6 @@ RESPONSE FORMAT REQUIREMENTS:
   async getGroqAnalysis(prompt, analysisId = null) {
     try {
       console.log('🤖 Calling Groq API for GPT-OSS-120b analysis...');
-      console.log('📤 Sending to GPT-OSS-120b - Prompt length:', prompt.length, 'characters');
       
       if (!this.groqApiKey) {
         throw new Error('GROQ_API_KEY environment variable not set');
@@ -365,28 +374,13 @@ RESPONSE FORMAT REQUIREMENTS:
       }
 
       const data = await response.json();
-      console.log('🔍 Groq API Response Structure:', {
-        hasChoices: !!data.choices,
-        choicesLength: data.choices?.length || 0,
-        hasMessage: !!data.choices?.[0]?.message,
-        hasContent: !!data.choices?.[0]?.message?.content,
-        contentLength: data.choices?.[0]?.message?.content?.length || 0
-      });
       
       const content = data.choices[0].message.content;
-      
-      console.log('📥 GPT-OSS-120b Response received - Length:', content.length, 'characters');
       
       // Log the raw GPT-OSS-120b response to file if analysisId is provided
       if (analysisId) {
         this.logger.logGptResponse(analysisId, content);
       }
-      
-      // Log the raw GPT-OSS-120b response
-      console.log('🤖 RAW GPT-OSS-120b RESPONSE:');
-      console.log('=' .repeat(100));
-      console.log(content);
-      console.log('=' .repeat(100));
       
       // Check if response is empty
       if (!content || content.trim().length === 0) {
@@ -395,20 +389,6 @@ RESPONSE FORMAT REQUIREMENTS:
       
       // Parse JSON response directly (GPT-OSS-120b should return clean JSON)
       const analysis = JSON.parse(content);
-      
-      console.log('✅ GPT-OSS-120b analysis parsed successfully');
-      console.log('📊 PARSED ANALYSIS STRUCTURE:');
-      console.log('=' .repeat(100));
-      console.log(JSON.stringify(analysis, null, 2));
-      console.log('=' .repeat(100));
-      
-      console.log('📊 GPT Analysis Summary:', {
-        atsScore: analysis.atsScore,
-        overallGrade: analysis.overallGrade,
-        strengthsCount: analysis.strengths?.length || 0,
-        weaknessesCount: analysis.weaknesses?.length || 0,
-        recommendationsCount: analysis.recommendations?.length || 0
-      });
       
       return analysis;
     } catch (error) {

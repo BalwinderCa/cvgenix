@@ -64,6 +64,16 @@ interface ATSResult {
   industryAlignment?: number;
   contentQuality?: number;
   industryBenchmark?: any;
+  // PDF content for preview
+  pdfContent?: string;
+  // PDF URL for thumbnail
+  pdfUrl?: string;
+  // Years of experience
+  yearsOfExperience?: {
+    years: number;
+    source: string;
+    confidence: number;
+  };
 }
 
 export default function ATSScorePage() {

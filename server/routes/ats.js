@@ -5,6 +5,7 @@ const fs = require('fs');
 const SimpleATSAnalyzer = require('../utils/simpleATSAnalyzer');
 const EnhancedResumeParser = require('../utils/enhancedResumeParser');
 const progressTracker = require('../utils/progressTracker');
+// const PDFDocument = require('pdfkit');
 
 const router = express.Router();
 const analyzer = new SimpleATSAnalyzer();
@@ -119,9 +120,6 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
     // Debug: Log what GPT actually returned
     console.log('🔍 GPT Analysis Debug:');
     console.log('atsScore:', analysis.atsScore);
-    console.log('detailedMetrics:', JSON.stringify(analysis.detailedMetrics, null, 2));
-    console.log('industryAlignment:', analysis.industryAlignment);
-    console.log('contentQuality:', analysis.contentQuality);
 
     // Transform the analysis result to match frontend expectations
     const transformedResult = {
@@ -153,12 +151,20 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       strengths: analysis.strengths || [],
       weaknesses: analysis.weaknesses || [],
       sectionAnalysis: analysis.sectionAnalysis,
+      sectionCompleteness: analysis.sectionCompleteness,
       industryAlignment: analysis.industryAlignment,
       contentQuality: analysis.contentQuality,
+      actionPlan: analysis.actionPlan,
       // Parsing method information
       parsingMethod: resumeData.method || 'traditional',
       processingMode: resumeData.processingMode || 'unknown',
       confidence: resumeData.confidence || 0,
+      // PDF content for preview
+      pdfContent: resumeData.text || '',
+      // PDF URL for thumbnail
+      pdfUrl: `/api/ats/pdf/${sessionId}`,
+      // Years of experience
+      yearsOfExperience: analysis.yearsOfExperience || { years: 0, source: 'Not found', confidence: 0 },
       // Analysis context
       targetIndustry: industry,
       targetRole: role
@@ -193,6 +199,112 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       success: false,
       error: error.message || 'Analysis failed'
     });
+  }
+});
+
+// Serve PDF files for preview
+router.get('/pdf/:analysisId', (req, res) => {
+  console.log(`🔍 PDF request received for analysisId: ${req.params.analysisId}`);
+  
+  try {
+    const { analysisId } = req.params;
+    // The logs directory is at the project root level, not inside server
+    const pdfPath = path.join(__dirname, '../../logs', analysisId, 'resume.pdf');
+    
+    console.log(`🔍 Looking for PDF at: ${pdfPath}`);
+    console.log(`🔍 Current working directory: ${process.cwd()}`);
+    console.log(`🔍 __dirname: ${__dirname}`);
+    
+    // Check if file exists
+    if (!fs.existsSync(pdfPath)) {
+      console.log(`❌ PDF file not found at: ${pdfPath}`);
+      
+      // Let's also check if the directory exists
+      const logDir = path.join(__dirname, '../../logs', analysisId);
+      console.log(`🔍 Checking if log directory exists: ${logDir}`);
+      console.log(`🔍 Log directory exists: ${fs.existsSync(logDir)}`);
+      
+      if (fs.existsSync(logDir)) {
+        try {
+          console.log(`🔍 Contents of log directory:`, fs.readdirSync(logDir));
+        } catch (readError) {
+          console.log(`🔍 Error reading directory:`, readError.message);
+        }
+      }
+      
+      return res.status(404).json({ error: 'PDF file not found' });
+    }
+    
+    console.log(`✅ PDF file found, serving: ${pdfPath}`);
+    
+    // Set appropriate headers for PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="resume.pdf"');
+    
+    // Stream the PDF file with error handling
+    const fileStream = fs.createReadStream(pdfPath);
+    
+    fileStream.on('error', (streamError) => {
+      console.error('Error streaming PDF file:', streamError);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to stream PDF file' });
+      }
+    });
+    
+    res.on('error', (resError) => {
+      console.error('Error in response:', resError);
+    });
+    
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Error serving PDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to serve PDF file' });
+    }
+  }
+});
+
+// Test endpoint to check PDF files
+router.get('/test-pdf/:analysisId', (req, res) => {
+  try {
+    const { analysisId } = req.params;
+    const pdfPath = path.join(__dirname, '../../logs', analysisId, 'resume.pdf');
+    const logDir = path.join(__dirname, '../../logs', analysisId);
+    
+    const result = {
+      analysisId,
+      pdfPath,
+      logDir,
+      pdfExists: fs.existsSync(pdfPath),
+      logDirExists: fs.existsSync(logDir),
+      logDirContents: fs.existsSync(logDir) ? fs.readdirSync(logDir) : [],
+      currentDir: __dirname,
+      workingDir: process.cwd()
+    };
+    
+    console.log('Test PDF endpoint result:', result);
+    res.json(result);
+  } catch (error) {
+    console.error('Test PDF endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate PDF Report endpoint
+router.post('/generate-report', (req, res) => {
+  try {
+    const reportData = req.body;
+    
+    // TODO: Install pdfkit package first
+    res.status(501).json({ 
+      error: 'PDF report generation temporarily disabled. Please install pdfkit package.',
+      message: 'The action plan and other features are working. PDF download will be available once pdfkit is installed.'
+    });
+    
+  } catch (error) {
+    console.error('Error generating PDF report:', error);
+    res.status(500).json({ error: 'Failed to generate PDF report' });
   }
 });
 
