@@ -24,7 +24,9 @@ import {
   FileDown,
   Clock,
   Star,
-  Percent
+  Percent,
+  CheckCircle2,
+  CircleX
 } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
@@ -548,9 +550,13 @@ export default function ATSSummaryPage() {
                       return (
                         <div key={section} className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-700">{sectionName}</span>
-                          <span className="text-lg">
-                            {hasSection ? '✅' : '❌'}
-                          </span>
+                          <div className="flex items-center">
+                            {hasSection ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            ) : (
+                              <CircleX className="w-5 h-5 text-red-500" />
+                            )}
+                          </div>
                         </div>
                       );
                     })}
