@@ -5,7 +5,7 @@ const fs = require('fs');
 const SimpleATSAnalyzer = require('../utils/simpleATSAnalyzer');
 const EnhancedResumeParser = require('../utils/enhancedResumeParser');
 const progressTracker = require('../utils/progressTracker');
-// const PDFDocument = require('pdfkit');
+const PDFDocument = require('pdfkit');
 
 const router = express.Router();
 const analyzer = new SimpleATSAnalyzer();
@@ -139,9 +139,8 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
           suggestion: 'This is a strong point in your resume'
         }))
       ],
-      keywords: analysis.extractedKeywords || {
+      keywords: analysis.keywords || {
         found: [],
-        missing: [],
         suggested: []
       },
       // Additional data from the analyzer
@@ -150,8 +149,8 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       quickStats: analysis.quickStats,
       strengths: analysis.strengths || [],
       weaknesses: analysis.weaknesses || [],
-      sectionAnalysis: analysis.sectionAnalysis,
       sectionCompleteness: analysis.sectionCompleteness,
+      sectionSuggestions: analysis.sectionSuggestions,
       industryAlignment: analysis.industryAlignment,
       contentQuality: analysis.contentQuality,
       actionPlan: analysis.actionPlan,
@@ -165,6 +164,10 @@ router.post('/analyze', upload.single('resume'), async (req, res) => {
       pdfUrl: `/api/ats/pdf/${sessionId}`,
       // Years of experience
       yearsOfExperience: analysis.yearsOfExperience || { years: 0, source: 'Not found', confidence: 0 },
+      // Job title detection and AI summary
+      detectedJobTitle: analysis.detectedJobTitle || 'Not detected',
+      aiSummary: analysis.aiSummary || 'Analysis summary not available',
+      matchScoreDescription: analysis.matchScoreDescription || 'Match score analysis not available',
       // Analysis context
       targetIndustry: industry,
       targetRole: role
@@ -294,17 +297,212 @@ router.get('/test-pdf/:analysisId', (req, res) => {
 // Generate PDF Report endpoint
 router.post('/generate-report', (req, res) => {
   try {
-    const reportData = req.body;
+    const { reportData } = req.body;
     
-    // TODO: Install pdfkit package first
-    res.status(501).json({ 
-      error: 'PDF report generation temporarily disabled. Please install pdfkit package.',
-      message: 'The action plan and other features are working. PDF download will be available once pdfkit is installed.'
-    });
+    if (!reportData) {
+      return res.status(400).json({ error: 'Report data is required' });
+    }
+
+    // Create a new PDF document
+    const doc = new PDFDocument();
+    
+    // Set response headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="ATS-Report-${reportData.analysisId}.pdf"`);
+    
+    // Pipe the PDF to the response
+    doc.pipe(res);
+    
+    // Add content to the PDF - Match the rich UI content
+    doc.fontSize(24).text('ATS Analysis Report', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(12).text(`Generated on ${new Date().toLocaleDateString()}`, { align: 'center' });
+    doc.moveDown(1);
+    
+    // Header Info
+    doc.fontSize(16).text('Analysis Overview', { underline: true });
+    doc.fontSize(12).text(`Analysis ID: ${reportData.analysisId}`);
+    doc.text(`File: ${reportData.fileName || 'N/A'}`);
+    doc.text(`Target Role: ${reportData.targetRole || 'N/A'} ${reportData.targetIndustry || 'N/A'}`);
+    doc.text(`Analyzed: ${reportData.analyzedAt ? new Date(reportData.analyzedAt).toLocaleString() : 'N/A'}`);
+    doc.moveDown(1);
+    
+    // Overall Score Section
+    if (reportData.scores) {
+      doc.fontSize(16).text('Overall ATS Score', { underline: true });
+      doc.fontSize(32).text(`${reportData.scores.overall || 'N/A'}%`, { align: 'center' });
+      doc.moveDown(0.5);
+      
+      // Detailed Metrics
+      if (reportData.detailedMetrics) {
+        doc.fontSize(14).text('Detailed Metrics:', { underline: true });
+        doc.fontSize(12).text(`• Section Completeness: ${reportData.detailedMetrics.sectionCompleteness || 'N/A'}%`);
+        doc.text(`• Keyword Density: ${reportData.detailedMetrics.keywordDensity || 'N/A'}%`);
+        doc.text(`• Structure Consistency: ${reportData.detailedMetrics.structureConsistency || 'N/A'}%`);
+        doc.text(`• Action Verbs: ${reportData.detailedMetrics.actionVerbs || 'N/A'}%`);
+        doc.text(`• Quantified Achievements: ${reportData.detailedMetrics.quantifiedAchievements || 'N/A'}%`);
+        doc.moveDown(1);
+      }
+    }
+    
+    // Job Title & AI Summary
+    if (reportData.detectedJobTitle || reportData.aiSummary) {
+      doc.fontSize(16).text('AI Analysis', { underline: true });
+      
+      if (reportData.detectedJobTitle) {
+        doc.fontSize(14).text('Detected Job Title:', { underline: true });
+        doc.fontSize(12).text(reportData.detectedJobTitle);
+        doc.moveDown(0.5);
+      }
+      
+      if (reportData.aiSummary) {
+        doc.fontSize(14).text('AI Summary:', { underline: true });
+        doc.fontSize(12).text(reportData.aiSummary, { align: 'justify' });
+        doc.moveDown(1);
+      }
+    }
+    
+    // Years of Experience
+    if (reportData.yearsOfExperience) {
+      doc.fontSize(16).text('Experience Analysis', { underline: true });
+      doc.fontSize(14).text(`Years of Experience: ${reportData.yearsOfExperience.years || 'N/A'}`);
+      if (reportData.yearsOfExperience.source) {
+        doc.fontSize(12).text(`Source: ${reportData.yearsOfExperience.source}`);
+      }
+      if (reportData.yearsOfExperience.confidence) {
+        doc.fontSize(12).text(`Confidence: ${reportData.yearsOfExperience.confidence}%`);
+      }
+      doc.moveDown(1);
+    }
+    
+    // Keywords Analysis
+    if (reportData.keywords) {
+      doc.fontSize(16).text('Keywords & Skills Analysis', { underline: true });
+      
+      if (reportData.keywords.found && reportData.keywords.found.length > 0) {
+        doc.fontSize(14).text('Detected Keywords:', { underline: true });
+        doc.fontSize(12).text(reportData.keywords.found.join(', '), { align: 'justify' });
+        doc.moveDown(0.5);
+      }
+      
+      if (reportData.keywords.suggested && reportData.keywords.suggested.length > 0) {
+        doc.fontSize(14).text('Suggested Keywords:', { underline: true });
+        doc.fontSize(12).text(reportData.keywords.suggested.join(', '), { align: 'justify' });
+        doc.moveDown(1);
+      }
+    }
+    
+    // Strengths
+    if (reportData.strengths && reportData.strengths.length > 0) {
+      doc.fontSize(16).text('Strengths', { underline: true });
+      reportData.strengths.slice(0, 5).forEach((strength, index) => {
+        doc.fontSize(12).text(`${index + 1}. ${strength}`, { align: 'justify' });
+      });
+      doc.moveDown(1);
+    }
+    
+    // Weaknesses
+    if (reportData.weaknesses && reportData.weaknesses.length > 0) {
+      doc.fontSize(16).text('Areas for Improvement', { underline: true });
+      reportData.weaknesses.slice(0, 5).forEach((weakness, index) => {
+        doc.fontSize(12).text(`${index + 1}. ${weakness}`, { align: 'justify' });
+      });
+      doc.moveDown(1);
+    }
+    
+    // Section Completeness Check (matches frontend exactly)
+    if (reportData.sectionCompleteness && reportData.sectionSuggestions) {
+      doc.fontSize(16).text('Section Completeness Check', { underline: true });
+      
+      // Use the same section structure as the frontend
+      const sectionChecks = [
+        { 
+          section: "Contact Information", 
+          completeness: reportData.sectionCompleteness.contactInfo || 0,
+          suggestion: reportData.sectionSuggestions.contactInfo || "-"
+        },
+        { 
+          section: "Summary/Profile", 
+          completeness: reportData.sectionCompleteness.professionalSummary || 0,
+          suggestion: reportData.sectionSuggestions.professionalSummary || "-"
+        },
+        { 
+          section: "Work Experience", 
+          completeness: reportData.sectionCompleteness.experience || 0,
+          suggestion: reportData.sectionSuggestions.experience || "-"
+        },
+        { 
+          section: "Skills", 
+          completeness: reportData.sectionCompleteness.skills || 0,
+          suggestion: reportData.sectionSuggestions.skills || "-"
+        },
+        { 
+          section: "Education", 
+          completeness: reportData.sectionCompleteness.education || 0,
+          suggestion: reportData.sectionSuggestions.education || "-"
+        },
+        { 
+          section: "Certifications", 
+          completeness: reportData.sectionCompleteness.certifications || 0,
+          suggestion: reportData.sectionSuggestions.certifications || "-"
+        }
+      ];
+      
+      sectionChecks.forEach((item, index) => {
+        // Get status like the frontend does
+        let status = "optional";
+        if (item.completeness >= 80) status = "complete";
+        else if (item.completeness > 0) status = "partial";
+        
+        // Get status badge like the frontend
+        let statusBadge = "Optional";
+        if (status === "complete") statusBadge = "Complete";
+        else if (status === "partial") statusBadge = "Partial";
+        
+        doc.fontSize(12).text(`${item.section}: ${statusBadge}`, { underline: true });
+        if (item.suggestion && item.suggestion !== '-') {
+          doc.fontSize(11).text(`Suggestion: ${item.suggestion}`, { align: 'justify' });
+        }
+        doc.moveDown(0.3);
+      });
+      doc.moveDown(1);
+    }
+    
+    // AI Recommendations (matches frontend "AI Recommendations" section)
+    if (reportData.actionPlan) {
+      doc.fontSize(16).text('AI Recommendations', { underline: true });
+      
+      // Generate recommendations array like the frontend does
+      const recommendations = [];
+      if (reportData.actionPlan.highPriority) {
+        reportData.actionPlan.highPriority.forEach(item => {
+          recommendations.push(item.description);
+        });
+      }
+      if (reportData.actionPlan.mediumPriority) {
+        reportData.actionPlan.mediumPriority.slice(0, 2).forEach(item => {
+          recommendations.push(item.description);
+        });
+      }
+      
+      if (recommendations.length > 0) {
+        recommendations.slice(0, 5).forEach((rec, index) => {
+          doc.fontSize(12).text(`${index + 1}. ${rec}`, { align: 'justify' });
+        });
+      }
+    }
+    
+    // Footer
+    doc.moveDown(1);
+    doc.fontSize(10).text('Generated by CVGenix ATS Analyzer', { align: 'center' });
+    doc.text('Visit cvgenix.com for more resume optimization tools', { align: 'center' });
+    
+    // Finalize the PDF
+    doc.end();
     
   } catch (error) {
     console.error('Error generating PDF report:', error);
-    res.status(500).json({ error: 'Failed to generate PDF report' });
+    res.status(500).json({ error: error.message });
   }
 });
 

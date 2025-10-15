@@ -124,17 +124,11 @@ Use only plain text with standard punctuation and line breaks for readability.
     "source": "<how the years were determined>",
     "confidence": <number between 0-100>
   },
+  "detectedJobTitle": "<most likely job title based on resume content and experience>",
+  "aiSummary": "<concise 2-3 sentence summary of the candidate's overall profile, strengths, and key areas for improvement>",
+  "matchScoreDescription": "<brief 1-2 sentence description of how well the resume matches typical job descriptions in the field>",
   "strengths": ["<detailed_strength1>", "<detailed_strength2>", "<detailed_strength3>", "<detailed_strength4>", "<detailed_strength5>"],
   "weaknesses": ["<detailed_weakness1>", "<detailed_weakness2>", "<detailed_weakness3>", "<detailed_weakness4>", "<detailed_weakness5>"],
-  "sectionAnalysis": {
-    "contactInfo": "<analysis of contact information completeness and ATS compatibility>",
-    "professionalSummary": "<analysis of summary section presence, quality, and keyword usage>",
-    "experience": "<analysis of work experience section including action verbs, quantification, and relevance>",
-    "education": "<analysis of education section completeness and relevance>",
-    "skills": "<analysis of skills section organization, keyword coverage, and ATS compatibility>",
-    "certifications": "<analysis of certifications and additional qualifications>",
-    "achievements": "<analysis of quantified achievements and measurable results>"
-  },
   "sectionCompleteness": {
     "contactInfo": <number between 0-100>,
     "professionalSummary": <number between 0-100>,
@@ -143,6 +137,19 @@ Use only plain text with standard punctuation and line breaks for readability.
     "skills": <number between 0-100>,
     "certifications": <number between 0-100>,
     "achievements": <number between 0-100>
+  },
+  "sectionSuggestions": {
+    "contactInfo": "<specific suggestion for contact information section>",
+    "professionalSummary": "<specific suggestion for professional summary section>",
+    "experience": "<specific suggestion for work experience section>",
+    "education": "<specific suggestion for education section>",
+    "skills": "<specific suggestion for skills section>",
+    "certifications": "<specific suggestion for certifications section>",
+    "achievements": "<specific suggestion for achievements section>"
+  },
+  "keywords": {
+    "found": ["<keyword1>", "<keyword2>", "<keyword3>", "<keyword4>", "<keyword5>"],
+    "suggested": ["<suggested_keyword1>", "<suggested_keyword2>", "<suggested_keyword3>", "<suggested_keyword4>", "<suggested_keyword5>"]
   },
   "industryAlignment": <number between 0-100>,
   "contentQuality": <number between 0-100>,
@@ -262,6 +269,10 @@ SCORING GUIDELINES:
 - Analyze keyword density and suggest specific keywords relevant to ${targetIndustry} ${targetRole} positions
 - Include specific action verbs appropriate for the role level
 - Suggest quantified achievements where applicable to the industry/role
+- For keywords analysis:
+  * "found": List 5-10 specific technical skills, tools, technologies, or industry terms found in the resume
+  * "missing": List 5-10 important keywords that are commonly required for ${targetIndustry} ${targetRole} positions but missing from the resume
+  * "suggested": List 5-10 additional keywords that would strengthen the resume for ${targetIndustry} ${targetRole} positions
 
 DETAILED ANALYSIS REQUIREMENTS:
 - Extract years of experience from the resume (look for explicit mentions like "X+ years of experience" or calculate from work experience dates)
@@ -272,13 +283,17 @@ DETAILED ANALYSIS REQUIREMENTS:
 - Include detailed content analysis with examples
 - Analyze industry alignment with specific recommendations
 - Provide detailed ATS compatibility analysis
-- Provide section-by-section analysis for each resume section (contactInfo, professionalSummary, experience, education, skills, certifications, achievements)
 - Generate a prioritized action plan with specific, actionable steps to improve the ATS score
 - Calculate section completeness scores (0-100) for each section based on:
   * Presence of the section in the resume
   * Quality and depth of content in each section
   * ATS compatibility and completeness for the target role/industry
   * Industry-specific requirements for each section
+- Generate specific, actionable suggestions for each section based on the analysis
+- Detect the most likely job title based on the candidate's experience, skills, and career progression
+- Generate a concise AI summary (2-3 sentences) that captures the candidate's overall profile, key strengths, and main areas for improvement
+- Generate a brief match score description explaining how well the resume aligns with typical job descriptions in the field
+- Analyze keywords found in the resume, missing industry keywords, and suggest relevant keywords for the target role
 
 ACTION PLAN REQUIREMENTS:
 - Create 2-3 high priority actions that will have immediate impact on the ATS score
@@ -320,6 +335,10 @@ For each section in sectionAnalysis, provide:
 - ATS compatibility and keyword usage
 - Specific recommendations for improvement
 - Examples of what's working well or needs improvement
+
+KEYWORDS ANALYSIS REQUIREMENTS:
+- "found": List 5-10 keywords/skills that are clearly present in the resume
+- "suggested": List 5-10 additional keywords that would strengthen the resume for this specific role/industry
 
 IMPORTANT: Be flexible and industry-appropriate. Not all sections are required for every role:
 - Entry-level roles may not need extensive experience sections

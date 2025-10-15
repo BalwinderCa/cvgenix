@@ -43,7 +43,7 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdf2pic": "^3.2.0",
-    "pdfkit": "^0.15.0",
+    "pdfkit": "^0.15.2",
     "puppeteer": "^24.23.0",
     "sharp": "^0.33.0",
     "socket.io": "^4.8.1",

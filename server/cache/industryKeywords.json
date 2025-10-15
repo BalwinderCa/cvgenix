@@ -292,7 +292,7 @@
       "service mesh",
       "api gateway"
     ],
-    "timestamp": 1760481615772
+    "timestamp": 1760520613328
   },
   "healthcare": {
     "keywords": [
@@ -647,6 +647,6 @@
       "turnaround time",
       "wait times"
     ],
-    "timestamp": 1760481567283
+    "timestamp": 1760520272255
   }
 }

@@ -2,8 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const mammoth = require('mammoth');
 const cheerio = require('cheerio');
-const { fromPath } = require('pdf2pic');
-const sharp = require('sharp');
 const AnalysisLogger = require('./analysisLogger');
 
 /**
@@ -20,173 +18,6 @@ class EnhancedResumeParser {
     };
     
     this.logger = new AnalysisLogger();
-    console.log('🚀 Enhanced Resume Parser initialized - LlamaParse JSON for PDFs, traditional methods for other formats');
-  }
-
-
-  /**
-   * Convert PDF to JPEG images
-   */
-  async convertPDFToImages(filePath, analysisId = null) {
-    try {
-      console.log('🖼️ Converting PDF to JPEG images...');
-      
-      // Create temp directory for images
-      const tempDir = path.join(__dirname, '../temp');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      
-      const imageDir = path.join(tempDir, `images-${analysisId || Date.now()}`);
-      if (!fs.existsSync(imageDir)) {
-        fs.mkdirSync(imageDir, { recursive: true });
-      }
-      
-      // Convert PDF to images
-      const convert = fromPath(filePath, {
-        density: 300,           // Higher DPI for better quality
-        saveFilename: "page",
-        savePath: imageDir,
-        format: "jpeg",
-        width: 2000,           // Good resolution for text recognition
-        height: 2800
-      });
-      
-      const results = await convert.bulk(-1); // Convert all pages
-      console.log(`✅ Converted PDF to ${results.length} JPEG images`);
-      
-      // Process images with Sharp to optimize them
-      const processedImages = [];
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const originalPath = result.path;
-        const optimizedPath = path.join(imageDir, `page_${i + 1}_optimized.jpg`);
-        
-        // Optimize image with Sharp
-        await sharp(originalPath)
-          .jpeg({ quality: 85, progressive: true })
-          .toFile(optimizedPath);
-        
-        processedImages.push(optimizedPath);
-        
-        // Clean up original
-        fs.unlinkSync(originalPath);
-      }
-      
-      console.log(`✅ Processed ${processedImages.length} optimized JPEG images`);
-      return processedImages;
-      
-    } catch (error) {
-      console.error('❌ Error converting PDF to images:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Send single image to LlamaParse for text extraction
-   */
-  async parseSingleImageWithLlamaParse(imagePath, fileName, analysisId = null) {
-    try {
-      console.log(`🖼️ Sending image to LlamaParse: ${fileName}`);
-      
-      const apiKey = process.env.LLAMA_CLOUD_API_KEY;
-      if (!apiKey) {
-        throw new Error('LLAMA_CLOUD_API_KEY environment variable not set');
-      }
-
-      // Create a job for image parsing using form-data package
-      const FormData = require('form-data');
-      const formData = new FormData();
-      
-      // Add single image to the form data
-      formData.append('file', fs.createReadStream(imagePath), {
-        filename: fileName,
-        contentType: 'image/jpeg'
-      });
-
-      console.log(`📤 Uploading image to LlamaParse: ${fileName}`);
-      console.log(`📊 Image size: ${fs.statSync(imagePath).size} bytes`);
-
-      // Submit the job
-      const response = await fetch('https://api.cloud.llamaindex.ai/api/v1/parsing/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          ...formData.getHeaders()
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`LlamaParse upload failed: ${response.status} ${errorText}`);
-      }
-
-      const result = await response.json();
-      const jobId = result.id;
-      
-      console.log(`✅ Image uploaded to LlamaParse, job ID: ${jobId}`);
-      
-      // Poll for completion
-      return await this.pollLlamaParseResult(jobId, apiKey);
-      
-    } catch (error) {
-      console.error('❌ Error parsing image with LlamaParse:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Parse multiple images with LlamaParse (one job per image)
-   */
-  async parseImagesWithLlamaParse(imagePaths, analysisId = null) {
-    try {
-      console.log(`🖼️ Sending ${imagePaths.length} images to LlamaParse (one job per image)...`);
-      
-      const allResults = [];
-      
-      // Process each image separately
-      for (let i = 0; i < imagePaths.length; i++) {
-        const imagePath = imagePaths[i];
-        const fileName = `page_${i + 1}.jpg`;
-        
-        console.log(`📄 Processing page ${i + 1}/${imagePaths.length}`);
-        
-        try {
-          const result = await this.parseSingleImageWithLlamaParse(imagePath, fileName, analysisId);
-          if (result.success && result.text) {
-            allResults.push(result.text);
-            console.log(`✅ Page ${i + 1} processed successfully`);
-          } else {
-            console.log(`⚠️ Page ${i + 1} failed to process`);
-          }
-        } catch (pageError) {
-          console.log(`⚠️ Page ${i + 1} failed:`, pageError.message);
-        }
-      }
-      
-      if (allResults.length === 0) {
-        throw new Error('No pages were successfully processed');
-      }
-      
-      // Combine all text results
-      const combinedText = allResults.join('\n\n--- Page Break ---\n\n');
-      
-      console.log(`✅ Successfully processed ${allResults.length}/${imagePaths.length} pages`);
-      
-      return {
-        success: true,
-        text: combinedText,
-        method: 'image-based-multi-page',
-        confidence: 85, // Assume good confidence for image-based parsing
-        processingMode: 'image-parsing-multi-page',
-        isJson: false
-      };
-      
-    } catch (error) {
-      console.error('❌ Error parsing images with LlamaParse:', error);
-      throw error;
-    }
   }
 
   /**
@@ -293,7 +124,7 @@ class EnhancedResumeParser {
       formData.append('outlined_table_extraction', 'true');
       formData.append('high_res_ocr', 'true');
       formData.append('output_tables_as_HTML', 'true');
-      formData.append('parse_mode', 'parse_page_with_llm');
+      formData.append('parse_mode', 'parse_page_without_llm');
       formData.append('result_type', 'text'); // Request JSON output instead of markdown
 
       const response = await fetch('https://api.cloud.llamaindex.ai/api/v1/parsing/upload', {
