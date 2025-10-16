@@ -10,7 +10,9 @@ import CanvasEditToolbar from '@/components/canvas-edit-toolbar';
 import { CanvasEditManager } from '@/components/canvas/CanvasEditManager';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { CanvasDimensionsDebug } from '@/components/canvas-dimensions-debug';
 import { useCanvasManager } from '@/hooks/useCanvasManager';
+import { useCanvasDimensions } from '@/hooks/useCanvasDimensions';
 import { TemplateService } from '@/services/templateService';
 import { ExportState } from '@/types/canvas';
 
@@ -35,6 +37,14 @@ export default function ResumeBuilderPage() {
     updateCanvasState,
     registerCleanup,
   } = useCanvasManager();
+
+  // Use dynamic canvas dimensions
+  const { dimensions } = useCanvasDimensions({
+    maxWidth: 750,
+    aspectRatio: 0.8, // 4:5 ratio
+    padding: 32,
+    minHeight: 400
+  });
 
   // Template service instance
   const templateService = TemplateService.getInstance();
@@ -212,6 +222,9 @@ export default function ResumeBuilderPage() {
           position={editToolbarState.editToolbarPosition}
           onClose={handleCloseEditToolbar}
         />
+        
+        {/* Debug Info - Remove in production */}
+        <CanvasDimensionsDebug />
       </div>
     </ErrorBoundary>
   );
