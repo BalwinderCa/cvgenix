@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { loadFabric } from '@/lib/fabric-loader';
+import { useCanvasDimensions } from '@/hooks/useCanvasDimensions';
 
 interface ResumeBuilderCanvasProps {
   onCanvasReady: (canvas: any) => void;
@@ -13,6 +14,14 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
   const fabricCanvasRef = useRef<any>(null);
   const canvasStateRef = useRef<string | null>(null);
   const isRestoringRef = useRef<boolean>(false);
+  
+  // Use dynamic canvas dimensions
+  const { dimensions } = useCanvasDimensions({
+    maxWidth: 750,
+    aspectRatio: 0.8, // 4:5 ratio
+    padding: 32,
+    minHeight: 400
+  });
 
   useEffect(() => {
     const initCanvas = async () => {
@@ -25,12 +34,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
             return;
           }
           
-          const baseWidth = 800;
-          const baseHeight = 1000;
-          
           const canvas = new fabric.Canvas(canvasRef.current, {
-            width: baseWidth,
-            height: baseHeight,
+            width: dimensions.width,
+            height: dimensions.height,
             backgroundColor: '#ffffff',
             selection: true,
             preserveObjectStacking: true,
@@ -444,13 +450,19 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
       <div 
         className="my-8 bg-white shadow-lg"
         style={{
-          width: '800px',
-          height: '1000px'
+          width: `${dimensions.width}px`,
+          height: `${dimensions.height}px`,
+          transform: dimensions.scale < 1 ? `scale(${dimensions.scale})` : 'none',
+          transformOrigin: 'top center'
         }}
       >
         <canvas
           ref={canvasRef}
           className="block"
+          style={{
+            width: `${dimensions.width}px`,
+            height: `${dimensions.height}px`
+          }}
         />
       </div>
     </div>

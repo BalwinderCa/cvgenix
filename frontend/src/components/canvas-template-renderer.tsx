@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RefreshCw, FileText, Loader2, Lock, Unlock, Move, RotateCcw } from 'lucide-react';
+import { useCanvasDimensions } from '@/hooks/useCanvasDimensions';
 
 interface CanvasTemplate {
   _id: string;
@@ -33,6 +34,14 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [showControls, setShowControls] = useState(editable);
+  
+  // Use dynamic canvas dimensions
+  const { dimensions } = useCanvasDimensions({
+    maxWidth: 750,
+    aspectRatio: 0.8, // 4:5 ratio
+    padding: 32,
+    minHeight: 400
+  });
 
   // Load template
   const loadTemplate = async () => {
@@ -77,8 +86,8 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
   useEffect(() => {
     if (canvasRef.current && template && template.canvasData && !canvas && fabric) {
       const fabricCanvas = new fabric.Canvas(canvasRef.current, {
-        width: 800,
-        height: 1000,
+        width: dimensions.width,
+        height: dimensions.height,
         backgroundColor: '#ffffff',
         selection: editable, // Enable selection for editing
         interactive: editable, // Make it interactive for editing
@@ -380,17 +389,21 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
 
         <div style={{
           width: '100%',
-          maxWidth: '800px',
+          maxWidth: `${dimensions.width}px`,
           margin: '0 auto',
           backgroundColor: '#ffffff',
-          minHeight: '1000px',
-          position: 'relative'
+          minHeight: `${dimensions.height}px`,
+          position: 'relative',
+          transform: dimensions.scale < 1 ? `scale(${dimensions.scale})` : 'none',
+          transformOrigin: 'top center'
         }}>
           <canvas
             ref={canvasRef}
             className={`border border-gray-300 rounded shadow-lg ${editable ? 'cursor-crosshair' : ''}`}
             style={{
-              cursor: editable ? (isLocked ? 'not-allowed' : 'crosshair') : 'default'
+              cursor: editable ? (isLocked ? 'not-allowed' : 'crosshair') : 'default',
+              width: `${dimensions.width}px`,
+              height: `${dimensions.height}px`
             }}
           />
         </div>
