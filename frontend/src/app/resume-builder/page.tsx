@@ -29,6 +29,9 @@ export default function ResumeBuilderPage() {
   const [selectedObject, setSelectedObject] = useState<any>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
 
+  // Cleanup refs for memory management
+  const cleanupRefs = useRef<(() => void)[]>([]);
+
   const handleCanvasReady = useCallback((canvas: any) => {
       setFabricCanvas(canvas);
       
@@ -633,6 +636,12 @@ export default function ResumeBuilderPage() {
 
     // Store the handler for cleanup
     canvas.keyboardHandler = handleKeyDown;
+    
+    // Add cleanup function
+    const cleanupKeyboard = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    cleanupRefs.current.push(cleanupKeyboard);
     
     // Add selection event listeners for delete button
     canvas.on('selection:created', (e: any) => {
