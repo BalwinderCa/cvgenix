@@ -292,13 +292,32 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
           canvas.hoverOverlay = null;
         }
         
-        // Calculate position
+        // Calculate position to avoid overlapping with selected element
         const objBounds = activeObject.getBoundingRect();
         const canvasElement = canvas.getElement();
         const canvasOffset = canvasElement.getBoundingClientRect();
         
-        const x = canvasOffset.left + (objBounds.left + objBounds.width * 0.95);
-        const y = canvasOffset.top + (objBounds.top - 40);
+        // Position toolbar to the right of the element with some margin
+        const toolbarMargin = 20;
+        const x = canvasOffset.left + objBounds.left + objBounds.width + toolbarMargin;
+        
+        // Position toolbar above the element, or below if not enough space above
+        const viewportHeight = window.innerHeight;
+        const spaceAbove = objBounds.top;
+        const spaceBelow = viewportHeight - (objBounds.top + objBounds.height);
+        const toolbarHeight = 50; // Approximate toolbar height
+        
+        let y;
+        if (spaceAbove > toolbarHeight + 20) {
+          // Position above the element
+          y = canvasOffset.top + objBounds.top - toolbarHeight - 10;
+        } else if (spaceBelow > toolbarHeight + 20) {
+          // Position below the element
+          y = canvasOffset.top + objBounds.top + objBounds.height + 10;
+        } else {
+          // Position to the side if not enough vertical space
+          y = canvasOffset.top + objBounds.top;
+        }
         
         onEditToolbarUpdate({
           editToolbarPosition: { x, y },

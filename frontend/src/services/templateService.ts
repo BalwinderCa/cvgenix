@@ -3,6 +3,7 @@ import { TemplateData } from '@/types/canvas';
 export class TemplateService {
   private static instance: TemplateService;
   private fabricInstance: any = null;
+  private loadingTemplates: Set<string> = new Set();
 
   private constructor() {}
 
@@ -142,7 +143,15 @@ export class TemplateService {
     return elementsToLoad;
   }
 
-  public async loadTemplateIntoCanvas(canvas: any, templateId: string): Promise<void> {
+  public async loadTemplateIntoCanvas(canvas: any, templateId: string, baseDimensions?: { width: number; height: number }): Promise<void> {
+    // Prevent concurrent loading of the same template
+    if (this.loadingTemplates.has(templateId)) {
+      console.log('Template already loading, skipping...');
+      return;
+    }
+    
+    this.loadingTemplates.add(templateId);
+    
     try {
       console.log('📄 Loading template:', templateId);
       
@@ -166,7 +175,7 @@ export class TemplateService {
       this.validateCanvas(canvas);
       
       // Clear canvas
-      this.clearCanvas(canvas);
+      this.clearCanvas(canvas, baseDimensions);
       
       // Get fabric instance
       const fabric = await this.getFabricInstance();
@@ -188,6 +197,9 @@ export class TemplateService {
     } catch (error) {
       console.error('Error loading template into canvas:', error);
       throw error;
+    } finally {
+      // Remove template from loading set
+      this.loadingTemplates.delete(templateId);
     }
   }
 
@@ -211,7 +223,7 @@ export class TemplateService {
     }
   }
 
-  private clearCanvas(canvas: any): void {
+  private clearCanvas(canvas: any, baseDimensions?: { width: number; height: number }): void {
     // Remove all objects manually instead of using clear()
     const objects = canvas.getObjects();
     while (objects.length > 0) {
@@ -220,9 +232,9 @@ export class TemplateService {
     
     canvas.backgroundColor = '#ffffff';
     
-    // Reset canvas to base dimensions
-    const baseWidth = 800;
-    const baseHeight = 1000;
+    // Reset canvas to base dimensions (use provided or default)
+    const baseWidth = baseDimensions?.width || 800;
+    const baseHeight = baseDimensions?.height || 1000;
     
     canvas.setWidth(baseWidth);
     canvas.setHeight(baseHeight);

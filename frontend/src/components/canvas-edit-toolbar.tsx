@@ -173,8 +173,7 @@ export default function CanvasEditToolbar({
       className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex items-center gap-1"
       style={{
         left: position.x,
-        top: position.y - 50,
-        transform: 'translateX(-50%)'
+        top: position.y
       }}
     >
       {/* Edit Controls */}

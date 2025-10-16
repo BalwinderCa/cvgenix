@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { loadFabric } from '@/lib/fabric-loader';
+import { useCanvasDimensions } from '@/hooks/useCanvasDimensions';
 
 interface ResumeBuilderCanvasProps {
   onCanvasReady: (canvas: any) => void;
@@ -13,6 +14,14 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
   const fabricCanvasRef = useRef<any>(null);
   const canvasStateRef = useRef<string | null>(null);
   const isRestoringRef = useRef<boolean>(false);
+  
+  // Use dynamic canvas dimensions
+  const { dimensions, getBaseDimensions, getScaledDimensions } = useCanvasDimensions({
+    maxWidth: 750,
+    aspectRatio: 0.8, // 800/1000
+    minWidth: 300,
+    minHeight: 375
+  });
 
   useEffect(() => {
     const initCanvas = async () => {
@@ -25,12 +34,11 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
             return;
           }
           
-          const baseWidth = 800;
-          const baseHeight = 1000;
+          const baseDimensions = getBaseDimensions();
           
           const canvas = new fabric.Canvas(canvasRef.current, {
-            width: baseWidth,
-            height: baseHeight,
+            width: baseDimensions.width,
+            height: baseDimensions.height,
             backgroundColor: '#ffffff',
             selection: true,
             preserveObjectStacking: true,
@@ -45,19 +53,24 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           // Ensure initial render
           canvas.renderAll();
 
-          // Configure canvas controls
+          // Configure canvas controls with improved handles
           fabric.Object.prototype.set({
             borderColor: '#3b82f6',
             cornerColor: '#ffffff',
-            cornerStrokeColor: '#999999',
+            cornerStrokeColor: '#3b82f6',
             cornerStyle: 'circle',
-            cornerSize: 12,
+            cornerSize: 16, // Increased size for better visibility
             transparentCorners: false,
             borderScaleFactor: 2,
             lockRotation: true, // Disable rotation
             hasRotatingPoint: false, // Remove rotation handle
             originX: 'left', // Keep text anchored to left
             originY: 'top', // Keep text anchored to top
+            // Add padding to handles to prevent overlapping
+            padding: 8,
+            // Make handles appear outside the object
+            centeredScaling: false,
+            centeredRotation: false,
           });
 
           // Set control visibility for all objects
@@ -66,6 +79,133 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
             ml: true, mr: true, // Keep middle left and right handles
             tl: true, tr: true, bl: true, br: true
           });
+
+          // Note: Removed setControlVisible method to prevent infinite recursion
+
+          // Customize control appearance using Fabric.js built-in properties
+          fabric.Object.prototype.set({
+            cornerSize: 16,
+            cornerStyle: 'circle',
+            cornerColor: '#10b981',
+            cornerStrokeColor: '#ffffff',
+            transparentCorners: false,
+            borderColor: '#10b981',
+            borderDashArray: [5, 5],
+            borderScaleFactor: 1.2,
+            padding: 0
+          });
+
+          // Override control rendering to handle overlapping handles for small elements
+          const originalRenderControls = fabric.Object.prototype._renderControls;
+          fabric.Object.prototype._renderControls = function(ctx: any) {
+            try {
+              if (!this.canvas || !this.oCoords) {
+                if (originalRenderControls) {
+                  originalRenderControls.call(this, ctx);
+                }
+                return;
+              }
+
+              const controls = this.oCoords;
+              const canvas = this.canvas;
+              const zoom = canvas.getZoom();
+              const vpt = canvas.viewportTransform;
+              
+              // Save context
+              ctx.save();
+              
+              // Apply zoom and viewport transform
+              ctx.scale(zoom, zoom);
+              ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+              
+              // Calculate element dimensions
+              const elementWidth = this.width * this.scaleX;
+              const elementHeight = this.height * this.scaleY;
+              const handleSize = 16;
+              const minSpacing = handleSize + 4; // Minimum spacing between handles
+              
+              // Determine if element is too small for all handles
+              const isSmallElement = elementWidth < minSpacing * 2 || elementHeight < minSpacing * 2;
+              
+              // Draw border
+              ctx.beginPath();
+              ctx.rect(this.left, this.top, elementWidth, elementHeight);
+              ctx.strokeStyle = '#10b981';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([5, 5]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              
+              if (isSmallElement) {
+                // For small elements, show only corner handles (tl, tr, bl, br)
+                const cornerHandles = ['tl', 'tr', 'bl', 'br'];
+                cornerHandles.forEach(controlName => {
+                  if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
+                  
+                  const control = controls[controlName];
+                  if (!control) return;
+                  
+                  const x = control.x;
+                  const y = control.y;
+                  
+                  // Draw handle
+                  ctx.beginPath();
+                  ctx.arc(x, y, handleSize / 2, 0, 2 * Math.PI);
+                  ctx.fillStyle = '#10b981';
+                  ctx.fill();
+                  ctx.strokeStyle = '#ffffff';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+                });
+              } else {
+                // For larger elements, show all handles
+                Object.keys(controls).forEach(controlName => {
+                  if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
+                  
+                  const control = controls[controlName];
+                  if (!control) return;
+                  
+                  const x = control.x;
+                  const y = control.y;
+                  
+                  // Draw handle - pill shape for middle handles, circle for others
+                  ctx.beginPath();
+                  if (controlName === 'ml' || controlName === 'mr') {
+                    // Pill-shaped handles for left and right middle (vertical orientation)
+                    const pillWidth = handleSize * 0.8;
+                    const pillHeight = handleSize * 1.5;
+                    const radius = pillWidth / 2;
+                    
+                    ctx.roundRect(
+                      x - pillWidth / 2, 
+                      y - pillHeight / 2, 
+                      pillWidth, 
+                      pillHeight, 
+                      radius
+                    );
+                  } else {
+                    // Circular handles for corners and top/bottom middle
+                    ctx.arc(x, y, handleSize / 2, 0, 2 * Math.PI);
+                  }
+                  
+                  ctx.fillStyle = '#10b981';
+                  ctx.fill();
+                  ctx.strokeStyle = '#ffffff';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+                });
+              }
+              
+              // Restore context
+              ctx.restore();
+              
+            } catch (error) {
+              console.error('Error in custom control rendering:', error);
+              if (originalRenderControls) {
+                originalRenderControls.call(this, ctx);
+              }
+            }
+          };
 
           // Override textBaseline for all text objects to prevent 'alphabetical' values
           const originalTextInit = fabric.Text.prototype.initialize;
@@ -271,7 +411,8 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
                 borderColor: '#10b981',
                 borderScaleFactor: 3,
                 cornerColor: '#10b981',
-                cornerStrokeColor: '#10b981'
+                cornerStrokeColor: '#10b981',
+                padding: 12 // Extra padding in edit mode
               });
               canvas.renderAll();
             }
@@ -285,7 +426,8 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
                 borderColor: '#3b82f6',
                 borderScaleFactor: 2,
                 cornerColor: '#ffffff',
-                cornerStrokeColor: '#999999'
+                cornerStrokeColor: '#3b82f6',
+                padding: 8 // Normal padding
               });
               canvas.renderAll();
             }
@@ -437,15 +579,19 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
         }
       }
     };
-  }, [onCanvasReady]);
+  }, [onCanvasReady, getBaseDimensions]);
+
+  const scaledDimensions = getScaledDimensions();
 
   return (
     <div className="w-full h-full bg-gray-50 flex items-start justify-center overflow-auto">
       <div 
-        className="my-8 bg-white shadow-lg"
+        className="my-8 bg-white shadow-lg transition-all duration-300 ease-in-out"
         style={{
-          width: '800px',
-          height: '1000px'
+          width: `${scaledDimensions.width}px`,
+          height: `${scaledDimensions.height}px`,
+          transform: `scale(${scaledDimensions.scale})`,
+          transformOrigin: 'top center'
         }}
       >
         <canvas

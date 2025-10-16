@@ -11,6 +11,7 @@ import { CanvasEditManager } from '@/components/canvas/CanvasEditManager';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useCanvasManager } from '@/hooks/useCanvasManager';
+import { useCanvasDimensions } from '@/hooks/useCanvasDimensions';
 import { TemplateService } from '@/services/templateService';
 import { ExportState } from '@/types/canvas';
 
@@ -38,6 +39,14 @@ export default function ResumeBuilderPage() {
 
   // Template service instance
   const templateService = TemplateService.getInstance();
+  
+  // Canvas dimensions hook
+  const { getBaseDimensions } = useCanvasDimensions({
+    maxWidth: 750,
+    aspectRatio: 0.8,
+    minWidth: 300,
+    minHeight: 375
+  });
 
   // Handle save
   const handleSave = useCallback(() => {
@@ -52,27 +61,124 @@ export default function ResumeBuilderPage() {
   const handleDownload = useCallback(() => {
     if (canvasState.fabricCanvas) {
       const format = exportState.exportFormat.toLowerCase();
-      const dataURL = canvasState.fabricCanvas.toDataURL({
-        format: format,
-        quality: format === 'jpg' ? 0.9 : 1,
-        multiplier: 2
-      });
       
-      const link = document.createElement('a');
-      link.download = `resume.${format}`;
-      link.href = dataURL;
-      link.click();
+      if (format === 'pdf') {
+        // Handle PDF export differently
+        try {
+          // Convert canvas to high-quality image first
+          const dataURL = canvasState.fabricCanvas.toDataURL({
+            format: 'png',
+            quality: 1,
+            multiplier: 2
+          });
+          
+          // Create a new window with the image and print it as PDF
+          const printWindow = window.open('', '_blank');
+          if (printWindow) {
+            printWindow.document.write(`
+              <html>
+                <head>
+                  <title>Resume Export</title>
+                  <style>
+                    body { 
+                      margin: 0; 
+                      padding: 0; 
+                      background: white;
+                    }
+                    img { 
+                      width: 100%; 
+                      height: auto; 
+                      display: block; 
+                      margin: 0;
+                      padding: 0;
+                    }
+                    @media print {
+                      body { 
+                        margin: 0; 
+                        padding: 0;
+                        background: white;
+                      }
+                      img { 
+                        width: 100%; 
+                        height: auto; 
+                        page-break-inside: avoid;
+                        margin: 0;
+                        padding: 0;
+                      }
+                      @page {
+                        margin: 0;
+                        padding: 0;
+                        size: auto;
+                      }
+                    }
+                  </style>
+                </head>
+                <body>
+                  <img src="${dataURL}" alt="Resume" />
+                  <script>
+                    window.onload = function() {
+                      // Remove headers and footers
+                      const style = document.createElement('style');
+                      style.textContent = \`
+                        @page {
+                          margin: 0 !important;
+                          padding: 0 !important;
+                          size: auto !important;
+                        }
+                        @media print {
+                          body { margin: 0 !important; padding: 0 !important; }
+                          img { margin: 0 !important; padding: 0 !important; }
+                        }
+                      \`;
+                      document.head.appendChild(style);
+                      
+                      // Print without headers/footers
+                      window.print();
+                      window.onafterprint = function() {
+                        window.close();
+                      };
+                    };
+                  </script>
+                </body>
+              </html>
+            `);
+            printWindow.document.close();
+          }
+        } catch (error) {
+          console.error('PDF export error:', error);
+          alert('PDF export failed. Please try again or use PNG/JPEG export instead.');
+        }
+      } else {
+        // Handle image exports (PNG, JPG)
+        const dataURL = canvasState.fabricCanvas.toDataURL({
+          format: format,
+          quality: format === 'jpg' ? 0.9 : 1,
+          multiplier: 2
+        });
+        
+        const link = document.createElement('a');
+        link.download = `resume.${format}`;
+        link.href = dataURL;
+        link.click();
+      }
     }
   }, [canvasState.fabricCanvas, exportState.exportFormat]);
 
   // Handle template selection
   const handleTemplateSelect = useCallback(async (templateId: string) => {
+    // Prevent loading the same template if it's already loaded
+    if (canvasState.currentTemplateId === templateId && !isLoading) {
+      console.log('Template already loaded, skipping...');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
     try {
       updateCanvasState({ currentTemplateId: templateId });
-      await templateService.loadTemplateIntoCanvas(canvasState.fabricCanvas, templateId);
+      const baseDimensions = getBaseDimensions();
+      await templateService.loadTemplateIntoCanvas(canvasState.fabricCanvas, templateId, baseDimensions);
       
       // Save the canvas state after template is loaded
       setTimeout(() => {
@@ -87,7 +193,7 @@ export default function ResumeBuilderPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [canvasState.fabricCanvas, templateService, updateCanvasState]);
+  }, [canvasState.fabricCanvas, canvasState.currentTemplateId, templateService, updateCanvasState, getBaseDimensions, isLoading]);
 
   // Handle export format change
   const handleExportFormatChange = useCallback((format: 'PNG' | 'PDF' | 'JPG') => {

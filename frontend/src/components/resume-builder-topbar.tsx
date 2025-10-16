@@ -1142,22 +1142,6 @@ export default function ResumeBuilderTopBar({
             
             <ToolbarSeparator />
             
-            {/* Copy/Delete */}
-            <ToolbarButton 
-              onClick={canvasOperations.copy} 
-              icon={Copy} 
-              title="Copy" 
-              isLoading={isLoading}
-            />
-            <ToolbarButton 
-              onClick={canvasOperations.delete} 
-              icon={Trash2} 
-              title="Delete" 
-              isLoading={isLoading}
-            />
-            
-            <ToolbarSeparator />
-            
             {/* Highlight Text Objects Button */}
             
             {/* Text Alignment */}
