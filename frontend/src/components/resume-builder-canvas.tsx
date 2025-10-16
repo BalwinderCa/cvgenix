@@ -5,83 +5,14 @@ import { loadFabric } from '@/lib/fabric-loader';
 
 interface ResumeBuilderCanvasProps {
   onCanvasReady: (canvas: any) => void;
-  zoomLevel: number;
   onStateChange?: (state: string) => void;
 }
 
-export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel, onStateChange }: ResumeBuilderCanvasProps) {
+export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: ResumeBuilderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const canvasStateRef = useRef<string | null>(null);
   const isRestoringRef = useRef<boolean>(false);
-
-  // Apply zoom to existing canvas when zoomLevel changes
-  useEffect(() => {
-    if (fabricCanvasRef.current) {
-      try {
-        const canvas = fabricCanvasRef.current;
-        
-        // Save current canvas state before zoom change
-        const currentState = JSON.stringify(canvas.toJSON());
-        canvasStateRef.current = currentState;
-        
-        // Notify parent of state change
-        if (onStateChange) {
-          onStateChange(currentState);
-        }
-        
-        // Canvas always renders at 100% internally, CSS transform handles visual scaling
-        canvas.setZoom(1);
-        
-        // Force a complete re-render to ensure content is visible
-        canvas.renderAll();
-        
-        // Additional render after a small delay to ensure content appears
-        setTimeout(() => {
-          canvas.renderAll();
-          
-          // Only restore if content is missing and we have a non-empty state
-          const hasObjects = canvas.getObjects().length > 0;
-          const isEmptyState = canvasStateRef.current === '{"version":"5.3.0","objects":[],"background":"#ffffff"}' || 
-                              canvasStateRef.current === '{"version":"5.1.0","objects":[],"background":"#ffffff"}';
-          
-          if (!hasObjects && canvasStateRef.current && !isEmptyState && !isRestoringRef.current) {
-            isRestoringRef.current = true;
-            try {
-              // Clean the state data before loading
-              const cleanState = (jsonString: string) => {
-                try {
-                  const data = JSON.parse(jsonString);
-                  if (data.objects && Array.isArray(data.objects)) {
-                    data.objects = data.objects.map((obj: any) => {
-                      if (obj.textBaseline === 'alphabetical') {
-                        obj.textBaseline = 'alphabetic';
-                      }
-                      return obj;
-                    });
-                  }
-                  return JSON.stringify(data);
-                } catch (e) {
-                  return jsonString; // Return original if parsing fails
-                }
-              };
-              
-              const cleanedState = cleanState(canvasStateRef.current);
-              canvas.loadFromJSON(cleanedState, () => {
-                canvas.renderAll();
-                isRestoringRef.current = false;
-              });
-            } catch (restoreError) {
-              console.error('Error restoring canvas state:', restoreError);
-              isRestoringRef.current = false;
-            }
-          }
-        }, 50);
-      } catch (error) {
-        console.error('Error applying zoom:', error);
-      }
-    }
-  }, [zoomLevel]);
 
   useEffect(() => {
     const initCanvas = async () => {
@@ -399,18 +330,6 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel, onStateC
               }
             }
 
-            // Handle Delete key to delete selected objects
-            if (e.key === 'Delete' && !activeObject.isEditing) {
-              const activeObjects = canvas.getActiveObjects();
-              if (activeObjects.length > 0) {
-                canvas.remove(...activeObjects);
-                canvas.discardActiveObject();
-                canvas.renderAll();
-                saveState();
-              }
-              e.preventDefault();
-            }
-
             // Handle Ctrl+A to select all objects
             if (e.ctrlKey && e.key === 'a') {
               canvas.discardActiveObject();
@@ -461,6 +380,7 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel, onStateC
           canvas.keyboardHandler = handleKeyDown;
 
           fabricCanvasRef.current = canvas;
+          console.log('🎨 Canvas initialized successfully - Objects count:', canvas.getObjects().length);
           onCanvasReady(canvas);
         } catch (error) {
           console.error('Failed to initialize Fabric.js canvas:', error);
@@ -524,8 +444,6 @@ export default function ResumeBuilderCanvas({ onCanvasReady, zoomLevel, onStateC
       <div 
         className="my-8 bg-white shadow-lg"
         style={{
-          transform: `scale(${zoomLevel / 100})`,
-          transformOrigin: 'top center',
           width: '800px',
           height: '1000px'
         }}

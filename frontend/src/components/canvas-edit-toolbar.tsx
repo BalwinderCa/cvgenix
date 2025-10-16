@@ -5,17 +5,10 @@ import {
   Edit3, 
   Check, 
   X, 
-  Copy, 
-  Trash2, 
-  Undo, 
-  Redo,
-  Type,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Bold,
-  Italic,
-  Underline
+  Trash2,
+  Copy,
+  Clipboard,
+  Files
 } from 'lucide-react';
 
 interface CanvasEditToolbarProps {
@@ -33,6 +26,7 @@ export default function CanvasEditToolbar({
 }: CanvasEditToolbarProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeObject, setActiveObject] = useState<any>(null);
+  const [copiedObject, setCopiedObject] = useState<any>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,10 +122,30 @@ export default function CanvasEditToolbar({
 
   const handleCopy = () => {
     if (activeObject) {
+      setCopiedObject(activeObject);
+    }
+  };
+
+  const handleDuplicate = () => {
+    if (activeObject) {
       activeObject.clone((cloned: any) => {
         cloned.set({
           left: (activeObject.left || 0) + 10,
           top: (activeObject.top || 0) + 10
+        });
+        fabricCanvas.add(cloned);
+        fabricCanvas.setActiveObject(cloned);
+        fabricCanvas.renderAll();
+      });
+    }
+  };
+
+  const handlePaste = () => {
+    if (copiedObject) {
+      copiedObject.clone((cloned: any) => {
+        cloned.set({
+          left: (copiedObject.left || 0) + 10,
+          top: (copiedObject.top || 0) + 10
         });
         fabricCanvas.add(cloned);
         fabricCanvas.setActiveObject(cloned);
@@ -146,47 +160,6 @@ export default function CanvasEditToolbar({
       fabricCanvas.discardActiveObject();
       fabricCanvas.renderAll();
       onClose();
-    }
-  };
-
-  const handleUndo = () => {
-    fabricCanvas.undo();
-  };
-
-  const handleRedo = () => {
-    fabricCanvas.redo();
-  };
-
-  const handleTextAlign = (align: string) => {
-    if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'text')) {
-      activeObject.set({ textAlign: align });
-      fabricCanvas.renderAll();
-    }
-  };
-
-  const handleToggleBold = () => {
-    if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'text')) {
-      const currentWeight = activeObject.fontWeight;
-      const newWeight = currentWeight === 'bold' ? 'normal' : 'bold';
-      activeObject.set({ fontWeight: newWeight });
-      fabricCanvas.renderAll();
-    }
-  };
-
-  const handleToggleItalic = () => {
-    if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'text')) {
-      const currentStyle = activeObject.fontStyle;
-      const newStyle = currentStyle === 'italic' ? 'normal' : 'italic';
-      activeObject.set({ fontStyle: newStyle });
-      fabricCanvas.renderAll();
-    }
-  };
-
-  const handleToggleUnderline = () => {
-    if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'text')) {
-      const currentUnderline = activeObject.underline;
-      activeObject.set({ underline: !currentUnderline });
-      fabricCanvas.renderAll();
     }
   };
 
@@ -236,84 +209,34 @@ export default function CanvasEditToolbar({
         </>
       )}
 
-      {/* Text Formatting Controls */}
-      {isTextObject && (
-        <>
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-          
-          <button
-            onClick={() => handleTextAlign('left')}
-            className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${
-              activeObject.textAlign === 'left' ? 'bg-blue-100 text-blue-600' : ''
-            }`}
-            title="Align left"
-          >
-            <AlignLeft className="w-4 h-4" />
-          </button>
-          
-          <button
-            onClick={() => handleTextAlign('center')}
-            className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${
-              activeObject.textAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''
-            }`}
-            title="Align center"
-          >
-            <AlignCenter className="w-4 h-4" />
-          </button>
-          
-          <button
-            onClick={() => handleTextAlign('right')}
-            className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${
-              activeObject.textAlign === 'right' ? 'bg-blue-100 text-blue-600' : ''
-            }`}
-            title="Align right"
-          >
-            <AlignRight className="w-4 h-4" />
-          </button>
-
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-
-          <button
-            onClick={handleToggleBold}
-            className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${
-              activeObject.fontWeight === 'bold' ? 'bg-blue-100 text-blue-600' : ''
-            }`}
-            title="Bold (Ctrl+B)"
-          >
-            <Bold className="w-4 h-4" />
-          </button>
-          
-          <button
-            onClick={handleToggleItalic}
-            className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${
-              activeObject.fontStyle === 'italic' ? 'bg-blue-100 text-blue-600' : ''
-            }`}
-            title="Italic (Ctrl+I)"
-          >
-            <Italic className="w-4 h-4" />
-          </button>
-          
-          <button
-            onClick={handleToggleUnderline}
-            className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${
-              activeObject.underline ? 'bg-blue-100 text-blue-600' : ''
-            }`}
-            title="Underline (Ctrl+U)"
-          >
-            <Underline className="w-4 h-4" />
-          </button>
-        </>
-      )}
-
       {/* Object Controls */}
       <div className="w-px h-6 bg-gray-300 mx-1" />
       
       <button
         onClick={handleCopy}
         className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-        title="Duplicate (Ctrl+D)"
+        title="Copy (Ctrl+C)"
       >
         <Copy className="w-4 h-4" />
+      </button>
+      
+      <button
+        onClick={handleDuplicate}
+        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+        title="Duplicate (Ctrl+D)"
+      >
+        <Files className="w-4 h-4" />
+      </button>
+      
+      <button
+        onClick={handlePaste}
+        className={`p-2 rounded-md transition-colors ${
+          copiedObject ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+        }`}
+        title="Paste (Ctrl+V)"
+        disabled={!copiedObject}
+      >
+        <Clipboard className="w-4 h-4" />
       </button>
       
       <button
@@ -322,25 +245,6 @@ export default function CanvasEditToolbar({
         title="Delete (Delete key)"
       >
         <Trash2 className="w-4 h-4" />
-      </button>
-
-      {/* History Controls */}
-      <div className="w-px h-6 bg-gray-300 mx-1" />
-      
-      <button
-        onClick={handleUndo}
-        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-        title="Undo (Ctrl+Z)"
-      >
-        <Undo className="w-4 h-4" />
-      </button>
-      
-      <button
-        onClick={handleRedo}
-        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-        title="Redo (Ctrl+Y)"
-      >
-        <Redo className="w-4 h-4" />
       </button>
 
       {/* Close Button */}
