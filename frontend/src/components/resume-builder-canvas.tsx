@@ -95,6 +95,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
             padding: 0
           });
 
+          // Track active control for dynamic handle visibility
+          canvas.activeControl = null;
+          
           // Override control rendering to handle overlapping handles for small elements
           const originalRenderControls = fabric.Object.prototype._renderControls;
           fabric.Object.prototype._renderControls = function(ctx: any) {
@@ -144,6 +147,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
                 
                 middleHandles.forEach(controlName => {
                   if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
+                  
+                  // Show only active control if one is being dragged
+                  if (canvas.activeControl && canvas.activeControl !== controlName) return;
                   
                   // Calculate handle position relative to current element position
                   let x, y;
@@ -216,6 +222,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
                 
                 Object.keys(controls).forEach(controlName => {
                   if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
+                  
+                  // Show only active control if one is being dragged
+                  if (canvas.activeControl && canvas.activeControl !== controlName) return;
                   
                   // Calculate handle position relative to current element position
                   let x, y;
@@ -436,6 +445,73 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           canvas.on('object:added', saveState);
           canvas.on('object:removed', saveState);
           canvas.on('object:modified', saveState);
+          
+          // Track active control for dynamic handle visibility
+          let isDragging = false;
+          let dragStartControl = null;
+          
+          canvas.on('mouse:down', (e: any) => {
+            if (e.target && e.target.isControlVisible) {
+              // Get the control that was clicked based on mouse position
+              const pointer = canvas.getPointer(e.e);
+              const target = canvas.findTarget(e.e, false);
+              
+              if (target && target.oCoords) {
+                // Check which control is closest to the mouse position
+                const controls = target.oCoords;
+                let closestControl = null;
+                let minDistance = Infinity;
+                
+                Object.keys(controls).forEach(controlName => {
+                  if (target.isControlVisible && target.isControlVisible(controlName)) {
+                    const control = controls[controlName];
+                    const distance = Math.sqrt(
+                      Math.pow(pointer.x - control.x, 2) + Math.pow(pointer.y - control.y, 2)
+                    );
+                    
+                    if (distance < minDistance && distance < 20) { // 20px threshold
+                      minDistance = distance;
+                      closestControl = controlName;
+                    }
+                  }
+                });
+                
+                if (closestControl) {
+                  canvas.activeControl = closestControl;
+                  dragStartControl = closestControl;
+                  isDragging = true;
+                  canvas.renderAll();
+                }
+              }
+            }
+          });
+          
+          canvas.on('mouse:up', () => {
+            canvas.activeControl = null;
+            dragStartControl = null;
+            isDragging = false;
+            canvas.renderAll(); // Re-render to show all handles
+          });
+          
+          canvas.on('mouse:move', (e: any) => {
+            if (isDragging && canvas.activeControl) {
+              // Keep the active control visible during dragging
+              canvas.renderAll();
+            }
+          });
+          
+          // Also track scaling events to maintain active control visibility
+          canvas.on('object:scaling', (e: any) => {
+            if (canvas.activeControl) {
+              canvas.renderAll();
+            }
+          });
+          
+          canvas.on('object:scaled', (e: any) => {
+            if (canvas.activeControl) {
+              canvas.renderAll();
+            }
+          });
           
           // Also save state for parent component (debounced)
           let stateChangeTimeout: NodeJS.Timeout;
