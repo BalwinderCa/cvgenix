@@ -137,43 +137,48 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
               ctx.setLineDash([]);
               
               if (isSmallElement) {
-                // For small elements, show only corner handles (tl, tr, bl, br)
-                const cornerHandles = ['tl', 'tr', 'bl', 'br'];
-                cornerHandles.forEach(controlName => {
+                // For small elements, show only pill-shaped middle handles to prevent overlapping
+                const middleHandles = ['ml', 'mr', 'mt', 'mb'];
+                const adjustedHandleSize = handleSize * 0.7;
+                const handleOffset = 0; // Distance from element border
+                
+                middleHandles.forEach(controlName => {
                   if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
                   
-                  const control = controls[controlName];
-                  if (!control) return;
+                  // Calculate handle position relative to current element position
+                  let x, y;
+                  const elementLeft = this.left;
+                  const elementTop = this.top;
+                  const elementRight = elementLeft + elementWidth;
+                  const elementBottom = elementTop + elementHeight;
                   
-                  const x = control.x;
-                  const y = control.y;
+                  switch (controlName) {
+                    case 'ml': // Left middle
+                      x = elementLeft - handleOffset;
+                      y = elementTop + elementHeight / 2;
+                      break;
+                    case 'mr': // Right middle
+                      x = elementRight + handleOffset;
+                      y = elementTop + elementHeight / 2;
+                      break;
+                    case 'mt': // Top middle
+                      x = elementLeft + elementWidth / 2;
+                      y = elementTop - handleOffset;
+                      break;
+                    case 'mb': // Bottom middle
+                      x = elementLeft + elementWidth / 2;
+                      y = elementBottom + handleOffset;
+                      break;
+                    default:
+                      return;
+                  }
                   
-                  // Draw handle
-                  ctx.beginPath();
-                  ctx.arc(x, y, handleSize / 2, 0, 2 * Math.PI);
-                  ctx.fillStyle = '#10b981';
-                  ctx.fill();
-                  ctx.strokeStyle = '#ffffff';
-                  ctx.lineWidth = 2;
-                  ctx.stroke();
-                });
-              } else {
-                // For larger elements, show all handles
-                Object.keys(controls).forEach(controlName => {
-                  if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
-                  
-                  const control = controls[controlName];
-                  if (!control) return;
-                  
-                  const x = control.x;
-                  const y = control.y;
-                  
-                  // Draw handle - pill shape for middle handles, circle for others
+                  // Draw pill-shaped handles
                   ctx.beginPath();
                   if (controlName === 'ml' || controlName === 'mr') {
                     // Pill-shaped handles for left and right middle (vertical orientation)
-                    const pillWidth = handleSize * 0.8;
-                    const pillHeight = handleSize * 1.5;
+                    const pillWidth = adjustedHandleSize * 0.8;
+                    const pillHeight = adjustedHandleSize * 1.5;
                     const radius = pillWidth / 2;
                     
                     ctx.roundRect(
@@ -183,9 +188,110 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
                       pillHeight, 
                       radius
                     );
+                  } else if (controlName === 'mt' || controlName === 'mb') {
+                    // Pill-shaped handles for top and bottom middle (horizontal orientation)
+                    const pillWidth = adjustedHandleSize * 1.5;
+                    const pillHeight = adjustedHandleSize * 0.8;
+                    const radius = pillHeight / 2;
+                    
+                    ctx.roundRect(
+                      x - pillWidth / 2, 
+                      y - pillHeight / 2, 
+                      pillWidth, 
+                      pillHeight, 
+                      radius
+                    );
+                  }
+                  
+                  ctx.fillStyle = '#10b981';
+                  ctx.fill();
+                  ctx.strokeStyle = '#ffffff';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+                });
+              } else {
+                // For larger elements, show all handles
+                const handleOffset = 0; // Distance from element border
+                const adjustedHandleSize = handleSize * 0.8; // Reduce size for large elements
+                
+                Object.keys(controls).forEach(controlName => {
+                  if (!this.isControlVisible || !this.isControlVisible(controlName)) return;
+                  
+                  // Calculate handle position relative to current element position
+                  let x, y;
+                  const elementLeft = this.left;
+                  const elementTop = this.top;
+                  const elementRight = elementLeft + elementWidth;
+                  const elementBottom = elementTop + elementHeight;
+                  
+                  switch (controlName) {
+                    case 'tl': // Top left
+                      x = elementLeft - handleOffset;
+                      y = elementTop - handleOffset;
+                      break;
+                    case 'tr': // Top right
+                      x = elementRight + handleOffset;
+                      y = elementTop - handleOffset;
+                      break;
+                    case 'bl': // Bottom left
+                      x = elementLeft - handleOffset;
+                      y = elementBottom + handleOffset;
+                      break;
+                    case 'br': // Bottom right
+                      x = elementRight + handleOffset;
+                      y = elementBottom + handleOffset;
+                      break;
+                    case 'ml': // Left middle
+                      x = elementLeft - handleOffset;
+                      y = elementTop + elementHeight / 2;
+                      break;
+                    case 'mr': // Right middle
+                      x = elementRight + handleOffset;
+                      y = elementTop + elementHeight / 2;
+                      break;
+                    case 'mt': // Top middle
+                      x = elementLeft + elementWidth / 2;
+                      y = elementTop - handleOffset;
+                      break;
+                    case 'mb': // Bottom middle
+                      x = elementLeft + elementWidth / 2;
+                      y = elementBottom + handleOffset;
+                      break;
+                    default:
+                      return;
+                  }
+                  
+                  // Draw handle - pill shape for middle handles, circle for corners
+                  ctx.beginPath();
+                  if (controlName === 'ml' || controlName === 'mr') {
+                    // Pill-shaped handles for left and right middle (vertical orientation)
+                    const pillWidth = adjustedHandleSize * 0.8;
+                    const pillHeight = adjustedHandleSize * 1.5;
+                    const radius = pillWidth / 2;
+                    
+                    ctx.roundRect(
+                      x - pillWidth / 2, 
+                      y - pillHeight / 2, 
+                      pillWidth, 
+                      pillHeight, 
+                      radius
+                    );
+                  } else if (controlName === 'mt' || controlName === 'mb') {
+                    // Pill-shaped handles for top and bottom middle (horizontal orientation)
+                    const pillWidth = adjustedHandleSize * 1.5;
+                    const pillHeight = adjustedHandleSize * 0.8;
+                    const radius = pillHeight / 2;
+                    
+                    ctx.roundRect(
+                      x - pillWidth / 2, 
+                      y - pillHeight / 2, 
+                      pillWidth, 
+                      pillHeight, 
+                      radius
+                    );
                   } else {
-                    // Circular handles for corners and top/bottom middle
-                    ctx.arc(x, y, handleSize / 2, 0, 2 * Math.PI);
+                    // Circular handles for corners only
+                    ctx.arc(x, y, adjustedHandleSize / 2, 0, 2 * Math.PI);
                   }
                   
                   ctx.fillStyle = '#10b981';
