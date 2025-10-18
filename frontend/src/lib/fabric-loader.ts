@@ -38,7 +38,7 @@ export const loadFabric = async (): Promise<any> => {
     }
     const script = document.createElement('script');
     script.id = 'fabric-script';
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/fabric@latest/dist/fabric.min.js';
     script.crossOrigin = 'anonymous';
     
     script.onload = () => {
@@ -58,7 +58,7 @@ export const loadFabric = async (): Promise<any> => {
       // Try fallback CDN
       const fallbackScript = document.createElement('script');
       fallbackScript.id = 'fabric-script-fallback';
-      fallbackScript.src = 'https://unpkg.com/fabric@5.3.0/dist/fabric.min.js';
+      fallbackScript.src = 'https://unpkg.com/fabric@latest/dist/fabric.min.js';
       fallbackScript.crossOrigin = 'anonymous';
       
       fallbackScript.onload = () => {

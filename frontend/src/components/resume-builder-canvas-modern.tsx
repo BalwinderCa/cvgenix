@@ -124,37 +124,30 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           transformOrigin: 'top center'
         }}
         tabIndex={0}
-        onFocus={() => {
-          // Ensure canvas gets focus when container is focused
-          if (fabricCanvasRef.current) {
-            // Fabric.js doesn't have setActive method, just ensure canvas is ready
-            fabricCanvasRef.current.requestRenderAll();
-          }
-        }}
-        onClick={(e) => {
-          // Ensure container gets focus when clicked
-          const container = e.currentTarget;
-          if (container && typeof container.focus === 'function') {
-            container.focus();
-          }
-        }}
         onKeyDown={(e) => {
-          // Handle Ctrl+A at the container level - this should take precedence
+          // Handle Ctrl+A at the container level
           if (e.ctrlKey && e.key === 'a') {
             e.preventDefault();
             e.stopPropagation();
             
-            if (canvasManagerRef.current) {
-              canvasManagerRef.current.selectAllObjects();
+            if (fabricCanvasRef.current) {
+              const canvas = fabricCanvasRef.current;
+              canvas.discardActiveObject();
+              const allObjects = canvas.getObjects();
+              if (allObjects.length > 0) {
+                const selection = new (window as any).fabric.ActiveSelection(allObjects, {
+                  canvas: canvas,
+                });
+                canvas.setActiveObject(selection);
+                canvas.requestRenderAll();
+              }
             }
-            return false;
           }
         }}
       >
         <canvas
           ref={canvasRef}
           className="block"
-          tabIndex={-1}
         />
       </div>
     </div>
