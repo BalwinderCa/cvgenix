@@ -271,10 +271,38 @@ export class TemplateService {
           originY: 'top'
         };
         
+        // Text and Textbox
         if (elementData.type === 'textbox' && elementData.text) {
           obj = new fabric.Textbox(elementData.text, cleanData);
         } else if (elementData.type === 'text' && elementData.text) {
           obj = new fabric.Text(elementData.text, cleanData);
+        // Rectangles (used for horizontal/vertical rules)
+        } else if (elementData.type === 'rect') {
+          const rectData = {
+            left: cleanData.left,
+            top: cleanData.top,
+            width: elementData.width || cleanData.width,
+            height: elementData.height || cleanData.height,
+            fill: elementData.fill || cleanData.fill,
+            stroke: elementData.stroke,
+            strokeWidth: elementData.strokeWidth,
+            originX: 'left',
+            originY: 'top'
+          };
+          obj = new fabric.Rect(rectData);
+        // Lines (fallback if any template uses type 'line')
+        } else if (elementData.type === 'line') {
+          const x1 = elementData.left || 0;
+          const y1 = elementData.top || 0;
+          const x2 = (elementData.left || 0) + (elementData.width || 0);
+          const y2 = (elementData.top || 0) + (elementData.height ? 0 : 0);
+          const lineOptions = {
+            left: 0,
+            top: 0,
+            stroke: elementData.stroke || elementData.fill || '#000000',
+            strokeWidth: elementData.strokeWidth || Math.max(1, elementData.height || 1)
+          } as any;
+          obj = new fabric.Line([x1, y1, x2, y2], lineOptions);
         }
         
         // Ensure textBaseline is set correctly for all text objects
@@ -288,6 +316,9 @@ export class TemplateService {
             tl: true, tr: true, bl: true, br: true
           });
           
+          objectsToAdd.push(obj);
+        } else if (obj) {
+          // Non-text objects (e.g., rect, line)
           objectsToAdd.push(obj);
         }
       } catch (elementError) {

@@ -54,6 +54,8 @@ export interface CanvasConfig {
 // Object control configuration
 export interface ObjectControls {
   borderColor: string;
+  borderWidth?: number;
+  borderDashArray?: number[];
   cornerColor: string;
   cornerStrokeColor: string;
   cornerStyle: 'circle' | 'rect';
@@ -109,18 +111,20 @@ export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
 };
 
 export const DEFAULT_OBJECT_CONTROLS: ObjectControls = {
-  borderColor: '#3b82f6',
-  cornerColor: '#ffffff',
-  cornerStrokeColor: '#3b82f6',
+  borderColor: '#10b981', // Green color to match hover effect
+  borderWidth: 3, // Thick border like hover effect
+  borderDashArray: [5, 5], // Dotted pattern like hover effect
+  cornerColor: '#10b981', // Green corners to match hover effect
+  cornerStrokeColor: '#10b981',
   cornerStyle: 'circle',
-  cornerSize: 16,
+  cornerSize: 12, // Slightly smaller corners
   transparentCorners: false,
-  borderScaleFactor: 2,
+  borderScaleFactor: 2, // Thinner border scale
   lockRotation: true,
   hasRotatingPoint: false,
   originX: 'left',
   originY: 'top',
-  padding: 8,
+  padding: 5,
   centeredScaling: false,
   centeredRotation: false,
 };

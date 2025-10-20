@@ -108,9 +108,11 @@ export class FabricCanvasManager {
   private setupObjectControls(fabric: any): void {
     if (!this.canvas) return;
 
-    // Apply modern control styling
+    // Apply modern control styling with green dotted selection (matching hover effect)
     fabric.Object.prototype.set({
       borderColor: this.objectControls.borderColor,
+      borderWidth: this.objectControls.borderWidth,
+      borderDashArray: this.objectControls.borderDashArray,
       cornerColor: this.objectControls.cornerColor,
       cornerStrokeColor: this.objectControls.cornerStrokeColor,
       cornerStyle: this.objectControls.cornerStyle,
