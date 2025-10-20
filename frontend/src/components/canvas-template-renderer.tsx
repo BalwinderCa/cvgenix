@@ -102,6 +102,7 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
               lockRotation: isLocked,
               lockScalingX: isLocked,
               lockScalingY: isLocked,
+              padding: 0, // reduce visual padding around selection box
               // Add hover effects
               hoverCursor: isLocked ? 'not-allowed' : 'move',
               moveCursor: isLocked ? 'not-allowed' : 'move',
@@ -115,7 +116,8 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
               obj.set({
                 borderColor: '#3b82f6',
                 borderWidth: 1,
-                borderDashArray: [3, 3],
+                borderDashArray: [2, 2], // tighter dash and less visual padding
+                padding: 0,
               });
               fabricCanvas.renderAll();
             }
@@ -130,6 +132,7 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
                   borderColor: 'transparent',
                   borderWidth: 0,
                   borderDashArray: null,
+                  padding: 0,
                 });
                 fabricCanvas.renderAll();
               }
@@ -200,12 +203,13 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
           const obj = e.selected[0];
           obj.set({
             borderColor: '#3b82f6',
-            borderWidth: 2,
-            borderDashArray: [5, 5],
+            borderWidth: 1,
+            borderDashArray: [3, 3],
             cornerColor: '#3b82f6',
-            cornerSize: 12,
+            cornerSize: 8,
             cornerStyle: 'circle',
-            transparentCorners: false
+            transparentCorners: false,
+            padding: 0,
           });
           fabricCanvas.renderAll();
         });
@@ -214,12 +218,13 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
           const obj = e.selected[0];
           obj.set({
             borderColor: '#3b82f6',
-            borderWidth: 2,
-            borderDashArray: [5, 5],
+            borderWidth: 1,
+            borderDashArray: [3, 3],
             cornerColor: '#3b82f6',
-            cornerSize: 12,
+            cornerSize: 8,
             cornerStyle: 'circle',
-            transparentCorners: false
+            transparentCorners: false,
+            padding: 0,
           });
           fabricCanvas.renderAll();
         });
@@ -234,7 +239,8 @@ export function CanvasTemplateRenderer({ templateId, data, className = '', edita
               cornerColor: 'transparent',
               cornerSize: 0,
               cornerStyle: 'rect',
-              transparentCorners: true
+              transparentCorners: true,
+              padding: 0,
             });
           });
           fabricCanvas.renderAll();
