@@ -29,7 +29,6 @@ export const useCanvasManager = () => {
     if (fabricCanvas && typeof fabricCanvas.canUndo === 'function' && typeof fabricCanvas.canRedo === 'function') {
       const canUndo = fabricCanvas.canUndo();
       const canRedo = fabricCanvas.canRedo();
-      console.log(`🔄 Updating undo/redo state - canUndo: ${canUndo}, canRedo: ${canRedo}`);
       setUndoRedoState({ canUndo, canRedo });
     }
   }, [canvasState]);
