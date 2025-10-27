@@ -21,6 +21,7 @@ export class FabricCanvasManager {
   private shouldRecord: boolean = true;
   private isUserAction: boolean = false;
   private saveStateTimeout: NodeJS.Timeout | null = null;
+  private cleanupFunctions: (() => void)[] = [];
 
   constructor(
     private canvasElement: HTMLCanvasElement,
@@ -53,6 +54,9 @@ export class FabricCanvasManager {
       stopContextMenu: this.config.stopContextMenu,
     }) as FabricCanvas;
 
+    // Fix blurriness on high-DPI displays
+    this.setupHighDPICanvas();
+
     // Apply modern object controls
     this.setupObjectControls(fabric);
     
@@ -64,6 +68,9 @@ export class FabricCanvasManager {
     
     // Setup undo/redo functionality
     this.setupUndoRedo();
+    
+    // Setup window resize handler for high-DPI
+    this.setupResizeHandler();
     
     // Initial state save
     this.saveState();
@@ -103,6 +110,57 @@ export class FabricCanvasManager {
       };
       
       document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Setup high-DPI canvas to prevent blurriness
+   */
+  private setupHighDPICanvas(): void {
+    if (!this.canvas || !this.canvasElement) return;
+
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const canvas = this.canvasElement;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set the actual size in memory (scaled to account for extra pixel density)
+    canvas.width = this.config.width * devicePixelRatio;
+    canvas.height = this.config.height * devicePixelRatio;
+
+    // Scale the drawing context so everything will work at the higher ratio
+    context.scale(devicePixelRatio, devicePixelRatio);
+
+    // Set the display size (CSS pixels)
+    canvas.style.width = this.config.width + 'px';
+    canvas.style.height = this.config.height + 'px';
+
+    // Update Fabric.js canvas dimensions
+    this.canvas.setDimensions({
+      width: this.config.width,
+      height: this.config.height
+    });
+  }
+
+  /**
+   * Setup window resize handler to maintain high-DPI rendering
+   */
+  private setupResizeHandler(): void {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      if (this.canvas && this.canvasElement) {
+        this.setupHighDPICanvas();
+        this.canvas.requestRenderAll();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    // Store cleanup function
+    this.cleanupFunctions.push(() => {
+      window.removeEventListener('resize', handleResize);
     });
   }
 
@@ -589,6 +647,10 @@ export class FabricCanvasManager {
       clearTimeout(this.saveStateTimeout);
       this.saveStateTimeout = null;
     }
+    
+    // Run all cleanup functions
+    this.cleanupFunctions.forEach(cleanup => cleanup());
+    this.cleanupFunctions = [];
     
     if (this.canvas) {
       // Remove keyboard event listener
