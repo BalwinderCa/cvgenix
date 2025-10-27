@@ -17,6 +17,24 @@ export const useCanvasManager = () => {
     showDeleteButton: false,
   });
 
+  // State for undo/redo button states
+  const [undoRedoState, setUndoRedoState] = useState({
+    canUndo: false,
+    canRedo: false,
+  });
+
+  // Function to update undo/redo state
+  const updateUndoRedoState = useCallback(() => {
+    const { fabricCanvas } = canvasState;
+    if (fabricCanvas && typeof fabricCanvas.canUndo === 'function' && typeof fabricCanvas.canRedo === 'function') {
+      const canUndo = fabricCanvas.canUndo();
+      const canRedo = fabricCanvas.canRedo();
+      console.log(`🔄 Updating undo/redo state - canUndo: ${canUndo}, canRedo: ${canRedo}`);
+      setUndoRedoState({ canUndo, canRedo });
+    }
+  }, [canvasState]);
+
+
   const isRestoringRef = useRef<boolean>(false);
   const lastRestoreAttemptRef = useRef<number>(0);
   const cleanupFunctionsRef = useRef<CleanupFunction[]>([]);
@@ -33,12 +51,24 @@ export const useCanvasManager = () => {
 
   // Canvas ready handler
   const handleCanvasReady = useCallback((canvas: any) => {
+    // Prevent re-initialization if canvas is already set
+    if (canvasState.fabricCanvas === canvas) {
+      return;
+    }
+    
     console.log('🎨 Canvas ready callback triggered - Objects count:', canvas.getObjects().length);
     
-    setCanvasState(prev => ({
-      ...prev,
-      fabricCanvas: canvas,
-    }));
+    setCanvasState(prev => {
+      // Only update if the canvas is different
+      if (prev.fabricCanvas === canvas) {
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        fabricCanvas: canvas,
+      };
+    });
       
     // Save initial empty canvas state
     const stateTimeout = setTimeout(() => {
@@ -51,7 +81,7 @@ export const useCanvasManager = () => {
     
     // Store timeout for cleanup
     cleanupFunctionsRef.current.push(() => clearTimeout(stateTimeout));
-  }, []);
+  }, [canvasState.fabricCanvas]);
 
   // State change handler
   const handleStateChange = useCallback((state: string) => {
@@ -59,7 +89,13 @@ export const useCanvasManager = () => {
       ...prev,
       canvasState: state,
     }));
-  }, []);
+    
+    // Update undo/redo state when canvas state changes
+    setTimeout(updateUndoRedoState, 100);
+    
+    // Don't automatically save to canvas history - let the canvas handle its own state management
+    // The canvas will save states when objects are added/modified/removed
+  }, [updateUndoRedoState]);
 
   // Restore canvas state
   const restoreCanvasState = useCallback(() => {
@@ -200,6 +236,8 @@ export const useCanvasManager = () => {
       return () => clearTimeout(restoreTimeout);
     }
   }, [canvasState, restoreCanvasState]);
+
+
   
   // Cleanup effect for component unmount
   useEffect(() => {
@@ -219,6 +257,41 @@ export const useCanvasManager = () => {
     };
   }, []);
 
+  // Undo functionality
+  const handleUndo = useCallback(() => {
+    const { fabricCanvas } = canvasState;
+    if (fabricCanvas && typeof fabricCanvas.undo === 'function') {
+      fabricCanvas.undo();
+      // Update undo/redo state after undo
+      setTimeout(updateUndoRedoState, 100);
+    }
+  }, [canvasState, updateUndoRedoState]);
+
+  // Redo functionality
+  const handleRedo = useCallback(() => {
+    const { fabricCanvas } = canvasState;
+    if (fabricCanvas && typeof fabricCanvas.redo === 'function') {
+      fabricCanvas.redo();
+      // Update undo/redo state after redo
+      setTimeout(updateUndoRedoState, 100);
+    }
+  }, [canvasState, updateUndoRedoState]);
+
+  // Check if undo is available
+  const canUndo = useCallback(() => {
+    return undoRedoState.canUndo;
+  }, [undoRedoState.canUndo]);
+
+  // Check if redo is available
+  const canRedo = useCallback(() => {
+    return undoRedoState.canRedo;
+  }, [undoRedoState.canRedo]);
+
+  // Update undo/redo state when canvas changes
+  useEffect(() => {
+    updateUndoRedoState();
+  }, [canvasState.fabricCanvas, updateUndoRedoState]);
+
   return {
     canvasState,
     editToolbarState,
@@ -231,5 +304,9 @@ export const useCanvasManager = () => {
     updateEditToolbarState,
     updateCanvasState,
     registerCleanup,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo,
   };
 };

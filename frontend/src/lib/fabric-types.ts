@@ -7,6 +7,10 @@ export interface FabricCanvas extends fabric.Canvas {
   redo?: () => void;
   saveState?: () => void;
   restoreFromState?: (state: string) => void;
+  markAsUserAction?: () => void;
+  canUndo?: () => boolean;
+  canRedo?: () => boolean;
+  initializeHistory?: () => void;
   keyboardHandler?: (e: KeyboardEvent) => void;
   canvasKeyHandler?: (e: KeyboardEvent) => void;
   selectionHandlers?: {

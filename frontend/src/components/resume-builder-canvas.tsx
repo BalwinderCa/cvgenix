@@ -14,6 +14,7 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
   const canvasManagerRef = useRef<FabricCanvasManager | null>(null);
+  const isInitializingRef = useRef<boolean>(false);
   
   // Use dynamic canvas dimensions
   const { dimensions, getBaseDimensions, getScaledDimensions } = useCanvasDimensions({
@@ -25,7 +26,8 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
 
   useEffect(() => {
     const initCanvas = async () => {
-      if (canvasRef.current && !fabricCanvasRef.current) {
+      if (canvasRef.current && !fabricCanvasRef.current && !isInitializingRef.current) {
+        isInitializingRef.current = true;
         try {
           const baseDimensions = getBaseDimensions();
           
@@ -96,6 +98,7 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           onCanvasReady(canvas);
         } catch (error) {
           console.error('Failed to initialize Fabric.js canvas:', error);
+          isInitializingRef.current = false;
         }
       }
     };
@@ -108,8 +111,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
         canvasManagerRef.current = null;
       }
       fabricCanvasRef.current = null;
+      isInitializingRef.current = false;
     };
-  }, [onCanvasReady, getBaseDimensions, onStateChange]);
+  }, [getBaseDimensions]);
 
   const scaledDimensions = getScaledDimensions();
 

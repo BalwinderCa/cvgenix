@@ -72,6 +72,10 @@ interface TextProperties {
 interface ResumeBuilderTopBarProps {
   fabricCanvas: FabricCanvas | null;
   onSave: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 // Constants
@@ -1076,7 +1080,11 @@ const AdvancedToolsOverlay = ({
 // Main component with better error boundaries
 export default function ResumeBuilderTopBar({ 
   fabricCanvas, 
-  onSave
+  onSave,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false
 }: ResumeBuilderTopBarProps) {
   const { textProperties, textOperations, updateTextProperties, isLoading: textLoading } = useTextOperations(fabricCanvas);
   const { canvasOperations, isLoading: canvasLoading } = useCanvasOperations(fabricCanvas);
@@ -1128,16 +1136,18 @@ export default function ResumeBuilderTopBar({
           <div className="flex items-center space-x-1" role="toolbar" aria-label="Text formatting toolbar">
             {/* Undo/Redo */}
             <ToolbarButton 
-              onClick={canvasOperations.undo} 
+              onClick={onUndo || canvasOperations.undo} 
               icon={Undo} 
               title="Undo" 
               isLoading={isLoading}
+              disabled={!canUndo}
             />
             <ToolbarButton 
-              onClick={canvasOperations.redo} 
+              onClick={onRedo || canvasOperations.redo} 
               icon={Redo} 
               title="Redo" 
               isLoading={isLoading}
+              disabled={!canRedo}
             />
             
             <ToolbarSeparator />

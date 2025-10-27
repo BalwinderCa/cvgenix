@@ -17,6 +17,10 @@ export class FabricCanvasManager {
   private history: string[] = [];
   private historyIndex: number = -1;
   private maxHistorySize: number = 50;
+  private isRestoring: boolean = false;
+  private shouldRecord: boolean = true;
+  private isUserAction: boolean = false;
+  private saveStateTimeout: NodeJS.Timeout | null = null;
 
   constructor(
     private canvasElement: HTMLCanvasElement,
@@ -142,20 +146,105 @@ export class FabricCanvasManager {
   private setupEventHandlers(): void {
     if (!this.canvas) return;
 
-    // Object lifecycle events
-    this.canvas.on('object:added', (e) => {
-      this.saveState();
-      this.eventHandlers.onObjectAdded?.(e);
-    });
+        // Object lifecycle events
+        this.canvas.on('object:added', (e) => {
+          // Force shouldRecord to true for user actions
+          if (this.isUserAction) {
+            this.shouldRecord = true;
+          }
+          // Only save state if it's a user action and not during undo/redo operations
+          if (!this.isRestoring && this.shouldRecord && this.isUserAction) {
+            this.saveState(); // Save immediately for each addition
+          }
+          this.eventHandlers.onObjectAdded?.(e);
+        });
 
     this.canvas.on('object:removed', (e) => {
-      this.saveState();
+      // Force shouldRecord to true for user actions
+      if (this.isUserAction) {
+        this.shouldRecord = true;
+      }
+      // Only save state if it's a user action and not during undo/redo operations
+      if (!this.isRestoring && this.shouldRecord && this.isUserAction) {
+        this.saveState(); // Save immediately for each removal
+      }
       this.eventHandlers.onObjectRemoved?.(e);
     });
 
     this.canvas.on('object:modified', (e) => {
-      this.saveState();
+      // Always mark as user action when object is modified
+      this.isUserAction = true;
+      // Force shouldRecord to true for user actions
+      if (this.isUserAction) {
+        this.shouldRecord = true;
+      }
+      // Only save state if it's not during undo/redo operations
+      if (!this.isRestoring && this.shouldRecord) {
+        this.saveState(); // Save immediately for each modification
+      }
       this.eventHandlers.onObjectModified?.(e);
+    });
+
+    // Text editing events
+    this.canvas.on('text:editing:exited', (e) => {
+      // Only save state if it's a user action and not during undo/redo operations
+      if (!this.isRestoring && this.shouldRecord && this.isUserAction) {
+        this.saveState();
+      }
+    });
+
+    // Additional events to capture more modifications
+    this.canvas.on('object:moving', (e) => {
+      this.isUserAction = true;
+    });
+
+    this.canvas.on('object:scaling', (e) => {
+      this.isUserAction = true;
+    });
+
+    this.canvas.on('object:rotating', (e) => {
+      this.isUserAction = true;
+    });
+
+    this.canvas.on('object:skewing', (e) => {
+      this.isUserAction = true;
+    });
+
+
+    // Mouse events to track user actions
+    this.canvas.on('mouse:down', (e) => {
+      this.isUserAction = true;
+      this.eventHandlers.onMouseDown?.(e);
+    });
+
+    this.canvas.on('mouse:up', (e) => {
+      // Keep user action flag for a short time to capture modifications
+      setTimeout(() => {
+        this.isUserAction = false;
+        // Also ensure shouldRecord is true after user action
+        if (!this.shouldRecord) {
+          this.shouldRecord = true;
+        }
+      }, 200); // Reduced to 200ms for more responsive tracking
+      this.eventHandlers.onMouseUp?.(e);
+    });
+
+    // Track mouse movement as user action for dragging/resizing
+    this.canvas.on('mouse:move', (e) => {
+      if ((this.canvas as any)?.isDragging || (this.canvas as any)?.isResizing) {
+        this.isUserAction = true;
+      }
+      this.eventHandlers.onMouseMove?.(e);
+    });
+
+    // Hover events - explicitly prevent recording
+    this.canvas.on('mouse:over', (e) => {
+      this.shouldRecord = false;
+      this.isUserAction = false;
+    });
+
+    this.canvas.on('mouse:out', (e) => {
+      this.shouldRecord = true;
     });
 
     // Selection events
@@ -172,16 +261,22 @@ export class FabricCanvasManager {
     });
 
     // Mouse events
-    this.canvas.on('mouse:down', (e) => {
-      this.eventHandlers.onMouseDown?.(e);
-    });
-
-    this.canvas.on('mouse:up', (e) => {
-      this.eventHandlers.onMouseUp?.(e);
-    });
-
     this.canvas.on('mouse:move', (e) => {
       this.eventHandlers.onMouseMove?.(e);
+    });
+
+    // Keyboard events to track user actions
+    this.canvas.on('key:down', (e) => {
+      this.isUserAction = true;
+      (this.eventHandlers as any).onKeyDown?.(e);
+    });
+
+    this.canvas.on('key:up', (e) => {
+      // Keep user action flag for a short time to capture object modifications
+      setTimeout(() => {
+        this.isUserAction = false;
+      }, 200); // Increased to match mouse timeout
+      (this.eventHandlers as any).onKeyUp?.(e);
     });
 
     // Text editing events
@@ -347,23 +442,53 @@ export class FabricCanvasManager {
     this.canvas.undo = () => this.undo();
     this.canvas.redo = () => this.redo();
     this.canvas.saveState = () => this.saveState();
+    this.canvas.canUndo = () => this.canUndo();
+    this.canvas.canRedo = () => this.canRedo();
+    this.canvas.markAsUserAction = () => this.markAsUserAction();
+    this.canvas.initializeHistory = () => this.initializeHistory();
+  }
+
+  /**
+   * Debounced save state to avoid too many saves during rapid changes
+   */
+  private debouncedSaveState(): void {
+    if (this.saveStateTimeout) {
+      clearTimeout(this.saveStateTimeout);
+    }
+    
+    this.saveStateTimeout = setTimeout(() => {
+      this.saveState();
+    }, 100); // Reduced to 100ms for more granular saves
   }
 
   /**
    * Save current canvas state for undo/redo
    */
   private saveState(): void {
-    if (!this.canvas) return;
+    if (!this.canvas || this.isRestoring) {
+      return;
+    }
 
     const state = JSON.stringify(this.canvas.toJSON());
-    
+    const parsedState = JSON.parse(state);
+
+    // Don't save if it's the same as the last state
+    if (this.history.length > 0 && this.history[this.historyIndex] === state) {
+      return;
+    }
+
+    // Don't save empty states unless it's the initial state
+    if (parsedState.objects && parsedState.objects.length === 0 && this.history.length > 0) {
+      return;
+    }
+
     // Remove states after current index
     this.history = this.history.slice(0, this.historyIndex + 1);
-    
+
     // Add new state
     this.history.push(state);
     this.historyIndex++;
-    
+
     // Limit history size
     if (this.history.length > this.maxHistorySize) {
       this.history.shift();
@@ -375,7 +500,9 @@ export class FabricCanvasManager {
    * Undo last action
    */
   private undo(): void {
-    if (!this.canvas || this.historyIndex <= 0) return;
+    if (!this.canvas || this.historyIndex <= 0 || this.isRestoring) {
+      return;
+    }
 
     this.historyIndex--;
     const state = this.history[this.historyIndex];
@@ -386,7 +513,9 @@ export class FabricCanvasManager {
    * Redo last undone action
    */
   private redo(): void {
-    if (!this.canvas || this.historyIndex >= this.history.length - 1) return;
+    if (!this.canvas || this.historyIndex >= this.history.length - 1 || this.isRestoring) {
+      return;
+    }
 
     this.historyIndex++;
     const state = this.history[this.historyIndex];
@@ -400,12 +529,30 @@ export class FabricCanvasManager {
     if (!this.canvas) return;
 
     try {
+      this.isRestoring = true;
+      
       this.canvas.loadFromJSON(state, () => {
         this.canvas!.requestRenderAll();
+        this.isRestoring = false;
       });
     } catch (error) {
       console.error('Error restoring canvas state:', error);
+      this.isRestoring = false;
     }
+  }
+
+  /**
+   * Check if undo is available
+   */
+  private canUndo(): boolean {
+    return this.historyIndex > 0;
+  }
+
+  /**
+   * Check if redo is available
+   */
+  private canRedo(): boolean {
+    return this.historyIndex < this.history.length - 1;
   }
 
   /**
@@ -416,9 +563,33 @@ export class FabricCanvasManager {
   }
 
   /**
+   * Mark the next operation as a user action (for programmatic operations that should be recorded)
+   */
+  markAsUserAction(): void {
+    this.isUserAction = true;
+    this.shouldRecord = true;
+  }
+
+  /**
+   * Initialize history with current canvas state (useful after template loading)
+   */
+  public initializeHistory(): void {
+    if (!this.canvas) return;
+
+    this.history = [];
+    this.historyIndex = -1;
+    this.saveState();
+  }
+
+  /**
    * Cleanup resources
    */
   dispose(): void {
+    if (this.saveStateTimeout) {
+      clearTimeout(this.saveStateTimeout);
+      this.saveStateTimeout = null;
+    }
+    
     if (this.canvas) {
       // Remove keyboard event listener
       if (this.canvas.keyboardHandler) {

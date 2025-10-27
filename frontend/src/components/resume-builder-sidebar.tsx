@@ -95,6 +95,11 @@ export default function ResumeBuilderSidebar({
       const fabric = await loadFabric();
       if (!fabric) return;
 
+      // Mark this as a user action for undo/redo history
+      if (fabricCanvas.markAsUserAction) {
+        fabricCanvas.markAsUserAction();
+      }
+
       let obj;
       switch (objectType) {
         case 'Line':

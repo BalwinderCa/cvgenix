@@ -35,6 +35,10 @@ export default function ResumeBuilderPage() {
     updateEditToolbarState,
     updateCanvasState,
     registerCleanup,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo,
   } = useCanvasManager();
 
   // Template service instance
@@ -180,8 +184,11 @@ export default function ResumeBuilderPage() {
       const baseDimensions = getBaseDimensions();
       await templateService.loadTemplateIntoCanvas(canvasState.fabricCanvas, templateId, baseDimensions);
       
-      // Save the canvas state after template is loaded
+      // Initialize undo/redo history with the loaded template
       setTimeout(() => {
+        if (canvasState.fabricCanvas && canvasState.fabricCanvas.initializeHistory) {
+          canvasState.fabricCanvas.initializeHistory();
+        }
         const initialState = JSON.stringify(canvasState.fabricCanvas.toJSON());
         updateCanvasState({ canvasState: initialState });
       }, 100);
@@ -254,6 +261,10 @@ export default function ResumeBuilderPage() {
               <ResumeBuilderTopBar
                 fabricCanvas={canvasState.fabricCanvas}
                 onSave={handleSave}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                canUndo={canUndo()}
+                canRedo={canRedo()}
               />
             </div>
             
