@@ -128,7 +128,7 @@ export const DEFAULT_OBJECT_CONTROLS: ObjectControls = {
   hasRotatingPoint: false,
   originX: 'left',
   originY: 'top',
-  padding: 5,
+  padding: 2,
   centeredScaling: false,
   centeredRotation: false,
 };
