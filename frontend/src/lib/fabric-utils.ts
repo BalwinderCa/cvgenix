@@ -628,8 +628,12 @@ export class FabricCanvasManager {
           });
           this.canvas.setActiveObject(activeSelection);
         } else {
-          // Fallback: select all objects individually
-          this.canvas.setActiveObjects(objects);
+          // Fallback: if ActiveSelection is not available, just select the last object
+          // This is better than nothing - user can manually select others if needed
+          if (objects.length > 0) {
+            this.canvas.setActiveObject(objects[objects.length - 1]);
+            this.canvas.requestRenderAll();
+          }
         }
       }
 
