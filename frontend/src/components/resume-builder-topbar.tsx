@@ -14,7 +14,9 @@ import {
   Trash2,
   Plus,
   Minus,
-  Settings
+  Settings,
+  Layers,
+  SquareStack
 } from 'lucide-react';
 
 // Types
@@ -33,6 +35,10 @@ interface FabricCanvas {
   off(event: string, handler: () => void): void;
   highlightAllTextObjects?(): void;
   clearAllHighlights?(): void;
+  groupSelectedObjects?(): void;
+  ungroupSelectedObjects?(): void;
+  canGroup?(): boolean;
+  canUngroup?(): boolean;
 }
 
 interface FabricObject {
@@ -657,6 +663,36 @@ const useCanvasOperations = (fabricCanvas: FabricCanvas | null) => {
       } finally {
         setIsLoading(false);
       }
+    },
+
+    group: async () => {
+      if (!fabricCanvas || isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        if (fabricCanvas.groupSelectedObjects) {
+          fabricCanvas.groupSelectedObjects();
+        }
+      } catch (error) {
+        console.error('Error grouping objects:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    ungroup: async () => {
+      if (!fabricCanvas || isLoading) return;
+      setIsLoading(true);
+      
+      try {
+        if (fabricCanvas.ungroupSelectedObjects) {
+          fabricCanvas.ungroupSelectedObjects();
+        }
+      } catch (error) {
+        console.error('Error ungrouping objects:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   }), [fabricCanvas, isLoading]);
 
@@ -1090,6 +1126,8 @@ export default function ResumeBuilderTopBar({
   const { canvasOperations, isLoading: canvasLoading } = useCanvasOperations(fabricCanvas);
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const [hasLineSelected, setHasLineSelected] = useState(false);
+  const [canGroup, setCanGroup] = useState(false);
+  const [canUngroup, setCanUngroup] = useState(false);
   
   const isLoading = textLoading || canvasLoading;
 
@@ -1103,23 +1141,50 @@ export default function ResumeBuilderTopBar({
         
         // Check if a line is selected
         const activeObject = fabricCanvas.getActiveObject();
+        const activeObjects = fabricCanvas.getActiveObjects();
         const hasLine = activeObject && activeObject.type === 'line';
         setHasLineSelected(!!hasLine);
+        
+        // Check if group/ungroup is possible
+        if (fabricCanvas.canGroup) {
+          setCanGroup(fabricCanvas.canGroup());
+        } else {
+          // Fallback: check if we have 2+ objects selected
+          setCanGroup(activeObjects.length >= 2);
+        }
+        
+        if (fabricCanvas.canUngroup) {
+          setCanUngroup(fabricCanvas.canUngroup());
+        } else {
+          // Fallback: check if selected object is a group
+          setCanUngroup(activeObject !== null && activeObject.type === 'group');
+        }
       } catch (error) {
         console.error('Error handling selection change:', error);
+      }
+    };
+
+    const handleSelectionCleared = () => {
+      try {
+        updateTextProperties();
+        setHasLineSelected(false);
+        setCanGroup(false);
+        setCanUngroup(false);
+      } catch (error) {
+        console.error('Error handling selection cleared:', error);
       }
     };
 
     try {
       fabricCanvas.on('selection:created', handleSelectionChange);
       fabricCanvas.on('selection:updated', handleSelectionChange);
-      fabricCanvas.on('selection:cleared', handleSelectionChange);
+      fabricCanvas.on('selection:cleared', handleSelectionCleared);
 
       return () => {
         try {
           fabricCanvas.off('selection:created', handleSelectionChange);
           fabricCanvas.off('selection:updated', handleSelectionChange);
-          fabricCanvas.off('selection:cleared', handleSelectionChange);
+          fabricCanvas.off('selection:cleared', handleSelectionCleared);
         } catch (error) {
           console.error('Error removing event listeners:', error);
         }
@@ -1148,6 +1213,24 @@ export default function ResumeBuilderTopBar({
               title="Redo" 
               isLoading={isLoading}
               disabled={!canRedo}
+            />
+            
+            <ToolbarSeparator />
+            
+            {/* Group/Ungroup */}
+            <ToolbarButton 
+              onClick={canvasOperations.group} 
+              icon={Layers} 
+              title="Group Objects"
+              isLoading={isLoading}
+              disabled={!canGroup}
+            />
+            <ToolbarButton 
+              onClick={canvasOperations.ungroup} 
+              icon={SquareStack} 
+              title="Ungroup Objects"
+              isLoading={isLoading}
+              disabled={!canUngroup}
             />
             
             <ToolbarSeparator />

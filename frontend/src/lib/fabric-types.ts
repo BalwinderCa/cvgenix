@@ -11,6 +11,10 @@ export interface FabricCanvas extends fabric.Canvas {
   canUndo?: () => boolean;
   canRedo?: () => boolean;
   initializeHistory?: () => void;
+  groupSelectedObjects?: () => void;
+  ungroupSelectedObjects?: () => void;
+  canGroup?: () => boolean;
+  canUngroup?: () => boolean;
   keyboardHandler?: (e: KeyboardEvent) => void;
   canvasKeyHandler?: (e: KeyboardEvent) => void;
   selectionHandlers?: {

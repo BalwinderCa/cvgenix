@@ -492,6 +492,174 @@ export class FabricCanvasManager {
   }
 
   /**
+   * Group selected objects into a single group
+   */
+  public groupSelectedObjects(): void {
+    if (!this.canvas) return;
+
+    const activeObject = this.canvas.getActiveObject();
+    const activeObjects = this.canvas.getActiveObjects();
+    
+    if (activeObjects.length < 2) return;
+
+    try {
+      // In Fabric.js 6.x, if we have an ActiveSelection, we can convert it to a Group
+      if (activeObject && activeObject.type === 'activeSelection') {
+        // Convert ActiveSelection to Group
+        const group = (activeObject as any).toGroup();
+        this.canvas.setActiveObject(group);
+        this.canvas.requestRenderAll();
+        
+        // Mark as user action and save state
+        this.markAsUserAction();
+        this.saveState();
+      } else {
+        // Create a new ActiveSelection first, then convert to Group
+        const fabric = (window as any).fabric;
+        if (!fabric) return;
+
+        // Get only root-level objects (not already in groups)
+        const objectsToGroup = activeObjects.filter((obj: any) => {
+          return !obj.group || obj.group === this.canvas;
+        });
+
+        if (objectsToGroup.length < 2) return;
+
+        // Create ActiveSelection first
+        const selection = new fabric.ActiveSelection(objectsToGroup, {
+          canvas: this.canvas,
+        });
+        
+        this.canvas.setActiveObject(selection);
+        
+        // Convert ActiveSelection to Group
+        // toGroup() properly handles coordinate transformation
+        const group = selection.toGroup();
+        
+        // Ensure group has proper origin (top-left by default)
+        group.set({
+          originX: 'left',
+          originY: 'top',
+        });
+        
+        this.canvas.setActiveObject(group);
+        this.canvas.requestRenderAll();
+        
+        // Mark as user action and save state
+        this.markAsUserAction();
+        this.saveState();
+      }
+    } catch (error) {
+      console.error('Error grouping objects:', error);
+    }
+  }
+
+  /**
+   * Ungroup the selected group or ActiveSelection
+   */
+  public ungroupSelectedObjects(): void {
+    if (!this.canvas) return;
+
+    const activeObject = this.canvas.getActiveObject();
+    if (!activeObject || activeObject.type !== 'group') return;
+
+    try {
+      const group = activeObject as any;
+      const fabric = (window as any).fabric;
+      if (!fabric) return;
+      
+      // Get objects from the group BEFORE removing it
+      const objects = group.getObjects();
+      if (!objects || objects.length === 0) return;
+
+      // Use Fabric.js's built-in method to restore object states
+      // This method properly transforms coordinates from group space to canvas space
+      if (typeof group._restoreObjectsState === 'function') {
+        // Call _restoreObjectsState() which restores objects to canvas coordinates
+        group._restoreObjectsState();
+      } else {
+        // Manual transformation: Use group's transform matrix
+        // In Fabric.js, we need to transform each object using the group's transformation
+        const groupMatrix = group.calcTransformMatrix();
+        
+        objects.forEach((obj: fabric.Object) => {
+          // Get object's local coordinates
+          const objLeft = obj.left || 0;
+          const objTop = obj.top || 0;
+          
+          // Transform point from group space to canvas space using group's transform matrix
+          // Matrix format: [scaleX*cos, -scaleX*sin, scaleY*sin, scaleY*cos, left, top]
+          const point = new fabric.Point(objLeft, objTop);
+          const transformed = fabric.util.transformPoint(point, groupMatrix);
+          
+          obj.set({
+            left: transformed.x,
+            top: transformed.y,
+            angle: ((obj.angle || 0) + (group.angle || 0)) % 360,
+            scaleX: (obj.scaleX || 1) * (group.scaleX || 1),
+            scaleY: (obj.scaleY || 1) * (group.scaleY || 1),
+          });
+          
+          // Clear group reference
+          (obj as any).group = null;
+        });
+      }
+
+      // Remove group from canvas first
+      this.canvas.remove(group);
+
+      // Add all objects back to canvas with their restored positions
+      objects.forEach((obj: fabric.Object) => {
+        this.canvas!.add(obj);
+      });
+
+      // Force recalculation of object positions
+      objects.forEach((obj: fabric.Object) => {
+        obj.setCoords();
+      });
+
+      // Keep all ungrouped objects selected (like grouping does)
+      if (objects.length > 0) {
+        const fabric = (window as any).fabric;
+        if (fabric && typeof fabric.ActiveSelection !== 'undefined') {
+          // Create an ActiveSelection with all ungrouped objects
+          const activeSelection = new fabric.ActiveSelection(objects, {
+            canvas: this.canvas,
+          });
+          this.canvas.setActiveObject(activeSelection);
+        } else {
+          // Fallback: select all objects individually
+          this.canvas.setActiveObjects(objects);
+        }
+      }
+
+      this.canvas.requestRenderAll();
+      this.markAsUserAction();
+      this.saveState();
+    } catch (error) {
+      console.error('Error ungrouping objects:', error);
+    }
+  }
+
+  /**
+   * Check if selected objects can be grouped
+   */
+  public canGroup(): boolean {
+    if (!this.canvas) return false;
+    const activeObjects = this.canvas.getActiveObjects();
+    return activeObjects.length >= 2;
+  }
+
+  /**
+   * Check if selected object can be ungrouped
+   */
+  public canUngroup(): boolean {
+    if (!this.canvas) return false;
+    const activeObject = this.canvas.getActiveObject();
+    return activeObject !== null && (activeObject.type === 'group' || activeObject.type === 'activeSelection');
+  }
+
+  /**
    * Setup modern undo/redo functionality
    */
   private setupUndoRedo(): void {
@@ -504,6 +672,10 @@ export class FabricCanvasManager {
     this.canvas.canRedo = () => this.canRedo();
     this.canvas.markAsUserAction = () => this.markAsUserAction();
     this.canvas.initializeHistory = () => this.initializeHistory();
+    this.canvas.groupSelectedObjects = () => this.groupSelectedObjects();
+    this.canvas.ungroupSelectedObjects = () => this.ungroupSelectedObjects();
+    this.canvas.canGroup = () => this.canGroup();
+    this.canvas.canUngroup = () => this.canUngroup();
   }
 
   /**
