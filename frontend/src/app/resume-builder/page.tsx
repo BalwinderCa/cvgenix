@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Download, Trash2 } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Download, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import NavigationHeader from '@/components/navigation-header';
 import ResumeBuilderSidebar from '@/components/resume-builder-sidebar';
 import ResumeBuilderTopBar from '@/components/resume-builder-topbar';
@@ -22,6 +22,9 @@ export default function ResumeBuilderPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const isDraggingSlider = useRef(false);
+  const zoomUpdateFrame = useRef<number | null>(null);
 
   // Use the canvas manager hook
   const {
@@ -45,7 +48,7 @@ export default function ResumeBuilderPage() {
   const templateService = TemplateService.getInstance();
   
   // Canvas dimensions hook
-  const { getBaseDimensions } = useCanvasDimensions({
+  const { getBaseDimensions, getScaledDimensions } = useCanvasDimensions({
     maxWidth: 750,
     aspectRatio: 0.8,
     minWidth: 300,
@@ -210,6 +213,120 @@ export default function ResumeBuilderPage() {
     }));
   }, []);
 
+  // Sync zoom level with canvas
+  useEffect(() => {
+    if (!canvasState.fabricCanvas) return;
+    
+    try {
+      const currentZoom = (canvasState.fabricCanvas as any).getZoom?.() || 1;
+      setZoomLevel(Math.round(currentZoom * 100));
+    } catch (error) {
+      console.error('Error getting zoom level:', error);
+    }
+  }, [canvasState.fabricCanvas]);
+
+  // Handle zoom change - scales the entire canvas container (keeps content proportional)
+  const handleZoomChange = useCallback((zoom: number, immediate = false) => {
+    if (!canvasState.fabricCanvas) return;
+    
+    try {
+      const zoomValue = zoom / 100;
+      
+      // Find the canvas container wrapper - the div with transform scale
+      const canvasElement = (canvasState.fabricCanvas as any).getElement?.();
+      let containerElement: HTMLElement | null = null;
+      
+      if (canvasElement) {
+        // Find the parent container div (should have transform scale from useCanvasDimensions)
+        const parent = canvasElement.parentElement;
+        if (parent && parent.parentElement) {
+          // This is the container div that has the transform scale
+          containerElement = parent.parentElement;
+        }
+      }
+      
+      if (containerElement) {
+        // Get the current responsive scale from useCanvasDimensions
+        const scaledDimensions = getScaledDimensions();
+        const responsiveScale = scaledDimensions.scale || 1;
+        
+        // Calculate combined scale: responsive scale * user zoom
+        // This keeps everything in proportion - the responsive scaling AND user zoom work together
+        const combinedScale = responsiveScale * zoomValue;
+        
+        // Find the wrapper div (parent of containerElement) that has the actual scaled dimensions
+        const wrapperElement = containerElement.parentElement;
+        if (wrapperElement) {
+          // Update wrapper dimensions to match scaled size for proper scrolling
+          const containerWidth = scaledDimensions.width;
+          const containerHeight = scaledDimensions.height;
+          const scaledWidth = containerWidth * combinedScale;
+          const scaledHeight = containerHeight * combinedScale;
+          
+          // Use scale3d for better GPU acceleration (forces hardware acceleration)
+          const newTransform = `scale3d(${combinedScale}, ${combinedScale}, 1)`;
+          
+          if (immediate) {
+            // During drag - direct synchronous updates for maximum smoothness, no animation frame delay
+            wrapperElement.style.transition = 'none';
+            wrapperElement.style.width = `${scaledWidth}px`;
+            wrapperElement.style.height = `${scaledHeight}px`;
+            wrapperElement.style.minWidth = `${scaledWidth}px`;
+            wrapperElement.style.minHeight = `${scaledHeight}px`;
+            
+            containerElement.style.transition = 'none';
+            containerElement.style.willChange = 'transform';
+            containerElement.style.backfaceVisibility = 'hidden';
+            containerElement.style.webkitBackfaceVisibility = 'hidden';
+            containerElement.style.transformOrigin = 'center center';
+            containerElement.style.transform = newTransform;
+          } else {
+            // For button clicks - cancel pending frames and use smooth animation
+            if (zoomUpdateFrame.current !== null) {
+              cancelAnimationFrame(zoomUpdateFrame.current);
+            }
+            
+            zoomUpdateFrame.current = requestAnimationFrame(() => {
+              zoomUpdateFrame.current = null;
+              
+              wrapperElement.style.transition = 'none';
+              wrapperElement.style.width = `${scaledWidth}px`;
+              wrapperElement.style.height = `${scaledHeight}px`;
+              wrapperElement.style.minWidth = `${scaledWidth}px`;
+              wrapperElement.style.minHeight = `${scaledHeight}px`;
+              
+              containerElement.style.transition = 'transform 0.2s ease-out';
+              containerElement.style.willChange = 'transform';
+              containerElement.style.backfaceVisibility = 'hidden';
+              containerElement.style.webkitBackfaceVisibility = 'hidden';
+              containerElement.style.transformOrigin = 'center center';
+              containerElement.style.transform = newTransform;
+            });
+          }
+        }
+        
+        // Find the scrollable parent container and ensure it can scroll
+        // Only target the canvas scroll container, not any parent flex containers
+        const scrollContainer = containerElement.closest('.bg-gray-50.overflow-auto');
+        if (scrollContainer) {
+          const scrollEl = scrollContainer as HTMLElement;
+          // Don't modify display/flex - just ensure overflow works
+          scrollEl.style.overflow = 'auto';
+          scrollEl.style.overflowX = 'auto';
+          scrollEl.style.overflowY = 'auto';
+        }
+      }
+      
+      // DO NOT call setZoom() - this would affect the canvas viewport independently
+      // We want the entire container to scale, keeping all content in proportion
+      // The canvas stays at 1:1 internally, only the wrapper scales
+      
+      setZoomLevel(Math.round(zoom));
+    } catch (error) {
+      console.error('Error setting zoom:', error);
+    }
+  }, [canvasState.fabricCanvas, getScaledDimensions]);
+
   // Error fallback component
   const errorFallback = (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -293,7 +410,101 @@ export default function ResumeBuilderPage() {
               
               
               {/* Fixed Footer with Controls */}
-              <div className="flex-shrink-0 h-12 bg-white border-t border-gray-200 flex items-center justify-end px-4">
+              <div className="flex-shrink-0 h-12 bg-white border-t border-gray-200 flex items-center justify-between px-4">
+                {/* Zoom Controls */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      const newZoom = Math.max(25, zoomLevel - 10);
+                      handleZoomChange(newZoom, false); // Smooth animation for button clicks
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Zoom Out"
+                    disabled={zoomLevel <= 25}
+                  >
+                    <ZoomOut className="w-4 h-4 text-gray-600" />
+                  </button>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="range"
+                      min="25"
+                      max="200"
+                      step="1"
+                      value={zoomLevel}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        setZoomLevel(value);
+                        handleZoomChange(value, true); // Smooth update
+                      }}
+                      onInput={(e) => {
+                        const value = parseInt((e.target as HTMLInputElement).value);
+                        setZoomLevel(value);
+                        handleZoomChange(value, true); // Smooth update while dragging
+                      }}
+                      className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer zoom-slider"
+                      style={{
+                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((zoomLevel - 25) / 175) * 100}%, #e5e7eb ${((zoomLevel - 25) / 175) * 100}%, #e5e7eb 100%)`
+                      }}
+                      title={`Zoom: ${zoomLevel}%`}
+                    />
+                    <style dangerouslySetInnerHTML={{__html: `
+                      .zoom-slider {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        height: 6px;
+                        border-radius: 3px;
+                        outline: none;
+                      }
+                      .zoom-slider::-webkit-slider-thumb {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #3b82f6;
+                        cursor: pointer;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        transition: all 0.2s;
+                      }
+                      .zoom-slider::-webkit-slider-thumb:hover {
+                        transform: scale(1.1);
+                        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+                      }
+                      .zoom-slider::-moz-range-thumb {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background: #3b82f6;
+                        cursor: pointer;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        transition: all 0.2s;
+                      }
+                      .zoom-slider::-moz-range-thumb:hover {
+                        transform: scale(1.1);
+                        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+                      }
+                    `}} />
+                    <span className="text-xs text-gray-600 min-w-[3.5rem] text-center font-medium">
+                      {zoomLevel}%
+                    </span>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      const newZoom = Math.min(200, zoomLevel + 10);
+                      handleZoomChange(newZoom, false); // Smooth animation for button clicks
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Zoom In"
+                    disabled={zoomLevel >= 200}
+                  >
+                    <ZoomIn className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+
                 {/* Export Controls */}
                 <div className="flex items-center space-x-2">
                   {/* Export Format Dropdown */}

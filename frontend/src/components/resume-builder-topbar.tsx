@@ -304,6 +304,29 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       }
     },
 
+    // Real-time text color update for smooth color picker dragging (no loading state)
+    updateTextColorRealtime: (color: string) => {
+      try {
+        const activeObjects = fabricCanvas?.getActiveObjects() || [];
+        if (activeObjects.length > 0) {
+          activeObjects.forEach((obj: FabricObject) => {
+            // For text objects, use 'fill', for line objects, use 'stroke'
+            if (obj.type === 'line') {
+              obj.set({ stroke: color });
+            } else {
+              obj.set({ fill: color });
+            }
+          });
+          if (fabricCanvas) {
+            (fabricCanvas as any).requestRenderAll?.() || (fabricCanvas as any).renderAll?.();
+          }
+          setTextProperties(prev => ({ ...prev, textColor: color }));
+        }
+      } catch (error) {
+        console.error('Error updating text color in real-time:', error);
+      }
+    },
+
     // Text alignment
     alignLeft: async () => {
       if (isLoading) return;
@@ -461,6 +484,24 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       }
     },
 
+    // Real-time line height update for smooth slider dragging (no loading state)
+    updateLineHeightRealtime: (lineHeight: number) => {
+      try {
+        const textObjects = getActiveTextObjects();
+        if (textObjects.length > 0) {
+          textObjects.forEach((obj: FabricObject) => {
+            obj.set({ lineHeight });
+          });
+          if (fabricCanvas) {
+            (fabricCanvas as any).requestRenderAll?.() || (fabricCanvas as any).renderAll?.();
+          }
+          setTextProperties(prev => ({ ...prev, lineHeight }));
+        }
+      } catch (error) {
+        console.error('Error updating line height in real-time:', error);
+      }
+    },
+
     // Character spacing operations
     changeCharSpacing: async (charSpacing: number) => {
       if (isLoading) return;
@@ -478,6 +519,24 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
         console.error('Error changing character spacing:', error);
       } finally {
         setIsLoading(false);
+      }
+    },
+
+    // Real-time character spacing update for smooth slider dragging (no loading state)
+    updateCharSpacingRealtime: (charSpacing: number) => {
+      try {
+        const textObjects = getActiveTextObjects();
+        if (textObjects.length > 0) {
+          textObjects.forEach((obj: FabricObject) => {
+            obj.set({ charSpacing });
+          });
+          if (fabricCanvas) {
+            (fabricCanvas as any).requestRenderAll?.() || (fabricCanvas as any).renderAll?.();
+          }
+          setTextProperties(prev => ({ ...prev, charSpacing }));
+        }
+      } catch (error) {
+        console.error('Error updating character spacing in real-time:', error);
       }
     },
 
@@ -783,6 +842,7 @@ const ColorPicker = ({
       type="color"
       value={color}
       onChange={(e) => onChange(e.target.value)}
+      onInput={(e) => onChange((e.target as HTMLInputElement).value)}
       className="absolute opacity-0 pointer-events-none"
       aria-label="Color picker"
     />
@@ -966,8 +1026,10 @@ const AdvancedToolsOverlay = ({
                 max="3.0"
                 step="0.1"
                 value={textProperties.lineHeight}
-                onChange={(e) => textOperations.changeLineHeight(parseFloat(e.target.value))}
-                onInput={(e) => textOperations.changeLineHeight(parseFloat((e.target as HTMLInputElement).value))}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  textOperations.updateLineHeightRealtime(value);
+                }}
                 disabled={isLoading}
                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                 title={`Line Height: ${textProperties.lineHeight}`}
@@ -999,25 +1061,27 @@ const AdvancedToolsOverlay = ({
             <div className="flex items-center space-x-2">
               <input
                 type="range"
-                min="-5"
-                max="20"
+                min="-20"
+                max="80"
                 step="0.5"
                 value={textProperties.charSpacing}
-                onChange={(e) => textOperations.changeCharSpacing(parseFloat(e.target.value))}
-                onInput={(e) => textOperations.changeCharSpacing(parseFloat((e.target as HTMLInputElement).value))}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  textOperations.updateCharSpacingRealtime(value);
+                }}
                 disabled={isLoading}
                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                 title={`Letter Spacing: ${textProperties.charSpacing}px`}
               />
               <input
                 type="number"
-                min="-5"
-                max="20"
+                min="-10"
+                max="50"
                 step="0.5"
                 value={textProperties.charSpacing}
                 onChange={(e) => {
                   const value = parseFloat(e.target.value);
-                  if (value >= -5 && value <= 20) {
+                  if (value >= -10 && value <= 50) {
                     textOperations.changeCharSpacing(value);
                   }
                 }}
@@ -1250,7 +1314,7 @@ export default function ResumeBuilderTopBar({
             {/* Color Picker */}
             <ColorPicker 
               color={textProperties.textColor} 
-              onChange={textOperations.changeTextColor}
+              onChange={textOperations.updateTextColorRealtime}
               isLoading={isLoading}
             />
             

@@ -118,15 +118,31 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
   const scaledDimensions = getScaledDimensions();
 
   return (
-    <div className="w-full h-full bg-gray-50 flex items-start justify-center overflow-auto">
+    <div className="w-full h-full bg-gray-50 overflow-auto flex items-center justify-center">
+      {/* Wrapper div with actual scaled dimensions to ensure proper scrolling */}
       <div 
-        className="my-8 bg-white shadow-lg transition-all duration-300 ease-in-out focus:outline-none"
         style={{
-          width: `${scaledDimensions.width}px`,
-          height: `${scaledDimensions.height}px`,
-          transform: `scale(${scaledDimensions.scale})`,
-          transformOrigin: 'top center'
+          width: `${scaledDimensions.width * scaledDimensions.scale}px`,
+          height: `${scaledDimensions.height * scaledDimensions.scale}px`,
+          minWidth: `${scaledDimensions.width * scaledDimensions.scale}px`,
+          minHeight: `${scaledDimensions.height * scaledDimensions.scale}px`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem'
         }}
+      >
+        <div 
+          className="bg-white shadow-lg focus:outline-none"
+          style={{
+            width: `${scaledDimensions.width}px`,
+            height: `${scaledDimensions.height}px`,
+            transform: `scale3d(${scaledDimensions.scale}, ${scaledDimensions.scale}, 1)`,
+            transformOrigin: 'center center',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden'
+          }}
         tabIndex={0}
         onFocus={() => {
           // Ensure canvas gets focus when container is focused
@@ -159,7 +175,15 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           ref={canvasRef}
           className="block"
           tabIndex={-1}
+          style={{
+            imageRendering: '-webkit-optimize-contrast',
+            transform: 'translateZ(0)',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden'
+          }}
         />
+        </div>
       </div>
     </div>
   );

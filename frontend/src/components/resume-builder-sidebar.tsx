@@ -29,7 +29,6 @@ import {
   Plus,
   PanelLeft,
   Save,
-  Upload,
   FileText,
   Sparkles,
   Layout,
@@ -185,7 +184,7 @@ export default function ResumeBuilderSidebar({
       </div>
 
       {/* Tab Navigation */}
-      <div className="grid grid-cols-4 border-b border-gray-200">
+      <div className="grid grid-cols-2 border-b border-gray-200">
         <button
           onClick={() => setActiveSidebarTab('design')}
           className={`p-3 text-xs font-medium transition-colors ${
@@ -205,26 +204,6 @@ export default function ResumeBuilderSidebar({
           }`}
         >
           Elements
-        </button>
-        <button
-          onClick={() => setActiveSidebarTab('text')}
-          className={`p-3 text-xs font-medium transition-colors ${
-            activeSidebarTab === 'text'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Text
-        </button>
-        <button
-          onClick={() => setActiveSidebarTab('uploads')}
-          className={`p-3 text-xs font-medium transition-colors ${
-            activeSidebarTab === 'uploads'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          Uploads
         </button>
       </div>
 
@@ -706,126 +685,111 @@ export default function ResumeBuilderSidebar({
               
               {/* Show More/Less Button for Content Blocks - no additional elements, so hide button */}
             </div>
-          </div>
-        )}
-
-        {activeSidebarTab === 'text' && (
-          <div className="p-4 space-y-4">
-            <div className="mb-4">
-              <h3 className="font-medium text-gray-900 text-sm">Text Tools</h3>
-              <p className="text-xs text-gray-500">Add and format text elements</p>
-            </div>
-
+            
+            {/* Text Elements Section */}
             <div className="space-y-3">
-              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Headings & Titles</h4>
+              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Text Elements</h4>
               <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => createFabricObject('Textbox', {
-                    text: 'Heading',
-                    left: 100,
-                    top: 100,
-                    fontSize: 24,
-                    fontFamily: 'Arial',
-                    fill: '#1f2937',
-                    fontWeight: 'bold',
-                    width: 200,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Heading1 className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-700">Heading</span>
-                  </div>
-                  <span className="text-xs text-gray-400">24px</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Textbox', {
-                    text: 'Body text content',
-                    left: 100,
-                    top: 100,
-                    fontSize: 14,
-                    fontFamily: 'Arial',
-                    fill: '#374151',
-                    width: 200,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-700">Body Text</span>
-                  </div>
-                  <span className="text-xs text-gray-400">14px</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Textbox', {
-                    text: 'Subheading',
-                    left: 100,
-                    top: 100,
-                    fontSize: 18,
-                    fontFamily: 'Arial',
-                    fill: '#1f2937',
-                    fontWeight: '600',
-                    width: 200,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Heading2 className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-700">Subheading</span>
-                  </div>
-                  <span className="text-xs text-gray-400">18px</span>
-                </button>
-                <button 
-                  onClick={() => createFabricObject('Textbox', {
-                    text: 'Caption text',
-                    left: 100,
-                    top: 100,
-                    fontSize: 12,
-                    fontFamily: 'Arial',
-                    fill: '#6b7280',
-                    fontStyle: 'italic',
-                    width: 200,
-                    lockRotation: true,
-                    lockUniScaling: true,
-                    lockScalingFlip: true
-                  })}
-                  className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Image className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-700">Caption</span>
-                  </div>
-                  <span className="text-xs text-gray-400">12px</span>
-                </button>
+                {matchesSearch('Heading', 'text') && (
+                  <button 
+                    onClick={() => createFabricObject('Textbox', {
+                      text: 'Heading',
+                      left: 100,
+                      top: 100,
+                      fontSize: 24,
+                      fontFamily: 'Arial',
+                      fill: '#1f2937',
+                      fontWeight: 'bold',
+                      width: 200,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Heading1 className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-700">Heading</span>
+                    </div>
+                    <span className="text-xs text-gray-400">24px</span>
+                  </button>
+                )}
+                {matchesSearch('Body Text', 'text') && (
+                  <button 
+                    onClick={() => createFabricObject('Textbox', {
+                      text: 'Body text content',
+                      left: 100,
+                      top: 100,
+                      fontSize: 14,
+                      fontFamily: 'Arial',
+                      fill: '#374151',
+                      width: 200,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <FileText className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-700">Body Text</span>
+                    </div>
+                    <span className="text-xs text-gray-400">14px</span>
+                  </button>
+                )}
+                {matchesSearch('Subheading', 'text') && (
+                  <button 
+                    onClick={() => createFabricObject('Textbox', {
+                      text: 'Subheading',
+                      left: 100,
+                      top: 100,
+                      fontSize: 18,
+                      fontFamily: 'Arial',
+                      fill: '#1f2937',
+                      fontWeight: '600',
+                      width: 200,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Heading2 className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-700">Subheading</span>
+                    </div>
+                    <span className="text-xs text-gray-400">18px</span>
+                  </button>
+                )}
+                {matchesSearch('Caption', 'text') && (
+                  <button 
+                    onClick={() => createFabricObject('Textbox', {
+                      text: 'Caption text',
+                      left: 100,
+                      top: 100,
+                      fontSize: 12,
+                      fontFamily: 'Arial',
+                      fill: '#6b7280',
+                      fontStyle: 'italic',
+                      width: 200,
+                      lockRotation: true,
+                      lockUniScaling: true,
+                      lockScalingFlip: true
+                    })}
+                    className="flex items-center justify-between p-3 text-left hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Image className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-700">Caption</span>
+                    </div>
+                    <span className="text-xs text-gray-400">12px</span>
+                  </button>
+                )}
               </div>
             </div>
-
           </div>
         )}
 
-        {activeSidebarTab === 'uploads' && (
-          <div className="p-4 space-y-4">
-            <div className="mb-4">
-              <h3 className="font-medium text-gray-900 text-sm">Uploads</h3>
-              <p className="text-xs text-gray-500">Add images and files</p>
-            </div>
-            
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors cursor-pointer">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Drag & drop files here</p>
-              <p className="text-xs text-gray-400 mt-1">or click to browse</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
