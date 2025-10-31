@@ -8,7 +8,9 @@ import {
   Trash2,
   Copy,
   Clipboard,
-  Files
+  Files,
+  Layers,
+  SquareStack
 } from 'lucide-react';
 
 interface CanvasEditToolbarProps {
@@ -27,6 +29,8 @@ export default function CanvasEditToolbar({
   const [isEditing, setIsEditing] = useState(false);
   const [activeObject, setActiveObject] = useState<any>(null);
   const [copiedObject, setCopiedObject] = useState<any>(null);
+  const [canGroup, setCanGroup] = useState(false);
+  const [canUngroup, setCanUngroup] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,8 +38,22 @@ export default function CanvasEditToolbar({
 
     const handleSelectionChange = () => {
       const activeObj = fabricCanvas.getActiveObject();
+      const activeObjects = fabricCanvas.getActiveObjects();
       setActiveObject(activeObj);
       setIsEditing(activeObj?.isEditing || false);
+      
+      // Check if group/ungroup is possible
+      if (fabricCanvas.canGroup) {
+        setCanGroup(fabricCanvas.canGroup());
+      } else {
+        setCanGroup(activeObjects.length >= 2);
+      }
+      
+      if (fabricCanvas.canUngroup) {
+        setCanUngroup(fabricCanvas.canUngroup());
+      } else {
+        setCanUngroup(activeObj !== null && activeObj.type === 'group');
+      }
     };
 
     const handleEditingEntered = () => {
@@ -163,6 +181,20 @@ export default function CanvasEditToolbar({
     }
   };
 
+  const handleGroup = () => {
+    if (fabricCanvas && fabricCanvas.groupSelectedObjects) {
+      fabricCanvas.groupSelectedObjects();
+      fabricCanvas.renderAll();
+    }
+  };
+
+  const handleUngroup = () => {
+    if (fabricCanvas && fabricCanvas.ungroupSelectedObjects) {
+      fabricCanvas.ungroupSelectedObjects();
+      fabricCanvas.renderAll();
+    }
+  };
+
   if (!isVisible || !activeObject) return null;
 
   const isTextObject = activeObject.type === 'textbox' || activeObject.type === 'text';
@@ -244,6 +276,31 @@ export default function CanvasEditToolbar({
         title="Delete (Delete key)"
       >
         <Trash2 className="w-4 h-4" />
+      </button>
+
+      {/* Group/Ungroup Controls */}
+      <div className="w-px h-6 bg-gray-300 mx-1" />
+      
+      <button
+        onClick={handleGroup}
+        className={`p-2 rounded-md transition-colors ${
+          canGroup ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+        }`}
+        title="Group Objects"
+        disabled={!canGroup}
+      >
+        <Layers className="w-4 h-4" />
+      </button>
+      
+      <button
+        onClick={handleUngroup}
+        className={`p-2 rounded-md transition-colors ${
+          canUngroup ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+        }`}
+        title="Ungroup Objects"
+        disabled={!canUngroup}
+      >
+        <SquareStack className="w-4 h-4" />
       </button>
 
       {/* Close Button */}

@@ -15,8 +15,6 @@ import {
   Plus,
   Minus,
   Settings,
-  Layers,
-  SquareStack
 } from 'lucide-react';
 
 // Types
@@ -1126,8 +1124,6 @@ export default function ResumeBuilderTopBar({
   const { canvasOperations, isLoading: canvasLoading } = useCanvasOperations(fabricCanvas);
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const [hasLineSelected, setHasLineSelected] = useState(false);
-  const [canGroup, setCanGroup] = useState(false);
-  const [canUngroup, setCanUngroup] = useState(false);
   
   const isLoading = textLoading || canvasLoading;
 
@@ -1145,20 +1141,6 @@ export default function ResumeBuilderTopBar({
         const hasLine = activeObject && activeObject.type === 'line';
         setHasLineSelected(!!hasLine);
         
-        // Check if group/ungroup is possible
-        if (fabricCanvas.canGroup) {
-          setCanGroup(fabricCanvas.canGroup());
-        } else {
-          // Fallback: check if we have 2+ objects selected
-          setCanGroup(activeObjects.length >= 2);
-        }
-        
-        if (fabricCanvas.canUngroup) {
-          setCanUngroup(fabricCanvas.canUngroup());
-        } else {
-          // Fallback: check if selected object is a group
-          setCanUngroup(activeObject !== null && activeObject.type === 'group');
-        }
       } catch (error) {
         console.error('Error handling selection change:', error);
       }
@@ -1168,8 +1150,6 @@ export default function ResumeBuilderTopBar({
       try {
         updateTextProperties();
         setHasLineSelected(false);
-        setCanGroup(false);
-        setCanUngroup(false);
       } catch (error) {
         console.error('Error handling selection cleared:', error);
       }
@@ -1213,24 +1193,6 @@ export default function ResumeBuilderTopBar({
               title="Redo" 
               isLoading={isLoading}
               disabled={!canRedo}
-            />
-            
-            <ToolbarSeparator />
-            
-            {/* Group/Ungroup */}
-            <ToolbarButton 
-              onClick={canvasOperations.group} 
-              icon={Layers} 
-              title="Group Objects"
-              isLoading={isLoading}
-              disabled={!canGroup}
-            />
-            <ToolbarButton 
-              onClick={canvasOperations.ungroup} 
-              icon={SquareStack} 
-              title="Ungroup Objects"
-              isLoading={isLoading}
-              disabled={!canUngroup}
             />
             
             <ToolbarSeparator />
