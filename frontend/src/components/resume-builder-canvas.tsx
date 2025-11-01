@@ -118,30 +118,34 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
   const scaledDimensions = getScaledDimensions();
 
   return (
-    <div className="w-full h-full bg-gray-50 overflow-auto flex items-center justify-center">
-      {/* Wrapper div with actual scaled dimensions to ensure proper scrolling */}
+    <div className="w-full h-full bg-gray-50 overflow-auto" style={{ padding: '2rem' }}>
+      {/* Wrapper div - contains the scaled canvas and allows scrolling when zoomed */}
       <div 
+        className="canvas-zoom-wrapper"
         style={{
-          width: `${scaledDimensions.width * scaledDimensions.scale}px`,
-          height: `${scaledDimensions.height * scaledDimensions.scale}px`,
-          minWidth: `${scaledDimensions.width * scaledDimensions.scale}px`,
-          minHeight: `${scaledDimensions.height * scaledDimensions.scale}px`,
+          width: `${getBaseDimensions().width * scaledDimensions.scale}px`,
+          height: `${getBaseDimensions().height * scaledDimensions.scale}px`,
+          minWidth: `${getBaseDimensions().width * scaledDimensions.scale}px`,
+          minHeight: `${getBaseDimensions().height * scaledDimensions.scale}px`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '2rem'
+          margin: 'auto',
+          flexShrink: 0
         }}
       >
         <div 
-          className="bg-white shadow-lg focus:outline-none"
+          className="bg-white shadow-lg focus:outline-none canvas-container"
           style={{
-            width: `${scaledDimensions.width}px`,
-            height: `${scaledDimensions.height}px`,
+            width: `${getBaseDimensions().width}px`,
+            height: `${getBaseDimensions().height}px`,
             transform: `scale3d(${scaledDimensions.scale}, ${scaledDimensions.scale}, 1)`,
             transformOrigin: 'center center',
             willChange: 'transform',
             backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden'
+            WebkitBackfaceVisibility: 'hidden',
+            overflow: 'visible',
+            position: 'relative'
           }}
         tabIndex={0}
         onFocus={() => {
@@ -176,6 +180,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           className="block"
           tabIndex={-1}
           style={{
+            width: '100%',
+            height: '100%',
+            display: 'block',
             imageRendering: '-webkit-optimize-contrast',
             transform: 'translateZ(0)',
             willChange: 'transform',

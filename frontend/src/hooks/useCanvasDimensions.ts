@@ -24,7 +24,7 @@ export function useCanvasDimensions(options: UseCanvasDimensionsOptions = {}) {
   const [dimensions, setDimensions] = useState<CanvasDimensions>({
     width: 600,
     height: 750,
-    scale: 0.75
+    scale: 0.7125 // 0.75 * 0.95 (5% smaller)
   });
 
   const updateDimensions = useCallback(() => {
@@ -33,7 +33,8 @@ export function useCanvasDimensions(options: UseCanvasDimensionsOptions = {}) {
     const availableWidth = Math.min(window.innerWidth - 100, maxWidth);
     const calculatedWidth = Math.max(availableWidth, minWidth);
     const calculatedHeight = Math.max(calculatedWidth / aspectRatio, minHeight);
-    const scale = calculatedWidth / 800; // Scale relative to base 800px width
+    const baseScale = calculatedWidth / 800; // Scale relative to base 800px width
+    const scale = baseScale * 0.95; // Make canvas 5% smaller by default
 
     setDimensions({
       width: calculatedWidth,
@@ -50,7 +51,8 @@ export function useCanvasDimensions(options: UseCanvasDimensionsOptions = {}) {
     const availableWidth = Math.min(window.innerWidth - 100, maxWidth);
     const calculatedWidth = Math.max(availableWidth, minWidth);
     const calculatedHeight = Math.max(calculatedWidth / aspectRatio, minHeight);
-    const scale = calculatedWidth / 800;
+    const baseScale = calculatedWidth / 800;
+    const scale = baseScale * 0.95; // Make canvas 5% smaller by default
 
     setDimensions({
       width: calculatedWidth,

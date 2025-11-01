@@ -127,7 +127,19 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
     if (!fabricCanvas) return [];
     
     try {
-      const activeObjects = fabricCanvas.getActiveObjects();
+      const activeObject = fabricCanvas.getActiveObject();
+      let activeObjects: FabricObject[] = [];
+      
+      // Handle ActiveSelection - it contains multiple objects
+      if (activeObject && (activeObject.type === 'activeSelection' || (activeObject as any)._objects)) {
+        // ActiveSelection has _objects array containing all selected objects
+        const selectionObjects = (activeObject as any)._objects || [];
+        activeObjects = selectionObjects;
+      } else {
+        // Get all active objects (works for single selection or multiple)
+        activeObjects = fabricCanvas.getActiveObjects();
+      }
+      
       return getTextObjects(activeObjects);
     } catch (error) {
       console.error('Error getting active text objects:', error);
@@ -157,7 +169,19 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
     if (!fabricCanvas) return false;
     
     try {
-      const activeObjects = fabricCanvas.getActiveObjects();
+      const activeObject = fabricCanvas.getActiveObject();
+      let activeObjects: FabricObject[] = [];
+      
+      // Handle ActiveSelection - it contains multiple objects
+      if (activeObject && (activeObject.type === 'activeSelection' || (activeObject as any)._objects)) {
+        // ActiveSelection has _objects array containing all selected objects
+        const selectionObjects = (activeObject as any)._objects || [];
+        activeObjects = selectionObjects;
+      } else {
+        // Get all active objects (works for single selection or multiple)
+        activeObjects = fabricCanvas.getActiveObjects();
+      }
+      
       if (activeObjects.length === 0) return false;
       
       activeObjects.forEach(updater);

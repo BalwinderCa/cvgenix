@@ -232,85 +232,102 @@ export default function ResumeBuilderPage() {
     try {
       const zoomValue = zoom / 100;
       
-      // Find the canvas container wrapper - the div with transform scale
-      const canvasElement = (canvasState.fabricCanvas as any).getElement?.();
-      let containerElement: HTMLElement | null = null;
+      // Find the canvas container (white div with shadow) and wrapper using class selectors
+      const containerElement = document.querySelector('.canvas-container') as HTMLElement;
+      const wrapperElement = document.querySelector('.canvas-zoom-wrapper') as HTMLElement;
       
-      if (canvasElement) {
-        // Find the parent container div (should have transform scale from useCanvasDimensions)
-        const parent = canvasElement.parentElement;
-        if (parent && parent.parentElement) {
-          // This is the container div that has the transform scale
-          containerElement = parent.parentElement;
-        }
-      }
-      
-      if (containerElement) {
+      if (containerElement && wrapperElement) {
+        // Get base dimensions (800x1000) - this is what the canvas is actually sized to
+        const baseDimensions = getBaseDimensions();
+        const baseWidth = baseDimensions.width;
+        const baseHeight = baseDimensions.height;
+        
         // Get the current responsive scale from useCanvasDimensions
         const scaledDimensions = getScaledDimensions();
         const responsiveScale = scaledDimensions.scale || 1;
         
         // Calculate combined scale: responsive scale * user zoom
-        // This keeps everything in proportion - the responsive scaling AND user zoom work together
         const combinedScale = responsiveScale * zoomValue;
         
-        // Find the wrapper div (parent of containerElement) that has the actual scaled dimensions
-        const wrapperElement = containerElement.parentElement;
-        if (wrapperElement) {
-          // Update wrapper dimensions to match scaled size for proper scrolling
-          const containerWidth = scaledDimensions.width;
-          const containerHeight = scaledDimensions.height;
-          const scaledWidth = containerWidth * combinedScale;
-          const scaledHeight = containerHeight * combinedScale;
+        // Calculate what the scaled size would be after zoom (based on base canvas dimensions)
+        const scaledWidth = baseWidth * combinedScale;
+        const scaledHeight = baseHeight * combinedScale;
+        
+        // Use scale3d for better GPU acceleration - use the full combined scale
+        // Don't constrain - allow scrolling when zoomed beyond viewport
+        const newTransform = `scale3d(${combinedScale}, ${combinedScale}, 1)`;
+        
+        // Calculate final scaled dimensions (wrapper uses actual scaled size for proper scrolling)
+        const finalScaledWidth = baseWidth * combinedScale;
+        const finalScaledHeight = baseHeight * combinedScale;
+        
+        if (immediate) {
+          // During drag - direct synchronous updates
+          // Wrapper should be exactly the scaled size to allow proper scrolling
+          wrapperElement.style.transition = 'none';
+          // Set wrapper to EXACT scaled size - no constraints whatsoever
+          wrapperElement.style.width = `${finalScaledWidth}px`;
+          wrapperElement.style.height = `${finalScaledHeight}px`;
+          wrapperElement.style.minWidth = `${finalScaledWidth}px`;
+          wrapperElement.style.minHeight = `${finalScaledHeight}px`;
+          wrapperElement.style.maxWidth = 'none';
+          wrapperElement.style.maxHeight = 'none';
+          wrapperElement.style.margin = 'auto';
+          wrapperElement.style.flexShrink = '0';
+          wrapperElement.style.boxSizing = 'border-box';
+          wrapperElement.style.overflow = 'visible';
+          wrapperElement.style.display = 'flex';
+          wrapperElement.style.alignItems = 'center';
+          wrapperElement.style.justifyContent = 'center';
+          wrapperElement.style.position = 'relative';
           
-          // Use scale3d for better GPU acceleration (forces hardware acceleration)
-          const newTransform = `scale3d(${combinedScale}, ${combinedScale}, 1)`;
+          // Container is base size, scaled by transform
+          containerElement.style.transition = 'none';
+          containerElement.style.willChange = 'transform';
+          containerElement.style.backfaceVisibility = 'hidden';
+          containerElement.style.webkitBackfaceVisibility = 'hidden';
+          containerElement.style.transformOrigin = 'center center';
+          containerElement.style.width = `${baseWidth}px`;
+          containerElement.style.height = `${baseHeight}px`;
+          containerElement.style.overflow = 'visible';
+          containerElement.style.boxSizing = 'border-box';
+          containerElement.style.transform = newTransform;
+        } else {
+          // For button clicks - smooth animation
+          if (zoomUpdateFrame.current !== null) {
+            cancelAnimationFrame(zoomUpdateFrame.current);
+          }
           
-          if (immediate) {
-            // During drag - direct synchronous updates for maximum smoothness, no animation frame delay
-            wrapperElement.style.transition = 'none';
-            wrapperElement.style.width = `${scaledWidth}px`;
-            wrapperElement.style.height = `${scaledHeight}px`;
-            wrapperElement.style.minWidth = `${scaledWidth}px`;
-            wrapperElement.style.minHeight = `${scaledHeight}px`;
+          zoomUpdateFrame.current = requestAnimationFrame(() => {
+            zoomUpdateFrame.current = null;
             
-            containerElement.style.transition = 'none';
+            wrapperElement.style.transition = 'none';
+            wrapperElement.style.width = `${finalScaledWidth}px`;
+            wrapperElement.style.height = `${finalScaledHeight}px`;
+            wrapperElement.style.minWidth = `${finalScaledWidth}px`;
+            wrapperElement.style.minHeight = `${finalScaledHeight}px`;
+            wrapperElement.style.maxWidth = 'none';
+            wrapperElement.style.maxHeight = 'none';
+            
+            containerElement.style.transition = 'transform 0.2s ease-out';
             containerElement.style.willChange = 'transform';
             containerElement.style.backfaceVisibility = 'hidden';
             containerElement.style.webkitBackfaceVisibility = 'hidden';
             containerElement.style.transformOrigin = 'center center';
+            containerElement.style.width = `${baseWidth}px`;
+            containerElement.style.height = `${baseHeight}px`;
+            containerElement.style.overflow = 'visible';
+            containerElement.style.boxSizing = 'border-box';
             containerElement.style.transform = newTransform;
-          } else {
-            // For button clicks - cancel pending frames and use smooth animation
-            if (zoomUpdateFrame.current !== null) {
-              cancelAnimationFrame(zoomUpdateFrame.current);
-            }
-            
-            zoomUpdateFrame.current = requestAnimationFrame(() => {
-              zoomUpdateFrame.current = null;
-              
-              wrapperElement.style.transition = 'none';
-              wrapperElement.style.width = `${scaledWidth}px`;
-              wrapperElement.style.height = `${scaledHeight}px`;
-              wrapperElement.style.minWidth = `${scaledWidth}px`;
-              wrapperElement.style.minHeight = `${scaledHeight}px`;
-              
-              containerElement.style.transition = 'transform 0.2s ease-out';
-              containerElement.style.willChange = 'transform';
-              containerElement.style.backfaceVisibility = 'hidden';
-              containerElement.style.webkitBackfaceVisibility = 'hidden';
-              containerElement.style.transformOrigin = 'center center';
-              containerElement.style.transform = newTransform;
-            });
-          }
+          });
         }
         
-        // Find the scrollable parent container and ensure it can scroll
+        // Find the scrollable parent container and ensure it can scroll properly
         // Only target the canvas scroll container, not any parent flex containers
         const scrollContainer = containerElement.closest('.bg-gray-50.overflow-auto');
         if (scrollContainer) {
           const scrollEl = scrollContainer as HTMLElement;
-          // Don't modify display/flex - just ensure overflow works
+          // Ensure overflow works
           scrollEl.style.overflow = 'auto';
           scrollEl.style.overflowX = 'auto';
           scrollEl.style.overflowY = 'auto';
