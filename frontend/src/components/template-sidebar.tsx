@@ -136,7 +136,7 @@ export default function TemplateSidebar({
   }
 
   return (
-    <div className="w-full h-full overflow-hidden">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0">
         <div className="mb-4">
@@ -274,8 +274,8 @@ export default function TemplateSidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-        <div className="text-xs text-gray-500 text-center">
+      <div className="h-12 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex items-center justify-center">
+        <div className="text-xs text-gray-500">
           {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''} found
         </div>
       </div>

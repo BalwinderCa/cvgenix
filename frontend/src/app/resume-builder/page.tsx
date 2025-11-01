@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Download, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Trash2, ZoomIn, ZoomOut, PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import NavigationHeader from '@/components/navigation-header';
 import ResumeBuilderSidebar from '@/components/resume-builder-sidebar';
 import ResumeBuilderTopBar from '@/components/resume-builder-topbar';
@@ -17,6 +17,7 @@ import { ExportState } from '@/types/canvas';
 
 export default function ResumeBuilderPage() {
   const [activeSidebarTab, setActiveSidebarTab] = useState('design');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [exportState, setExportState] = useState<ExportState>({
     exportFormat: 'PNG'
   });
@@ -376,17 +377,48 @@ export default function ResumeBuilderPage() {
       <div className="h-screen bg-gray-50 flex flex-col">
         <NavigationHeader />
       
-        <div className="flex-1 flex overflow-hidden mt-16">
+        <div className="flex-1 flex overflow-hidden mt-16 relative">
           {/* Sidebar */}
-          <div className="w-96 bg-white border-r border-gray-200 flex-shrink-0">
-            <ResumeBuilderSidebar
-              fabricCanvas={canvasState.fabricCanvas}
-              activeSidebarTab={activeSidebarTab}
-              setActiveSidebarTab={setActiveSidebarTab}
-              currentTemplateId={canvasState.currentTemplateId}
-              onTemplateSelect={handleTemplateSelect}
-            />
+          <div className={`bg-white flex-shrink-0 transition-all duration-300 ease-in-out ${
+            isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-96 border-r border-gray-200'
+          }`}>
+            {!isSidebarCollapsed && (
+              <ResumeBuilderSidebar
+                fabricCanvas={canvasState.fabricCanvas}
+                activeSidebarTab={activeSidebarTab}
+                setActiveSidebarTab={setActiveSidebarTab}
+                currentTemplateId={canvasState.currentTemplateId}
+                onTemplateSelect={handleTemplateSelect}
+              />
+            )}
           </div>
+
+          {/* Collapse/Expand Toggle Button */}
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute top-1/2 z-20 transition-all duration-300 ease-in-out"
+            style={{
+              transform: isSidebarCollapsed 
+                ? 'translateY(-50%) scaleX(-1)' 
+                : 'translateY(-50%)',
+              left: isSidebarCollapsed ? '0' : 'calc(384px - 1px)'
+            }}
+            title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            <div className={`
+              bg-white
+              ${isSidebarCollapsed 
+                ? 'border border-gray-200 rounded-l-lg' 
+                : 'border-t border-b border-r border-gray-200 border-l-0 rounded-r-lg'}
+              hover:bg-gray-50
+              transition-all duration-200 ease-in-out
+              flex items-center justify-center
+              w-6 h-16
+              cursor-pointer
+            `}>
+              <ChevronLeft className="w-3.5 h-3.5 text-gray-600" />
+            </div>
+          </button>
 
           {/* Main Content */}
           <div className="flex-1 flex flex-col overflow-hidden">

@@ -28,6 +28,7 @@ import {
   Minus,
   Plus,
   PanelLeft,
+  ChevronLeft,
   Save,
   FileText,
   Sparkles,
