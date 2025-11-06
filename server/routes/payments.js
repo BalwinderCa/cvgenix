@@ -3,25 +3,70 @@ const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const paymentService = require('../services/paymentService');
 const User = require('../models/User');
+const Plan = require('../models/Plan');
 
 const router = express.Router();
 
 // @route   GET /api/payments/plans
-// @desc    Get available subscription plans
+// @desc    Get available subscription plans from database
 // @access  Public
-router.get('/plans', (req, res) => {
+router.get('/plans', async (req, res) => {
   try {
+    // Try to get plans from database first
+    const dbPlans = await Plan.find({ status: 'active' }).sort({ price: 1 });
+    
+    console.log(`[Plans API] Found ${dbPlans.length} plans in database`);
+    
+    if (dbPlans && dbPlans.length > 0) {
+      // Convert database plans to expected format
+      const plans = {};
+      dbPlans.forEach(plan => {
+        plans[plan._id.toString()] = {
+          id: plan._id.toString(),
+          name: plan.title,
+          title: plan.title,
+          price: plan.price,
+          credits: plan.credits,
+          interval: plan.interval !== undefined ? plan.interval : null, // Don't default to 'month' for one-time purchases
+          description: plan.description || plan.subtitle || null, // Support both description and subtitle fields
+          subtitle: plan.subtitle || plan.description || null, // Include subtitle field as well
+          features: plan.features || [],
+          popular: plan.popular || false,
+          yearlyPrice: plan.yearlyPrice || (plan.price > 0 ? Math.round(plan.price * 12 * 0.8) : 0)
+        };
+      });
+      
+      console.log(`[Plans API] Returning ${Object.keys(plans).length} plans from database`);
+      return res.json({
+        success: true,
+        data: plans
+      });
+    }
+    
+    console.log('[Plans API] No plans in database, falling back to hardcoded plans');
+    // Fallback to hardcoded plans if database is empty
     const plans = paymentService.getPlans();
     res.json({
       success: true,
       data: plans
     });
   } catch (error) {
-    console.error('Get plans error:', error);
+    console.error('[Plans API] Error fetching plans from database:', error);
+    // Fallback to hardcoded plans on error
+    try {
+      const plans = paymentService.getPlans();
+      console.log('[Plans API] Using hardcoded plans as fallback');
+      res.json({
+        success: true,
+        data: plans
+      });
+    } catch (fallbackError) {
+      console.error('[Plans API] Fallback also failed:', fallbackError);
     res.status(500).json({
       success: false,
       error: 'Failed to get plans'
     });
+    }
   }
 });
 

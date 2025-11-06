@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { LayoutTemplate, ChevronLeft, ChevronRight, Filter, X, Star, Users, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,10 @@ type TemplateItem = {
     skills: string[];
     sections: string[];
   };
+  // Real template data from API
+  _id?: string;
+  thumbnail?: string;
+  category?: string;
 };
 
 export type TemplatesShowcaseProps = {
@@ -486,28 +491,59 @@ function ResumeMiniPreview({
 }
 
 // Template Card Component
-function TemplateCard({ template, onUseTemplate }: { template: TemplateItem; onUseTemplate?: (template: TemplateItem) => void }) {
+function TemplateCard({ template, onUseTemplate, realTemplate }: { template: TemplateItem; onUseTemplate?: (template: TemplateItem) => void; realTemplate?: any }) {
+  const [imageError, setImageError] = React.useState(false);
+  
+  // Use real template thumbnail if available, otherwise use mock preview
+  const hasRealThumbnail = realTemplate?.thumbnail && (
+    realTemplate.thumbnail.startsWith('data:image') || 
+    realTemplate.thumbnail.startsWith('http://') || 
+    realTemplate.thumbnail.startsWith('https://')
+  );
+
   return (
     <article 
       data-card
-      className="group relative snap-start flex-none w-[260px] sm:w-[300px] md:w-[320px] rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 focus-within:ring-2 focus-within:ring-ring">
+      className="group relative snap-start flex-none w-[260px] sm:w-[300px] md:w-[320px] rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 focus-within:ring-2 focus-within:ring-ring cursor-pointer"
+      onClick={() => onUseTemplate?.(template)}>
       {/* Template Preview */}
-      <div className="p-2">
+      <div className="p-2 aspect-[3/4] overflow-hidden">
+        {hasRealThumbnail && !imageError ? (
+          <img 
+            src={realTemplate.thumbnail.startsWith('http') ? `http://localhost:3001/api/templates/thumbnail/${realTemplate._id || template._id}?t=${Date.now()}` : realTemplate.thumbnail}
+            alt={`${realTemplate.name || template.name} template preview`}
+            className="w-full h-full object-cover rounded-lg"
+            crossOrigin="anonymous"
+            onError={(e) => {
+              console.error(`Failed to load thumbnail for template ${realTemplate.name || template.name}:`, realTemplate.thumbnail);
+              console.error(`Image src was:`, e.currentTarget.src);
+              setImageError(true);
+              // Try direct URL as fallback
+              if (realTemplate.thumbnail.startsWith('http') && e.currentTarget.src.includes('/thumbnail/')) {
+                e.currentTarget.src = realTemplate.thumbnail;
+              }
+            }}
+            onLoad={() => {
+              console.log(`Successfully loaded thumbnail for template ${realTemplate.name || template.name}`);
+            }}
+          />
+        ) : (
         <ResumeMiniPreview styleVariant={template.style} profileData={template.profileData} />
+        )}
       </div>
 
       {/* Template Badges */}
       <div className="absolute top-3 left-3 flex flex-col gap-1">
-        {template.isPremium && (
+        {(realTemplate?.isPremium || template.isPremium) && (
           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
             <Star className="h-3 w-3 mr-1" />
             Premium
           </Badge>
         )}
-        {template.atsScore && (
+        {(realTemplate?.atsScore || template.atsScore) && (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
             <CheckCircle className="h-3 w-3 mr-1" />
-            {template.atsScore}% ATS
+            {(realTemplate?.atsScore || template.atsScore)}% ATS
           </Badge>
         )}
       </div>
@@ -518,15 +554,15 @@ function TemplateCard({ template, onUseTemplate }: { template: TemplateItem; onU
         aria-hidden="true" 
       />
 
-      {/* Template Info */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 p-3 sm:p-4">
+      {/* Template Info with background overlay */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-xl p-3 sm:p-4 bg-gradient-to-t from-background via-background/98 to-background/85">
         <div className="space-y-3">
           <div className="min-w-0">
-            <h3 className="text-sm sm:text-base font-semibold tracking-tight text-foreground/95 truncate" title={template.name}>
-              {template.name}
+            <h3 className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate" title={realTemplate?.name || template.name}>
+              {realTemplate?.name || template.name}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {template.industry} • {template.style} • {template.experience}
+              {template.industry} • {realTemplate?.category || template.style} • {template.experience}
             </p>
             
             {/* Template Stats */}
@@ -552,7 +588,7 @@ function TemplateCard({ template, onUseTemplate }: { template: TemplateItem; onU
               size="sm"
               onClick={() => onUseTemplate?.(template)}
               aria-label={`Use ${template.name} template`}
-              className="w-full transition-transform group-hover:translate-y-0.5">
+              className="w-full transition-transform group-hover:translate-y-0.5 cursor-pointer">
               Use Template
             </Button>
           </div>
@@ -573,20 +609,107 @@ export default function TemplatesShowcase({
   templates = DEFAULT_TEMPLATES,
   onUseTemplate
 }: TemplatesShowcaseProps) {
+  const router = useRouter();
   const [query, setQuery] = React.useState<string>("");
   const [selectedIndustry, setSelectedIndustry] = React.useState<string>("all");
   const [selectedStyle, setSelectedStyle] = React.useState<string>("all");
   const [selectedExperience, setSelectedExperience] = React.useState<string>("all");
   const [showPremiumOnly, setShowPremiumOnly] = React.useState<boolean>(false);
   const [currentPage, setCurrentPage] = React.useState<number>(0);
+  const [realTemplates, setRealTemplates] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
 
+  // Load real templates from API
+  React.useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/templates');
+        if (response.ok) {
+          const data = await response.json();
+          setRealTemplates(data.templates || []);
+        }
+      } catch (error) {
+        console.error('Error loading templates:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTemplates();
+  }, []);
+
+  // Handle template click - navigate to resume builder with template
+  const handleTemplateClick = React.useCallback((template: TemplateItem) => {
+    // If template has a real _id, use it directly
+    if (template._id) {
+      router.push(`/resume-builder?template=${template._id}`);
+      return;
+    }
+    
+    // If we have a real template ID from the API, use it
+    if (realTemplates.length > 0) {
+      // Try to find a matching real template by name, category, or style
+      const matchingTemplate = realTemplates.find(
+        (t: any) => t.name.toLowerCase() === template.name.toLowerCase() ||
+                    (t.category && t.category.toLowerCase() === template.style?.toLowerCase())
+      ) || realTemplates.find(
+        (t: any) => t.category === 'Professional' && template.style === 'Modern'
+      ) || realTemplates.find(
+        (t: any) => t.category === 'Classic' && template.style === 'Classic'
+      ) || realTemplates.find(
+        (t: any) => t.category === 'Minimalist' && template.style === 'Minimal'
+      ) || realTemplates[0];
+      
+      if (matchingTemplate && matchingTemplate._id) {
+        router.push(`/resume-builder?template=${matchingTemplate._id}`);
+        return;
+      }
+    }
+    
+    // Fallback: use custom handler if provided, otherwise navigate to resume builder
+    if (onUseTemplate) {
+      onUseTemplate(template);
+    } else {
+      router.push('/resume-builder');
+    }
+  }, [realTemplates, onUseTemplate, router]);
+
+  // Convert real templates to TemplateItem format for display
+  const displayTemplates = React.useMemo(() => {
+    if (realTemplates.length > 0) {
+      return realTemplates.map((rt: any, index: number) => {
+        const defaultTemplate = DEFAULT_TEMPLATES[index % DEFAULT_TEMPLATES.length];
+        return {
+          id: rt._id || `t${index}`,
+          name: rt.name,
+          industry: rt.category || defaultTemplate?.industry || 'General',
+          style: rt.category || defaultTemplate?.style || 'Modern',
+          experience: defaultTemplate?.experience || 'Mid',
+          atsScore: rt.atsScore || defaultTemplate?.atsScore,
+          isPremium: rt.isPremium || false,
+          rating: typeof rt.rating === 'object' ? rt.rating?.average : rt.rating,
+          usageCount: rt.usageCount || defaultTemplate?.usageCount,
+          profileData: defaultTemplate?.profileData || {
+            name: 'John Doe',
+            title: 'Professional',
+            skills: [],
+            sections: []
+          },
+          _id: rt._id,
+          thumbnail: rt.thumbnail,
+          category: rt.category
+        };
+      });
+    }
+    return templates;
+  }, [realTemplates, templates]);
+
   const filtered = React.useMemo(() => {
-    return templates.filter((t) => {
+    return displayTemplates.filter((t) => {
       const matchQuery = query.trim().length === 0 || 
         t.name.toLowerCase().includes(query.toLowerCase()) ||
-        t.industry.toLowerCase().includes(query.toLowerCase()) ||
-        t.style.toLowerCase().includes(query.toLowerCase());
+        (t.industry && t.industry.toLowerCase().includes(query.toLowerCase())) ||
+        (t.style && t.style.toLowerCase().includes(query.toLowerCase()));
       
       const matchIndustry = selectedIndustry === "all" || t.industry === selectedIndustry;
       const matchStyle = selectedStyle === "all" || t.style === selectedStyle;
@@ -595,23 +718,23 @@ export default function TemplatesShowcase({
       
       return matchQuery && matchIndustry && matchStyle && matchExperience && matchPremium;
     });
-  }, [templates, query, selectedIndustry, selectedStyle, selectedExperience, showPremiumOnly]);
+  }, [displayTemplates, query, selectedIndustry, selectedStyle, selectedExperience, showPremiumOnly]);
 
   // Get unique values for filter options
   const industries = React.useMemo(() => {
-    const unique = Array.from(new Set(templates.map(t => t.industry)));
+    const unique = Array.from(new Set(displayTemplates.map(t => t.industry).filter(Boolean)));
     return unique.sort();
-  }, [templates]);
+  }, [displayTemplates]);
 
   const styles = React.useMemo(() => {
-    const unique = Array.from(new Set(templates.map(t => t.style)));
+    const unique = Array.from(new Set(displayTemplates.map(t => t.style).filter(Boolean)));
     return unique.sort();
-  }, [templates]);
+  }, [displayTemplates]);
 
   const experiences = React.useMemo(() => {
-    const unique = Array.from(new Set(templates.map(t => t.experience)));
+    const unique = Array.from(new Set(displayTemplates.map(t => t.experience).filter(Boolean)));
     return unique.sort();
-  }, [templates]);
+  }, [displayTemplates]);
 
   // Calculate total pages
   const totalPages = Math.ceil(filtered.length / 5);
@@ -764,7 +887,7 @@ export default function TemplatesShowcase({
           {/* Results Summary */}
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              Showing {filtered.length} of {templates.length} templates
+              Showing {filtered.length} of {displayTemplates.length} templates
             </span>
             {(selectedIndustry !== "all" || selectedStyle !== "all" || selectedExperience !== "all" || showPremiumOnly || query) && (
               <span className="text-primary">
@@ -801,9 +924,24 @@ export default function TemplatesShowcase({
             scrollSnapType: 'x mandatory',
             scrollBehavior: 'smooth'
           }}>
-          {filtered.map((t) => (
-            <TemplateCard key={t.id} template={t} onUseTemplate={onUseTemplate} />
-          ))}
+          {filtered.map((t) => {
+            // Find matching real template - use the template's own data if it has _id
+            const matchingRealTemplate = t._id 
+              ? realTemplates.find((rt: any) => rt._id === t._id)
+              : realTemplates.find(
+                  (rt: any) => rt.name.toLowerCase() === t.name.toLowerCase() ||
+                              (rt.category && rt.category.toLowerCase() === t.style?.toLowerCase())
+                ) || realTemplates[filtered.indexOf(t) % realTemplates.length] || null;
+            
+            return (
+              <TemplateCard 
+                key={t.id || t._id} 
+                template={t} 
+                onUseTemplate={handleTemplateClick}
+                realTemplate={matchingRealTemplate || (t._id ? t : null)}
+              />
+            );
+          })}
 
           {filtered.length === 0 && (
             <div className="flex-none w-full rounded-xl border border-dashed border-border bg-secondary p-8 text-center">

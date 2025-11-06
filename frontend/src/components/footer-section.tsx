@@ -1,11 +1,65 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 export interface FooterSectionProps {
   className?: string;
   logoHref?: string;
 }
 
+interface CompanySettings {
+  companyName?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  companyAddress?: string;
+  companyCity?: string;
+  companyState?: string;
+  companyZip?: string;
+  companyCountry?: string;
+  companyWebsite?: string;
+  companyLogo?: string;
+  companyDescription?: string;
+  taxId?: string;
+}
+
 export default function FooterSection({ className, logoHref = "#top" }: FooterSectionProps) {
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/company-settings');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setSettings(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching company settings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  // Default values
+  const companyName = settings?.companyName || 'CVGenix';
+  const email = settings?.companyEmail || 'hello@cvgenix.com';
+  const phone = settings?.companyPhone || '+1 (234) 567-890';
+  const street = settings?.companyAddress || '123 Resume Street';
+  const city = settings?.companyCity || 'San Francisco';
+  const state = settings?.companyState || 'CA';
+  const zipCode = settings?.companyZip || '94102';
+  const country = settings?.companyCountry || 'United States';
+  const description = settings?.companyDescription || 'Create professional resumes that stand out from the crowd. Our modern templates and AI-powered suggestions help you land your dream job faster.';
+  const website = settings?.companyWebsite;
+  const logo = settings?.companyLogo;
+  const copyright = `© ${new Date().getFullYear()} ${companyName}. All rights reserved.`;
+
   return (
     <footer
       className={[
@@ -26,26 +80,57 @@ export default function FooterSection({ className, logoHref = "#top" }: FooterSe
             <a
               href={logoHref}
               className="inline-flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-secondary rounded-md"
-              aria-label="CVGenix home"
+              aria-label={`${companyName} home`}
             >
-              <div className="h-9 w-9 rounded-lg bg-foreground text-primary-foreground flex items-center justify-center shadow-sm ring-1 ring-border transition-transform group-hover:-translate-y-0.5">
-                <span className="text-sm font-bold leading-none">R</span>
-              </div>
+              {logo ? (
+                <img 
+                  src={logo} 
+                  alt={`${companyName} logo`}
+                  className="h-9 w-auto max-w-[200px] object-contain"
+                />
+              ) : (
+                <div className="h-9 w-9 rounded-lg bg-foreground text-primary-foreground flex items-center justify-center shadow-sm ring-1 ring-border transition-transform group-hover:-translate-y-0.5">
+                  <span className="text-sm font-bold leading-none">{companyName.charAt(0)}</span>
+                </div>
+              )}
               <span className="font-display text-xl font-extrabold tracking-tight">
-                CVGenix
+                {companyName}
               </span>
             </a>
 
             <p className="text-sm text-muted-foreground max-w-prose">
-              Create professional resumes that stand out from the crowd. Our modern templates and AI-powered suggestions help you land your dream job faster.
+              {description}
             </p>
 
             {/* Contact */}
             <div className="space-y-2 text-sm">
-              <div className="text-foreground font-medium">hello@cvgenix.com</div>
-              <div className="text-muted-foreground">+1 (234) 567-890</div>
-              <div className="text-muted-foreground">123 Resume Street</div>
-              <div className="text-muted-foreground">San Francisco, CA 94102</div>
+              {email && (
+                <div className="text-foreground font-medium">
+                  <a href={`mailto:${email}`} className="hover:underline">{email}</a>
+                </div>
+              )}
+              {phone && (
+                <div className="text-muted-foreground">
+                  <a href={`tel:${phone}`} className="hover:underline">{phone}</a>
+                </div>
+              )}
+              {(street || city || state || zipCode || country) && (
+                <>
+                  {street && <div className="text-muted-foreground">{street}</div>}
+                  {(city || state || zipCode || country) && (
+                    <div className="text-muted-foreground">
+                      {[city, state, zipCode, country].filter(Boolean).join(', ')}
+                    </div>
+                  )}
+                </>
+              )}
+              {website && (
+                <div className="text-muted-foreground">
+                  <a href={website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {website.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
@@ -58,13 +143,10 @@ export default function FooterSection({ className, logoHref = "#top" }: FooterSe
               <h3 className="text-sm font-semibold tracking-wide">Product</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="#templates" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Templates</a>
+                  <a href="/templates" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Templates</a>
                 </li>
                 <li>
-                  <a href="#get-started" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Resume Builder</a>
-                </li>
-                <li>
-                  <a href="#features" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Features</a>
+                  <a href="/resume-builder" className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">Resume Builder</a>
                 </li>
               </ul>
             </div>
@@ -108,7 +190,7 @@ export default function FooterSection({ className, logoHref = "#top" }: FooterSe
         {/* Bottom bar */}
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-muted-foreground">
-            <span>© 2025 CVGenix. All rights reserved.</span>
+            <span>{copyright}</span>
             <span className="mx-2" aria-hidden>
               •
             </span>

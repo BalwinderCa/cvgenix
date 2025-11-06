@@ -9,11 +9,13 @@ type Plan = {
   id: string;
   name: string;
   description?: string;
+  subtitle?: string; // Subtitle from database
   monthlyPrice: number; // in USD
   yearlyPrice: number; // in USD (billed yearly total)
   features: string[];
   ctaLabel?: string;
   popular?: boolean;
+  credits?: number; // For one-time purchase plans
 };
 
 export type PricingSectionProps = {
@@ -30,7 +32,8 @@ function formatPrice(amount: number) {
   return new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -73,11 +76,92 @@ export default function PricingSection({
   title = "Simple, transparent pricing",
   subtitle = "Choose a plan that grows with your career.",
   defaultBilling = "monthly",
-  plans = defaultPlans,
+  plans: propPlans = defaultPlans,
   onSelectPlan,
 }: PricingSectionProps) {
   const [billing, setBilling] = React.useState<BillingCycle>(defaultBilling);
+  const [plans, setPlans] = React.useState<Plan[]>(propPlans);
+  const [loading, setLoading] = React.useState(true);
+  const [isOneTimePurchase, setIsOneTimePurchase] = React.useState(false);
   const liveRef = React.useRef<HTMLDivElement>(null);
+
+  // Helper function to get default descriptions
+  const getDefaultDescription = React.useCallback((planId: string): string => {
+    const descriptions: Record<string, string> = {
+      free: "Get started with core features.",
+      standard: "Everything you need to stand out.",
+      pro: "For professionals who want the best.",
+    };
+    return descriptions[planId] || "Choose this plan for your needs.";
+  }, []);
+
+  // Load plans from API
+  React.useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/payments/plans');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Convert backend format to frontend format
+            const backendPlans = Object.values(data.data);
+            const convertedPlans: Plan[] = backendPlans.map((bp: any) => {
+              const monthlyPrice = bp.price || 0;
+              // Use yearlyPrice from database if available, otherwise calculate with 20% discount
+              const yearlyPrice = bp.yearlyPrice || (monthlyPrice > 0 ? Math.round(monthlyPrice * 12 * 0.8) : 0);
+              
+              // Use title if available (from database), otherwise use name
+              const planName = bp.title || bp.name || 'Plan';
+              
+              // Check if this is a one-time purchase (no interval or interval is null)
+              const isOneTime = !bp.interval || bp.interval === null;
+              
+              return {
+                id: bp.id,
+                name: planName,
+                description: bp.description || getDefaultDescription(bp.id), // Use description from DB, fallback to default
+                subtitle: bp.subtitle || bp.description || null, // Support subtitle field from DB, fallback to description
+                monthlyPrice: monthlyPrice,
+                yearlyPrice: yearlyPrice,
+                features: bp.features || [],
+                ctaLabel: bp.id === 'free' || monthlyPrice === 0 ? 'Get Started' : `Upgrade to ${planName}`,
+                popular: bp.popular || bp.id === 'pro' || bp.id === 'standard',
+                credits: bp.credits, // Include credits for one-time purchases
+              };
+            });
+            
+            // Check if all plans are one-time purchases
+            // Plans are one-time if: interval is null/undefined/empty, OR if they have credits (credit-based plans)
+            const allOneTime = convertedPlans.every(p => {
+              const bp = backendPlans.find((b: any) => b.id === p.id);
+              const interval = bp?.interval;
+              const hasCredits = bp?.credits && bp.credits > 0;
+              // If plan has credits, it's a one-time purchase
+              // Or if interval is null/undefined/empty, it's one-time
+              return hasCredits || !interval || interval === null || interval === '';
+            });
+            setIsOneTimePurchase(allOneTime);
+            
+            // Sort plans: free first, then by price
+            convertedPlans.sort((a, b) => {
+              if (a.monthlyPrice === 0) return -1;
+              if (b.monthlyPrice === 0) return 1;
+              return a.monthlyPrice - b.monthlyPrice;
+            });
+            
+            setPlans(convertedPlans);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading plans:', error);
+        // Keep default plans on error
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadPlans();
+  }, [getDefaultDescription]);
 
   React.useEffect(() => {
     // Announce billing change to screen readers
@@ -116,6 +200,7 @@ export default function PricingSection({
             {subtitle}
           </p>
 
+          {!isOneTimePurchase && (
           <div
             className="mt-6 inline-flex items-center justify-center rounded-full bg-primary/10 p-1 border border-primary/20"
             role="group"
@@ -148,6 +233,7 @@ export default function PricingSection({
               Yearly
             </button>
           </div>
+          )}
 
           <div
             aria-live="polite"
@@ -157,27 +243,35 @@ export default function PricingSection({
           />
         </div>
 
-        <div className="mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        {loading ? (
+          <div className="mt-8 sm:mt-10 flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading plans...</p>
+            </div>
+          </div>
+        ) : (
+          <div className={`mt-8 sm:mt-10 grid grid-cols-1 ${
+            plans.length === 1 ? 'md:grid-cols-1' : 
+            plans.length === 2 ? 'md:grid-cols-2' : 
+            'md:grid-cols-3'
+          } gap-4 sm:gap-6`}>
           {plans.map((plan) => {
             const isPopular = Boolean(plan.popular);
             const savings = yearlySavingsPercent(plan);
             const isFree = plan.monthlyPrice === 0 && plan.yearlyPrice === 0;
 
-            const priceLabel =
-              billing === "monthly"
-                ? isFree
-                  ? "$0"
-                  : `${formatPrice(plan.monthlyPrice)}`
-                : isFree
-                ? "$0"
-                : `${formatPrice(plan.yearlyPrice)}`;
+            const priceLabel = isOneTimePurchase
+              ? (isFree ? "$0" : `${formatPrice(plan.monthlyPrice)}`)
+              : (billing === "monthly"
+                  ? (isFree ? "$0" : `${formatPrice(plan.monthlyPrice)}`)
+                  : (isFree ? "$0" : `${formatPrice(plan.yearlyPrice)}`));
 
-            const subLabel =
-              billing === "monthly"
+            const subLabel = isOneTimePurchase
+              ? ""
+              : (billing === "monthly"
                 ? "/month"
-                : isFree
-                ? ""
-                : "/year";
+                  : (isFree ? "" : "/year"));
 
             return (
               <div
@@ -200,9 +294,9 @@ export default function PricingSection({
                     <h3 className="text-lg sm:text-xl font-bold break-words">
                       {plan.name}
                     </h3>
-                    {plan.description && (
+                    {(plan.subtitle || plan.description) && (
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {plan.description}
+                        {plan.subtitle || plan.description}
                       </p>
                     )}
                   </div>
@@ -214,10 +308,17 @@ export default function PricingSection({
                     <span className="text-sm text-muted-foreground">{subLabel}</span>
                   </div>
 
-                  {billing === "yearly" && savings > 0 && !isFree && (
+                  {!isOneTimePurchase && billing === "yearly" && savings > 0 && !isFree && (
                     <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-medium">
                       <TicketPercent className="h-3.5 w-3.5 text-foreground" aria-hidden="true" />
                       <span className="text-foreground">Save {savings}% annually</span>
+                    </div>
+                  )}
+                  
+                  {isOneTimePurchase && !isFree && plan.credits && (
+                    <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-medium">
+                      <TicketPercent className="h-3.5 w-3.5 text-foreground" aria-hidden="true" />
+                      <span className="text-foreground">{plan.credits} Credits Included</span>
                     </div>
                   )}
 
@@ -255,9 +356,15 @@ export default function PricingSection({
                       <CreditCard className="h-4 w-4" aria-hidden="true" />
                       {plan.ctaLabel ?? "Select plan"}
                     </button>
-                    {!isFree && billing === "yearly" && (
+                    {!isOneTimePurchase && !isFree && billing === "yearly" && (
                       <p className="mt-2 text-xs text-muted-foreground text-center">
                         Billed as one payment of {formatPrice(plan.yearlyPrice)}
+                      </p>
+                    )}
+                    
+                    {isOneTimePurchase && !isFree && (
+                      <p className="mt-2 text-xs text-muted-foreground text-center">
+                        One-time purchase
                       </p>
                     )}
                   </div>
@@ -266,6 +373,7 @@ export default function PricingSection({
             );
           })}
         </div>
+        )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Prices in USD. Cancel anytime.

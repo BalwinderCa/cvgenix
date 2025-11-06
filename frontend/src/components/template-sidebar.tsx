@@ -50,6 +50,7 @@ export default function TemplateSidebar({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
   const categories = ['all', 'modern', 'classic', 'minimal', 'creative']
 
@@ -211,7 +212,7 @@ export default function TemplateSidebar({
             {filteredTemplates.map((template) => (
               <Card 
                 key={template._id}
-                className={`group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white cursor-pointer ${
+                className={`group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white cursor-pointer p-0 overflow-hidden ${
                   currentTemplateId === template._id 
                     ? 'ring-2 ring-blue-500 bg-blue-50' 
                     : 'hover:border-blue-300'
@@ -220,22 +221,45 @@ export default function TemplateSidebar({
               >
                 <div className="relative overflow-hidden">
                   {/* Template Preview */}
-                  <div className="aspect-[3/4] bg-white rounded-t-xl overflow-hidden border border-gray-200">
-                    {template.thumbnail && template.thumbnail.startsWith('data:image') ? (
+                  <div className="aspect-[3/4] bg-white overflow-hidden border-0">
+                    {template.thumbnail && (template.thumbnail.startsWith('data:image') || template.thumbnail.startsWith('http://') || template.thumbnail.startsWith('https://')) && !failedImages.has(template._id) ? (
                       <img 
-                        src={template.thumbnail} 
+                        src={template.thumbnail.startsWith('http') ? `http://localhost:3001/api/templates/thumbnail/${template._id}?t=${Date.now()}` : template.thumbnail}
                         alt={`${template.name} template preview`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover block"
+                        style={{ display: 'block' }}
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          console.error(`Failed to load thumbnail for template ${template.name}:`, template.thumbnail);
+                          console.error(`Image src was:`, e.currentTarget.src);
+                          setFailedImages(prev => new Set(prev).add(template._id));
+                          // Try direct URL as fallback
+                          if (template.thumbnail.startsWith('http') && e.currentTarget.src.includes('/thumbnail/')) {
+                            e.currentTarget.src = template.thumbnail;
+                          }
+                        }}
+                        onLoad={() => {
+                          console.log(`Successfully loaded thumbnail for template ${template.name}`);
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full bg-white flex items-center justify-center">
                         <div className="text-center p-4">
+                          {failedImages.has(template._id) ? (
+                            <>
+                              <div className="text-lg font-bold text-gray-900 mb-2">{template.name}</div>
+                              <div className="text-xs text-gray-500">Preview unavailable</div>
+                            </>
+                          ) : (
+                            <>
                           <div className="text-lg font-bold text-gray-900 mb-2">JOHN SMITH</div>
                           <div className="text-sm text-gray-600 mb-1">SOFTWARE ENGINEER</div>
                           <div className="text-xs text-gray-500 mb-3">john.smith@email.com</div>
                           <div className="text-xs text-gray-700">
                             Modern professional resume template
                           </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
@@ -257,15 +281,19 @@ export default function TemplateSidebar({
                     </div>
                   )}
                   
-                  {/* Hover overlay with use button */}
-                  {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all duration-300 flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <button className="bg-white text-gray-900 px-3 py-2 rounded-lg font-semibold text-xs shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200">
+                  {/* Edit button - only show on hover */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTemplateClick(template._id);
+                      }}
+                      className="bg-white text-gray-900 px-4 py-2 rounded-lg font-semibold text-sm shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200 cursor-pointer"
+                    >
                         <Sparkles className="w-3 h-3 mr-1 inline" />
-                        Use
+                      Edit this template
                       </button>
                     </div>
-                  </div> */}
                 </div>
               </Card>
             ))}

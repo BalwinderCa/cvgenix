@@ -3,6 +3,33 @@ const { body, validationResult, query } = require('express-validator');
 const Template = require('../models/Template');
 const auth = require('../middleware/auth');
 const handlebars = require('handlebars');
+const axios = require('axios');
+
+// AWS S3 Client (optional - only if credentials are available)
+let s3Client = null;
+let S3Client = null;
+let GetObjectCommand = null;
+
+try {
+  const awsSdk = require('@aws-sdk/client-s3');
+  S3Client = awsSdk.S3Client;
+  GetObjectCommand = awsSdk.GetObjectCommand;
+  
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'ca-central-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      }
+    });
+    console.log('[S3] AWS S3 client initialized with credentials');
+  } else {
+    console.log('[S3] AWS credentials not found, will use public URL access');
+  }
+} catch (error) {
+  console.log('[S3] AWS SDK not available, using fallback method:', error.message);
+}
 
 // Register Handlebars helpers
 handlebars.registerHelper('formatDate', function(dateString, format = 'YYYY-MM') {
@@ -921,6 +948,142 @@ router.post('/save-demo', async (req, res) => {
       error: error.message,
       details: error.stack
     });
+  }
+});
+
+// @route   GET /api/templates/thumbnail/:templateId
+// @desc    Proxy endpoint to serve template thumbnails (handles S3/CORS issues)
+// @access  Public
+router.get('/thumbnail/:templateId', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.templateId).select('thumbnail name');
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    if (!template.thumbnail) {
+      return res.status(404).json({ error: 'Template thumbnail not found' });
+    }
+
+    // If thumbnail is a URL, try to proxy it
+    if (template.thumbnail.startsWith('http://') || template.thumbnail.startsWith('https://')) {
+      // Check if it's an S3 URL and we have AWS credentials
+      const isS3Url = template.thumbnail.includes('s3.') || template.thumbnail.includes('s3.amazonaws.com') || template.thumbnail.includes('amazonaws.com');
+      
+      if (isS3Url && s3Client) {
+        try {
+          // Extract bucket and key from S3 URL
+          // Format: https://bucket.s3.region.amazonaws.com/key or https://s3.region.amazonaws.com/bucket/key
+          const url = new URL(template.thumbnail);
+          let bucket, key;
+          
+          if (url.hostname.includes('.s3.')) {
+            // Format: bucket.s3.region.amazonaws.com (e.g., cvgenixbucket.s3.ca-central-1.amazonaws.com)
+            bucket = url.hostname.split('.')[0];
+            key = url.pathname.substring(1); // Remove leading slash
+          } else if (url.hostname.startsWith('s3.')) {
+            // Format: s3.region.amazonaws.com/bucket/key
+            const parts = url.pathname.substring(1).split('/');
+            bucket = parts[0];
+            key = parts.slice(1).join('/');
+          } else {
+            throw new Error('Unable to parse S3 URL');
+          }
+          
+          if (!GetObjectCommand) {
+            throw new Error('AWS SDK not available');
+          }
+          const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+          const response = await s3Client.send(command);
+          
+          // Set appropriate headers including CORS
+          res.setHeader('Content-Type', response.ContentType || 'image/png');
+          res.setHeader('Cache-Control', 'public, max-age=31536000');
+          res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+          res.setHeader('Access-Control-Allow-Methods', 'GET');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          if (response.ContentLength) {
+            res.setHeader('Content-Length', response.ContentLength);
+          }
+          
+          // AWS SDK v3 returns Body as a Readable stream
+          // Handle stream errors
+          response.Body.on('error', (err) => {
+            console.error(`[Thumbnail Proxy] Stream error:`, err);
+            if (!res.headersSent) {
+              res.status(500).json({ error: 'Failed to stream image' });
+            } else {
+              res.end();
+            }
+          });
+          
+          // Handle response errors
+          res.on('error', (err) => {
+            console.error(`[Thumbnail Proxy] Response error:`, err);
+          });
+          
+          // Handle stream end
+          response.Body.on('end', () => {
+            // Stream completed successfully
+          });
+          
+          // Pipe the stream to response
+          response.Body.pipe(res);
+          return;
+        } catch (s3Error) {
+          console.error(`[Thumbnail Proxy] S3 error for ${template.name}:`, s3Error.message);
+          console.error(`[Thumbnail Proxy] S3 error stack:`, s3Error.stack);
+          // Fall through to try axios as fallback
+        }
+      }
+      
+      // Fallback: Try axios for non-S3 URLs or if S3 fails
+      try {
+        const imageResponse = await axios.get(template.thumbnail, {
+          responseType: 'stream',
+          timeout: 10000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0'
+          },
+          validateStatus: function (status) {
+            return status >= 200 && status < 400; // Accept 2xx and 3xx
+          }
+        });
+        
+        // Set appropriate content type and CORS headers
+        const contentType = imageResponse.headers['content-type'] || 'image/png';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+        res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        
+        imageResponse.data.pipe(res);
+      } catch (proxyError) {
+        console.error(`[Thumbnail Proxy] Error fetching thumbnail for ${template.name}:`, proxyError.message);
+        console.error(`[Thumbnail Proxy] Error details:`, proxyError.response?.status, proxyError.response?.statusText);
+        // If proxy fails, redirect to the original URL (browser will try to load it)
+        return res.redirect(template.thumbnail);
+      }
+    } else if (template.thumbnail.startsWith('data:image')) {
+      // If it's a base64 image, decode and serve it
+      const base64Data = template.thumbnail.split(',')[1];
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      const contentType = template.thumbnail.match(/data:image\/([^;]+)/)?.[1] || 'png';
+      
+      res.setHeader('Content-Type', `image/${contentType}`);
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:3000');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.send(imageBuffer);
+    } else {
+      return res.status(400).json({ error: 'Invalid thumbnail format' });
+    }
+  } catch (error) {
+    console.error('[Thumbnail Proxy] Error:', error);
+    res.status(500).json({ error: 'Failed to serve thumbnail' });
   }
 });
 

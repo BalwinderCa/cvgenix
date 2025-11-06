@@ -47,6 +47,7 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   const categories = ['all', 'modern', 'classic', 'minimal', 'creative'];
 
@@ -162,6 +163,11 @@ export default function TemplatesPage() {
     router.push(`/resume-builder?template=${templateId}`);
   };
 
+  const handleEditTemplate = (templateId: string) => {
+    // Navigate to resume builder with template
+    router.push(`/resume-builder?template=${templateId}`);
+  };
+
 
   const previewTemplate = (templateId: string) => {
     // Open template preview in new tab
@@ -240,14 +246,28 @@ export default function TemplatesPage() {
         {/* Templates Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredTemplates.map((template) => (
-            <Card key={template._id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white">
+            <Card key={template._id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white p-0 overflow-hidden cursor-pointer">
               <div className="relative overflow-hidden">
-                <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl overflow-hidden">
-                  {template.thumbnail && template.thumbnail.startsWith('data:image') ? (
+                <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                  {template.thumbnail && (template.thumbnail.startsWith('data:image') || template.thumbnail.startsWith('http://') || template.thumbnail.startsWith('https://')) && !failedImages.has(template._id) ? (
                     <img 
-                      src={template.thumbnail} 
+                      src={template.thumbnail.startsWith('http') ? `http://localhost:3001/api/templates/thumbnail/${template._id}?t=${Date.now()}` : template.thumbnail}
                       alt={`${template.name} template preview`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover block"
+                      style={{ display: 'block' }}
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        console.error(`Failed to load thumbnail for template ${template.name}:`, template.thumbnail);
+                        console.error(`Image src was:`, e.currentTarget.src);
+                        setFailedImages(prev => new Set(prev).add(template._id));
+                        // Try direct URL as fallback
+                        if (template.thumbnail.startsWith('http') && e.currentTarget.src.includes('/thumbnail/')) {
+                          e.currentTarget.src = template.thumbnail;
+                        }
+                      }}
+                      onLoad={() => {
+                        console.log(`Successfully loaded thumbnail for template ${template.name}`);
+                      }}
                     />
                   ) : template.thumbnail && template.thumbnail.startsWith('data:text/html') ? (
                     <iframe 
@@ -267,8 +287,18 @@ export default function TemplatesPage() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="text-center">
+                        {failedImages.has(template._id) ? (
+                          <>
+                            <Palette className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                            <p className="text-sm text-gray-500 font-medium">{template.name}</p>
+                            <p className="text-xs text-gray-400 mt-1">Preview unavailable</p>
+                          </>
+                        ) : (
+                          <>
                         <Palette className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                         <p className="text-sm text-gray-500 font-medium">{template.style || 'Professional Resume'}</p>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -279,13 +309,16 @@ export default function TemplatesPage() {
                     Premium
                   </Badge>
                 )}
-                {/* Use button - only show on hover */}
+                {/* Edit button - only show on hover */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <button 
-                    onClick={() => handleUseTemplate(template._id)}
-                    className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditTemplate(template._id);
+                    }}
+                    className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200 cursor-pointer"
                   >
-                    Use this template
+                    Edit this template
                   </button>
                 </div>
               </div>

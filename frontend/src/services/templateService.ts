@@ -224,11 +224,20 @@ export class TemplateService {
   }
 
   private clearCanvas(canvas: any, baseDimensions?: { width: number; height: number }): void {
+    try {
+      // Validate canvas before clearing
+      this.validateCanvas(canvas);
+      
     // Remove all objects manually instead of using clear()
-    const objects = canvas.getObjects();
-    while (objects.length > 0) {
-      canvas.remove(objects[0]);
+      // Use a safer approach that doesn't modify array during iteration
+      const objects = [...canvas.getObjects()]; // Create a copy
+      objects.forEach(obj => {
+        try {
+          canvas.remove(obj);
+        } catch (err) {
+          console.warn('Error removing object:', err);
     }
+      });
     
     canvas.backgroundColor = '#ffffff';
     
@@ -244,6 +253,10 @@ export class TemplateService {
     
     // Ensure render
     canvas.renderAll();
+    } catch (error) {
+      console.error('Error clearing canvas:', error);
+      throw new Error(`Failed to clear canvas: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async createAndAddObjects(canvas: any, fabric: any, elementsToLoad: any[]): Promise<void> {

@@ -261,6 +261,25 @@ class ErrorService {
   // 404 handler
   notFoundHandler() {
     return (req, res, next) => {
+      // List of paths that should not trigger error logging (common automated requests)
+      const silentPaths = [
+        '/favicon.ico',
+        '/.well-known/appspecific/com.chrome.devtools.json',
+        '/robots.txt',
+        '/apple-touch-icon.png',
+        '/apple-touch-icon-precomposed.png'
+      ];
+      
+      const shouldSilence = silentPaths.some(path => req.originalUrl === path || req.originalUrl.startsWith(path));
+      
+      if (shouldSilence) {
+        // Return 404 without logging
+        return res.status(404).json({
+          success: false,
+          message: 'Not found'
+        });
+      }
+      
       const error = new NotFoundError(`Route ${req.originalUrl} not found`);
       next(error);
     };

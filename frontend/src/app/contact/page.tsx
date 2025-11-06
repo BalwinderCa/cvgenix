@@ -2,7 +2,7 @@
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,10 +10,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Mail, Phone, MapPin, Clock, Send } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Send } from "lucide-react";
 import { toast } from "sonner";
 import NavigationHeader from "@/components/navigation-header";
 import FooterSection from "@/components/footer-section";
+import { FAQSection } from "@/components/faq-section";
+
+interface CompanySettings {
+  companyName?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  companyAddress?: string;
+  companyCity?: string;
+  companyState?: string;
+  companyZip?: string;
+  companyCountry?: string;
+  companyWebsite?: string;
+  companyDescription?: string;
+}
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -24,6 +38,28 @@ export default function ContactPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/company-settings');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setSettings(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching company settings:', error);
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -39,10 +75,28 @@ export default function ContactPage() {
     setError('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('Message sent successfully! We\'ll get back to you soon.');
+      const response = await fetch('http://localhost:3001/api/support', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle validation errors
+        if (data.errors && Array.isArray(data.errors)) {
+          const errorMessages = data.errors.map((err: any) => err.msg || err.message).join(', ');
+          setError(errorMessages || data.message || 'Failed to send message. Please check your input.');
+        } else {
+          setError(data.message || 'Failed to send message. Please try again.');
+        }
+        return;
+      }
+
+      toast.success(data.message || 'Message sent successfully! We\'ll get back to you soon.');
       setFormData({
         name: '',
         email: '',
@@ -50,7 +104,8 @@ export default function ContactPage() {
         message: ''
       });
     } catch (error) {
-      setError('Failed to send message. Please try again.');
+      console.error('Error submitting form:', error);
+      setError('Failed to send message. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -78,8 +133,13 @@ export default function ContactPage() {
                 Get in <span className="text-primary">Touch</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Have questions about CVGenix? Need help with your resume? We're here to help you succeed in your job search.
+                {settings?.companyDescription || "Have questions about CVGenix? Need help with your resume? We're here to help you succeed in your job search."}
               </p>
+            </div>
+
+            {/* FAQ Section */}
+            <div className="mb-16">
+              <FAQSection />
             </div>
 
             <div className="grid lg:grid-cols-2 gap-12">
@@ -176,81 +236,63 @@ export default function ContactPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <Mail className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <div className="font-medium">Email</div>
-                        <div className="text-muted-foreground">hello@cvgenix.com</div>
-                        <div className="text-sm text-muted-foreground">We respond within 24 hours</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <Phone className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <div className="font-medium">Phone</div>
-                        <div className="text-muted-foreground">+1 (234) 567-890</div>
-                        <div className="text-sm text-muted-foreground">Mon-Fri, 9AM-6PM PST</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <MapPin className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <div className="font-medium">Address</div>
-                        <div className="text-muted-foreground">
-                          123 Resume Street<br />
-                          San Francisco, CA 94102
+                    {settings?.companyEmail && (
+                      <div className="flex items-start gap-3">
+                        <Mail className="w-5 h-5 text-primary mt-0.5" />
+                        <div>
+                          <div className="font-medium">Email</div>
+                          <a 
+                            href={`mailto:${settings.companyEmail}`}
+                            className="text-muted-foreground hover:text-primary hover:underline"
+                          >
+                            {settings.companyEmail}
+                          </a>
+                          <div className="text-sm text-muted-foreground">We respond within 24 hours</div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="flex items-start gap-3">
-                      <Clock className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <div className="font-medium">Business Hours</div>
-                        <div className="text-muted-foreground">
-                          Monday - Friday: 9:00 AM - 6:00 PM PST<br />
-                          Saturday: 10:00 AM - 4:00 PM PST<br />
-                          Sunday: Closed
+                    {settings?.companyPhone && (
+                      <div className="flex items-start gap-3">
+                        <Phone className="w-5 h-5 text-primary mt-0.5" />
+                        <div>
+                          <div className="font-medium">Phone</div>
+                          <a 
+                            href={`tel:${settings.companyPhone}`}
+                            className="text-muted-foreground hover:text-primary hover:underline"
+                          >
+                            {settings.companyPhone}
+                          </a>
+                          <div className="text-sm text-muted-foreground">Mon-Fri, 9AM-6PM PST</div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    )}
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Frequently Asked Questions</CardTitle>
-                    <CardDescription>
-                      Quick answers to common questions
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="font-medium mb-1">How do I get started?</div>
-                      <div className="text-sm text-muted-foreground">
-                        Simply sign up for a free account and start building your resume with our easy-to-use builder.
+                    {(settings?.companyAddress || settings?.companyCity || settings?.companyState || settings?.companyZip) && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-5 h-5 text-primary mt-0.5" />
+                        <div>
+                          <div className="font-medium">Address</div>
+                          <div className="text-muted-foreground">
+                            {settings.companyAddress && (
+                              <>
+                                {settings.companyAddress}
+                                <br />
+                              </>
+                            )}
+                            {[settings.companyCity, settings.companyState, settings.companyZip]
+                              .filter(Boolean)
+                              .join(', ')}
+                            {settings.companyCountry && (
+                              <>
+                                <br />
+                                {settings.companyCountry}
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className="font-medium mb-1">Is my data secure?</div>
-                      <div className="text-sm text-muted-foreground">
-                        Yes, we use industry-standard encryption and never share your personal information.
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-medium mb-1">Can I download my resume?</div>
-                      <div className="text-sm text-muted-foreground">
-                        Absolutely! You can download your resume in PDF format anytime.
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-medium mb-1">Do you offer support?</div>
-                      <div className="text-sm text-muted-foreground">
-                        Yes, we provide 24/7 email support and have a comprehensive help center.
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

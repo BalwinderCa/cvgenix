@@ -49,6 +49,7 @@ const enhancedTemplateRoutes = require('./routes/enhancedTemplates')
 const userRoutes = require('./routes/users')
 const atsRoutes = require('./routes/ats')
 const resumeSharingRoutes = require('./routes/resumeSharing')
+const companySettingsRoutes = require('./routes/companySettings')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -116,10 +117,73 @@ app.use('/api/users', userRoutes)
 app.use('/api/ats', atsRoutes)
 app.use('/api/progress', require('./routes/progress')) // Simple progress tracking
 app.use('/api/payments', require('./routes/payments'))
+app.use('/api/faqs', require('./routes/faqs')) // FAQ routes
 app.use('/api/resumes/sharing', resumeSharingRoutes) // Resume sharing routes
+app.use('/api/company-settings', companySettingsRoutes) // Company settings routes
+app.use('/api/support', require('./routes/support')) // Support/Contact form routes
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+
+// Handle favicon requests
+app.get('/favicon.ico', (req, res) => {
+  const faviconPath = path.join(__dirname, '../frontend/public/favicon.ico')
+  const fs = require('fs')
+  if (fs.existsSync(faviconPath)) {
+    res.sendFile(faviconPath)
+  } else {
+    res.status(204).end() // No Content
+  }
+})
+
+// Handle API docs route (Swagger was removed)
+app.get('/api-docs', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'API documentation endpoint has been removed. Please refer to the API routes directly.',
+    availableEndpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      resumes: '/api/resumes',
+      templates: '/api/templates',
+      users: '/api/users',
+      ats: '/api/ats',
+      payments: '/api/payments'
+    }
+  })
+})
+
+// Handle root route
+app.get('/', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production, this should be handled by static file serving
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'))
+  } else {
+    // In development, provide API info
+    res.json({
+      message: 'CVGenix API Server',
+      status: 'running',
+      environment: process.env.NODE_ENV || 'development',
+      port: PORT,
+      frontend: process.env.FRONTEND_URL || 'http://localhost:3000',
+      endpoints: {
+        health: '/api/health',
+        auth: '/api/auth',
+        resumes: '/api/resumes',
+        templates: '/api/templates',
+        users: '/api/users',
+        ats: '/api/ats',
+        payments: '/api/payments'
+      },
+      note: 'Frontend is running separately. Visit http://localhost:3000 for the web application.'
+    })
+  }
+})
+
+// Suppress automated requests (Chrome DevTools, etc.)
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.status(204).end() // No Content
+})
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {

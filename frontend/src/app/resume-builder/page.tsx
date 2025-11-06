@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Download, Trash2, ZoomIn, ZoomOut, PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import NavigationHeader from '@/components/navigation-header';
 import ResumeBuilderSidebar from '@/components/resume-builder-sidebar';
@@ -16,6 +17,8 @@ import { TemplateService } from '@/services/templateService';
 import { ExportState } from '@/types/canvas';
 
 export default function ResumeBuilderPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeSidebarTab, setActiveSidebarTab] = useState('design');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [exportState, setExportState] = useState<ExportState>({
@@ -26,6 +29,9 @@ export default function ResumeBuilderPage() {
   const [zoomLevel, setZoomLevel] = useState(100);
   const isDraggingSlider = useRef(false);
   const zoomUpdateFrame = useRef<number | null>(null);
+  const isManualSelection = useRef(false);
+  const loadingTemplateIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Use the canvas manager hook
   const {
@@ -173,38 +179,124 @@ export default function ResumeBuilderPage() {
   }, [canvasState.fabricCanvas, exportState.exportFormat]);
 
   // Handle template selection
-  const handleTemplateSelect = useCallback(async (templateId: string) => {
+  const handleTemplateSelect = useCallback(async (templateId: string, isManual = false) => {
+    // Validate canvas is ready
+    if (!canvasState.fabricCanvas) {
+      console.error('Canvas is not ready yet');
+      return;
+    }
+    
+    // Validate canvas context hasn't been lost
+    try {
+      const ctx = canvasState.fabricCanvas.getContext();
+      if (!ctx || (ctx.isContextLost && ctx.isContextLost())) {
+        console.error('Canvas context is lost');
+        setError('Canvas context lost. Please refresh the page.');
+        return;
+      }
+    } catch (err) {
+      console.error('Error validating canvas:', err);
+      setError('Canvas error. Please refresh the page.');
+      return;
+    }
+    
     // Prevent loading the same template if it's already loaded
     if (canvasState.currentTemplateId === templateId && !isLoading) {
       console.log('Template already loaded, skipping...');
       return;
     }
     
+    // Cancel any in-progress template load
+    if (abortControllerRef.current) {
+      console.log('Cancelling previous template load');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Prevent concurrent loading
+    if (loadingTemplateIdRef.current && loadingTemplateIdRef.current !== templateId) {
+      console.log('Another template is already loading, waiting...');
+      return;
+    }
+    
+    // Mark as manual selection to prevent URL parameter from interfering
+    if (isManual) {
+      isManualSelection.current = true;
+      // Update URL to reflect the new template selection
+      const newUrl = `/resume-builder?template=${templateId}`;
+      router.replace(newUrl);
+    }
+    
+    // Create new abort controller for this load
+    abortControllerRef.current = new AbortController();
+    loadingTemplateIdRef.current = templateId;
     setIsLoading(true);
     setError(null);
     
     try {
       updateCanvasState({ currentTemplateId: templateId });
       const baseDimensions = getBaseDimensions();
+      
+      // Check if operation was aborted before loading
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+      
       await templateService.loadTemplateIntoCanvas(canvasState.fabricCanvas, templateId, baseDimensions);
+      
+      // Check if operation was aborted after loading
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+      
+      // Validate canvas is still valid before finalizing
+      if (!canvasState.fabricCanvas) {
+        throw new Error('Canvas was disposed during template load');
+      }
+      
+      const ctx = canvasState.fabricCanvas.getContext();
+      if (!ctx || (ctx.isContextLost && ctx.isContextLost())) {
+        throw new Error('Canvas context lost during template load');
+      }
       
       // Initialize undo/redo history with the loaded template
       setTimeout(() => {
-        if (canvasState.fabricCanvas && canvasState.fabricCanvas.initializeHistory) {
+        if (canvasState.fabricCanvas && !abortControllerRef.current?.signal.aborted) {
+          try {
+            if (canvasState.fabricCanvas.initializeHistory) {
           canvasState.fabricCanvas.initializeHistory();
         }
         const initialState = JSON.stringify(canvasState.fabricCanvas.toJSON());
         updateCanvasState({ canvasState: initialState });
+          } catch (err) {
+            console.error('Error initializing history:', err);
+          }
+        }
       }, 100);
       
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('Template load cancelled');
+        return;
+      }
+      
       const errorMessage = err instanceof Error ? err.message : 'Failed to load template';
       setError(errorMessage);
       console.error('Error loading template:', err);
     } finally {
       setIsLoading(false);
+      loadingTemplateIdRef.current = null;
+      abortControllerRef.current = null;
+      
+      // Reset manual selection flag after a short delay
+      if (isManual) {
+        setTimeout(() => {
+          isManualSelection.current = false;
+        }, 500);
+      }
     }
-  }, [canvasState.fabricCanvas, canvasState.currentTemplateId, templateService, updateCanvasState, getBaseDimensions, isLoading]);
+  }, [canvasState.fabricCanvas, canvasState.currentTemplateId, templateService, updateCanvasState, getBaseDimensions, isLoading, router]);
 
   // Handle export format change
   const handleExportFormatChange = useCallback((format: 'PNG' | 'PDF' | 'JPG') => {
@@ -225,6 +317,27 @@ export default function ResumeBuilderPage() {
       console.error('Error getting zoom level:', error);
     }
   }, [canvasState.fabricCanvas]);
+
+  // Load template from URL parameter when canvas is ready
+  useEffect(() => {
+    const templateId = searchParams.get('template');
+    
+    // Don't load from URL if:
+    // 1. Manual selection is in progress
+    // 2. Canvas is not ready
+    // 3. Template ID doesn't exist in URL
+    if (!templateId || !canvasState.fabricCanvas || isManualSelection.current) {
+      return;
+    }
+    
+    // Only load template if it's different from currently loaded one
+    const shouldLoad = canvasState.currentTemplateId !== templateId;
+    
+    if (shouldLoad && !isLoading) {
+      console.log('Loading template from URL:', templateId);
+      handleTemplateSelect(templateId, false);
+    }
+  }, [canvasState.fabricCanvas, searchParams, handleTemplateSelect, canvasState.currentTemplateId, isLoading]);
 
   // Handle zoom change - scales the entire canvas container (keeps content proportional)
   const handleZoomChange = useCallback((zoom: number, immediate = false) => {
@@ -388,7 +501,7 @@ export default function ResumeBuilderPage() {
                 activeSidebarTab={activeSidebarTab}
                 setActiveSidebarTab={setActiveSidebarTab}
                 currentTemplateId={canvasState.currentTemplateId}
-                onTemplateSelect={handleTemplateSelect}
+                onTemplateSelect={(templateId) => handleTemplateSelect(templateId, true)}
               />
             )}
           </div>
