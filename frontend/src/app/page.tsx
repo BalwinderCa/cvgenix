@@ -18,7 +18,7 @@ export default function Page() {
       <main className="pt-16 min-h-screen bg-background">
         {/* Hero */}
         <div id="top" className="bg-transparent">
-          <HeroSection primaryHref="#get-started" secondaryHref="#templates" />
+          <HeroSection primaryHref="/resume-builder" secondaryHref="/resume-builder?upload=true" />
         </div>
 
         {/* Templates Showcase */}

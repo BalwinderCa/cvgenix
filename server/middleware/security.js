@@ -15,9 +15,13 @@ class SecurityMiddleware {
 
   // Enhanced rate limiting
   createRateLimit(options = {}) {
+    // More lenient limits for development
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const defaultMax = isDevelopment ? 5000 : 1000; // 5000 in dev, 1000 in production
+    
     const defaultOptions = {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
+      max: defaultMax, // limit each IP to requests per windowMs
       message: {
         success: false,
         message: 'Too many requests from this IP, please try again later.',
@@ -25,6 +29,13 @@ class SecurityMiddleware {
       },
       standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
       legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+      skip: (req) => {
+        // Skip rate limiting for localhost in development
+        if (isDevelopment && (req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1')) {
+          return true;
+        }
+        return false;
+      },
       handler: (req, res) => {
         this.logger.security('Rate limit exceeded', {
           ip: req.ip,
@@ -42,6 +53,22 @@ class SecurityMiddleware {
     };
 
     return rateLimit({ ...defaultOptions, ...options });
+  }
+  
+  // Lenient rate limiting for public read-only endpoints (like templates)
+  createLenientRateLimit() {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    return this.createRateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: isDevelopment ? 10000 : 2000, // Very high limit for read-only endpoints
+      skip: (req) => {
+        // Skip rate limiting for localhost in development
+        if (isDevelopment && (req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1')) {
+          return true;
+        }
+        return false;
+      }
+    });
   }
 
   // Strict rate limiting for sensitive endpoints
@@ -414,6 +441,7 @@ class SecurityMiddleware {
     return {
       rateLimit: this.createRateLimit(),
       strictRateLimit: this.createStrictRateLimit(),
+      lenientRateLimit: this.createLenientRateLimit(),
       speedLimit: this.createSpeedLimit(),
       mongoSanitize: this.mongoSanitize(),
       xssProtection: this.xssProtection(),

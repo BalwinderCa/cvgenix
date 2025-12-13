@@ -8,6 +8,7 @@ import ResumeBuilderSidebar from '@/components/resume-builder-sidebar';
 import ResumeBuilderTopBar from '@/components/resume-builder-topbar';
 import ResumeBuilderCanvas from '@/components/resume-builder-canvas';
 import CanvasEditToolbar from '@/components/canvas-edit-toolbar';
+import ResumeUploadModal from '@/components/resume-upload-modal';
 import { CanvasEditManager } from '@/components/canvas/CanvasEditManager';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -27,6 +28,10 @@ export default function ResumeBuilderPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [hasLoadedImportedResume, setHasLoadedImportedResume] = useState(false);
+  const [canvasEditKey, setCanvasEditKey] = useState(0); // Force CanvasEditManager remount
+  const isLoadingImportedResumeRef = useRef(false); // Prevent multiple simultaneous loads
   const isDraggingSlider = useRef(false);
   const zoomUpdateFrame = useRef<number | null>(null);
   const isManualSelection = useRef(false);
@@ -351,10 +356,9 @@ export default function ResumeBuilderPage() {
       const wrapperElement = document.querySelector('.canvas-zoom-wrapper') as HTMLElement;
       
       if (containerElement && wrapperElement) {
-        // Get base dimensions (800x1000) - this is what the canvas is actually sized to
         const baseDimensions = getBaseDimensions();
-        const baseWidth = baseDimensions.width;
-        const baseHeight = baseDimensions.height;
+        const baseWidth = canvasState.fabricCanvas?.getWidth?.() ?? baseDimensions.width;
+        const baseHeight = canvasState.fabricCanvas?.getHeight?.() ?? baseDimensions.height;
         
         // Get the current responsive scale from useCanvasDimensions
         const scaledDimensions = getScaledDimensions();
@@ -458,6 +462,538 @@ export default function ResumeBuilderPage() {
     }
   }, [canvasState.fabricCanvas, getScaledDimensions]);
 
+  const loadImportedResume = useCallback(async (providedCanvas?: any) => {
+    // Prevent multiple simultaneous loads
+    if (isLoadingImportedResumeRef.current) {
+      console.log('⏭️ Skipping import - already loading');
+      return false;
+    }
+    
+    if (hasLoadedImportedResume) {
+      console.log('⏭️ Skipping import - already loaded');
+      return false;
+    }
+
+    // Use provided canvas or fall back to state canvas
+    const fabricCanvas = providedCanvas || canvasState.fabricCanvas;
+    
+    if (!fabricCanvas) {
+      console.log('⏭️ Skipping import - no canvas available');
+      return false;
+    }
+
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const shouldImport = searchParams.get('imported') === 'true';
+    const storedData = window.localStorage.getItem('importedResumeCanvas');
+
+    if (!shouldImport || !storedData) {
+      console.log('⏭️ Skipping import - no import flag or data', { shouldImport, hasData: !!storedData });
+      return false;
+    }
+    
+    // Mark as loading to prevent concurrent loads
+    isLoadingImportedResumeRef.current = true;
+    console.log('🚀 Starting loadImportedResume with canvas:', !!providedCanvas ? 'provided' : 'from state');
+
+    // Clean up any existing edit listeners before loading
+    // This ensures a clean state when coming from redirect
+    if (fabricCanvas.hasEditListeners && fabricCanvas.eventHandlers) {
+      const handlers = fabricCanvas.eventHandlers;
+      document.removeEventListener('keydown', handlers.keyboard!);
+      fabricCanvas.off('mouse:dblclick', handlers.dblclick!);
+      fabricCanvas.off('text:editing:entered', handlers.editingEntered!);
+      fabricCanvas.off('text:editing:exited', handlers.editingExited!);
+      if (handlers.mouseOver) fabricCanvas.off('mouse:over', handlers.mouseOver);
+      if (handlers.mouseOut) fabricCanvas.off('mouse:out', handlers.mouseOut);
+      if (handlers.mouseMove) fabricCanvas.off('mouse:move', handlers.mouseMove);
+      if (handlers.getMouseMoveTimeout) {
+        const timeout = handlers.getMouseMoveTimeout();
+        if (timeout) clearTimeout(timeout);
+      }
+      fabricCanvas.off('selection:created', handlers.selectionCreated!);
+      fabricCanvas.off('selection:updated', handlers.selectionUpdated!);
+      fabricCanvas.off('selection:cleared', handlers.selectionCleared!);
+      fabricCanvas.hasEditListeners = false;
+      fabricCanvas.eventHandlers = null;
+    }
+    
+    if (fabricCanvas.hoverOverlay) {
+      try {
+        fabricCanvas.remove(fabricCanvas.hoverOverlay);
+        fabricCanvas.hoverOverlay = null;
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+
+    setIsLoading(true);
+
+    try {
+      const parsedData = JSON.parse(storedData);
+
+      if (!parsedData || !parsedData.objects) {
+        throw new Error('Imported resume data is invalid.');
+      }
+
+      if (Array.isArray(parsedData.objects)) {
+        parsedData.objects = parsedData.objects.map((obj: any) => {
+          if (obj?.textBaseline === 'alphabetical') {
+            return { ...obj, textBaseline: 'alphabetic' };
+          }
+          return obj;
+        });
+      }
+
+      const baseDimensions = getBaseDimensions();
+      const targetWidth =
+        typeof parsedData.width === 'number' && parsedData.width > 0
+          ? parsedData.width
+          : baseDimensions.width;
+      const targetHeight =
+        typeof parsedData.height === 'number' && parsedData.height > 0
+          ? parsedData.height
+          : baseDimensions.height;
+
+      // Use the fabricCanvas we already have (either provided or from state)
+      // Don't reassign from canvasState as it might not be updated yet
+      const existingObjects = [...fabricCanvas.getObjects()];
+
+      existingObjects.forEach((obj) => {
+        try {
+          fabricCanvas.remove(obj);
+        } catch (removeError) {
+          console.warn('Error removing object during import:', removeError);
+        }
+      });
+
+      fabricCanvas.discardActiveObject?.();
+      fabricCanvas.backgroundColor = '#ffffff';
+      fabricCanvas.setWidth(targetWidth);
+      fabricCanvas.setHeight(targetHeight);
+      fabricCanvas.setZoom(1);
+
+      await new Promise<void>((resolve, reject) => {
+        fabricCanvas.loadFromJSON(
+          parsedData,
+          () => {
+            // Configure all objects to match template configuration exactly
+            fabricCanvas.forEachObject((obj: any) => {
+              // Skip page border/background rectangles - keep them non-selectable
+              // Page borders are identified by: rect type, white fill, gray stroke, full page dimensions, and left: 0
+              const PAGE_HEIGHT = 1100; // Match the constant from upload modal
+              const CANVAS_WIDTH = 800; // Match the constant from upload modal
+              
+              // Check if this is a page border rectangle
+              const isPageBorder = obj.type === 'rect' && 
+                (obj.fill === '#ffffff' || obj.fill === 'white' || obj.fill === 'rgb(255, 255, 255)') &&
+                (obj.stroke === '#cccccc' || obj.stroke === '#ccc' || obj.stroke === 'rgb(204, 204, 204)' || obj.strokeWidth === 2) &&
+                (obj.width === targetWidth || obj.width === CANVAS_WIDTH || Math.abs(obj.width - targetWidth) < 10) &&
+                (obj.height === PAGE_HEIGHT || obj.height === targetHeight || Math.abs(obj.height - PAGE_HEIGHT) < 10 || Math.abs(obj.height - targetHeight) < 10) &&
+                (obj.left === 0 || Math.abs(obj.left) < 5); // Page borders start at left: 0
+              
+              if (isPageBorder) {
+                // This is a page border, ensure it stays non-selectable and non-evented
+                obj.set({
+                  selectable: false,
+                  evented: false,
+                  excludeFromExport: false, // Keep it for export
+                  lockMovementX: true,
+                  lockMovementY: true,
+                  lockRotation: true,
+                  lockScalingX: true,
+                  lockScalingY: true,
+                });
+                // Ensure page border is always at the back so it doesn't block hover events
+                fabricCanvas.sendToBack(obj);
+                return; // Skip further configuration for page borders
+              }
+              
+              // For text objects, apply same configuration as templates
+              if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
+                // Set textBaseline (same as templates)
+                obj.set({ 
+                  textBaseline: 'alphabetic',
+                  // Ensure originX and originY match templates
+                  originX: obj.originX || 'left',
+                  originY: obj.originY || 'top',
+                  // Ensure textAlign matches templates
+                  textAlign: obj.textAlign || 'left',
+                });
+                
+                // Apply control visibility settings (same as templates)
+                obj.setControlsVisibility({
+                  mt: false, mb: false, mtr: false,
+                  ml: true, mr: true,
+                  tl: true, tr: true, bl: true, br: true
+                });
+                
+                // Make text objects editable and selectable (same as templates)
+                obj.set({
+                  selectable: true,
+                  evented: true,
+                  lockMovementX: false,
+                  lockMovementY: false,
+                  lockRotation: false,
+                  lockScalingX: false,
+                  lockScalingY: false,
+                  padding: 0,
+                  hoverCursor: 'move',
+                  moveCursor: 'move',
+                });
+                
+                // Force object to be interactive
+                obj.selectable = true;
+                obj.evented = true;
+              } else {
+                // For other objects (like rects that aren't page borders), make them editable
+                obj.set({
+                  selectable: true,
+                  evented: true,
+                  lockMovementX: false,
+                  lockMovementY: false,
+                  lockRotation: false,
+                  lockScalingX: false,
+                  lockScalingY: false,
+                  padding: 0,
+                  hoverCursor: 'move',
+                  moveCursor: 'move',
+                });
+              }
+            });
+            
+            // Log object configuration
+            const textObjects = fabricCanvas.getObjects().filter((obj: any) => 
+              obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text'
+            );
+            const selectableObjects = fabricCanvas.getObjects().filter((obj: any) => 
+              obj.selectable && obj.evented
+            );
+            console.log('📊 Imported resume objects:', {
+              total: fabricCanvas.getObjects().length,
+              textObjects: textObjects.length,
+              selectableObjects: selectableObjects.length,
+            });
+            
+            // Ensure canvas selection and interactivity are enabled for editing
+            (fabricCanvas as any).selection = true;
+            if ((fabricCanvas as any).interactive !== undefined) {
+              (fabricCanvas as any).interactive = true;
+            }
+            
+            // Force re-render to ensure object properties are applied
+            fabricCanvas.renderAll();
+            
+            // Double-check that objects are selectable after render
+            fabricCanvas.forEachObject((obj: any) => {
+              if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
+                if (!obj.selectable || !obj.evented) {
+                  console.warn('⚠️ Object not selectable after configuration:', {
+                    type: obj.type,
+                    selectable: obj.selectable,
+                    evented: obj.evented,
+                    text: obj.text?.substring(0, 20)
+                  });
+                  // Force it to be selectable and interactive
+                  obj.set({ 
+                    selectable: true, 
+                    evented: true,
+                    hoverCursor: 'move',
+                    moveCursor: 'move'
+                  });
+                }
+                // Ensure object can receive mouse events
+                obj.selectable = true;
+                obj.evented = true;
+                // Make sure object is not excluded from export (which might affect interactivity)
+                if (obj.excludeFromExport === true) {
+                  obj.excludeFromExport = false;
+                }
+              }
+            });
+            
+            // Ensure canvas can receive events
+            (fabricCanvas as any).selection = true;
+            fabricCanvas.renderAll();
+            
+            // Final verification and force interactivity
+            const finalSelectable = fabricCanvas.getObjects().filter((obj: any) => {
+              if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
+                // Force interactivity one more time
+                if (!obj.selectable || !obj.evented) {
+                  obj.selectable = true;
+                  obj.evented = true;
+                }
+                return obj.selectable && obj.evented;
+              }
+              return false;
+            });
+            console.log('✅ Final verification - Interactive text objects:', finalSelectable.length, 'out of', textObjects.length);
+            
+            // Force canvas to recognize object changes
+            fabricCanvas.renderAll();
+            
+            // Add a test event listener to verify objects can receive events
+            const testClick = (e: any) => {
+              if (e.target) {
+                console.log('🖱️ Test click received on object:', {
+                  type: e.target.type,
+                  selectable: e.target.selectable,
+                  evented: e.target.evented,
+                  text: e.target.text?.substring(0, 20)
+                });
+              }
+            };
+            fabricCanvas.once('mouse:down', testClick);
+            console.log('🧪 Test click listener attached - try clicking on a text object');
+            
+            const objectsAfterLoad = fabricCanvas.getObjects();
+            console.log('✅ Imported resume loaded - Objects count:', objectsAfterLoad.length);
+            
+            if (fabricCanvas.initializeHistory) {
+              fabricCanvas.initializeHistory();
+            }
+            if (fabricCanvas.saveState) {
+              fabricCanvas.saveState();
+            }
+            
+            // Reset edit listeners flag so CanvasEditManager can re-initialize with new objects
+            // This ensures hover effects work properly after loading imported resume
+            if (fabricCanvas.hasEditListeners) {
+              fabricCanvas.hasEditListeners = false;
+            }
+            
+            resolve();
+          },
+          (_objectData: any, object: any) => {
+            if (
+              object &&
+              (object.type === 'text' ||
+                object.type === 'textbox' ||
+                object.type === 'i-text')
+            ) {
+              object.set({ textBaseline: 'alphabetic' });
+            }
+          }
+        );
+      });
+
+      const serializedState = JSON.stringify(fabricCanvas.toJSON());
+      updateCanvasState({
+        currentTemplateId: 'imported-resume',
+        canvasState: serializedState,
+      });
+
+      setHasLoadedImportedResume(true);
+      // Don't remove from localStorage yet - wait until after CanvasEditManager is remounted
+      // window.localStorage.removeItem('importedResumeCanvas');
+      handleZoomChange(100, false);
+
+      // Force CanvasEditManager to re-initialize by clearing listeners and triggering re-mount
+      // Use a longer timeout to ensure canvas is fully rendered and objects are ready
+      // This is especially important when coming from a page redirect (homepage upload)
+      setTimeout(() => {
+        // Always clean up existing listeners, regardless of hasEditListeners flag
+        // This ensures a clean state when coming from redirect
+        if (fabricCanvas.eventHandlers) {
+          const handlers = fabricCanvas.eventHandlers;
+          document.removeEventListener('keydown', handlers.keyboard!);
+          fabricCanvas.off('mouse:dblclick', handlers.dblclick!);
+          fabricCanvas.off('text:editing:entered', handlers.editingEntered!);
+          fabricCanvas.off('text:editing:exited', handlers.editingExited!);
+          if (handlers.mouseOver) fabricCanvas.off('mouse:over', handlers.mouseOver);
+          if (handlers.mouseOut) fabricCanvas.off('mouse:out', handlers.mouseOut);
+          if (handlers.mouseMove) fabricCanvas.off('mouse:move', handlers.mouseMove);
+          if (handlers.getMouseMoveTimeout) {
+            const timeout = handlers.getMouseMoveTimeout();
+            if (timeout) clearTimeout(timeout);
+          }
+          fabricCanvas.off('selection:created', handlers.selectionCreated!);
+          fabricCanvas.off('selection:updated', handlers.selectionUpdated!);
+          fabricCanvas.off('selection:cleared', handlers.selectionCleared!);
+        }
+        
+        // Clean up hover overlay
+        if (fabricCanvas.hoverOverlay) {
+          try {
+            fabricCanvas.remove(fabricCanvas.hoverOverlay);
+            fabricCanvas.hoverOverlay = null;
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+        
+        // Reset flags to ensure clean state BEFORE remounting
+        // This must happen synchronously so CanvasEditManager can re-initialize
+        fabricCanvas.hasEditListeners = false;
+        fabricCanvas.hoveredObject = null;
+        fabricCanvas.eventHandlers = null;
+        
+        // Verify objects are loaded before remounting CanvasEditManager
+        const objects = fabricCanvas.getObjects();
+        console.log('🔄 Checking objects before remounting CanvasEditManager - Count:', objects.length);
+        console.log('🔄 Canvas hasEditListeners flag:', fabricCanvas.hasEditListeners);
+        
+        if (objects && objects.length > 0) {
+          // Ensure canvas is rendered before remounting CanvasEditManager
+          fabricCanvas.renderAll();
+          
+          console.log('✅ Remounting CanvasEditManager with', objects.length, 'objects');
+          console.log('✅ Canvas flags cleared - hasEditListeners:', fabricCanvas.hasEditListeners);
+          
+          // Clear the loading flag
+          isLoadingImportedResumeRef.current = false;
+          
+          // Force CanvasEditManager to remount by updating key
+          // This will cause it to re-initialize with the newly loaded objects
+          // The hasEditListeners flag is already false, so it will initialize
+          setCanvasEditKey(prev => {
+            const newKey = prev + 1;
+            console.log('🔑 CanvasEditManager key updated to:', newKey);
+            return newKey;
+          });
+          
+          // Now safe to remove from localStorage after remount
+          setTimeout(() => {
+            window.localStorage.removeItem('importedResumeCanvas');
+            console.log('🗑️ Cleared importedResumeCanvas from localStorage');
+          }, 100);
+        } else {
+          console.warn('⚠️ No objects found, retrying...');
+          // If no objects yet, wait a bit more and try again
+          setTimeout(() => {
+            const retryObjects = fabricCanvas.getObjects();
+            console.log('🔄 Retry check - Objects count:', retryObjects.length);
+            if (retryObjects && retryObjects.length > 0) {
+              fabricCanvas.renderAll();
+              console.log('✅ Remounting CanvasEditManager on retry with', retryObjects.length, 'objects');
+              
+              // Ensure flags are cleared before remount
+              fabricCanvas.hasEditListeners = false;
+              fabricCanvas.hoveredObject = null;
+              fabricCanvas.eventHandlers = null;
+              
+              // Clear the loading flag
+              isLoadingImportedResumeRef.current = false;
+              
+              setCanvasEditKey(prev => {
+                const newKey = prev + 1;
+                console.log('🔑 CanvasEditManager key updated to (retry):', newKey);
+                return newKey;
+              });
+              
+              // Now safe to remove from localStorage after remount
+              setTimeout(() => {
+                window.localStorage.removeItem('importedResumeCanvas');
+                console.log('🗑️ Cleared importedResumeCanvas from localStorage (retry)');
+              }, 100);
+            } else {
+              console.error('❌ Still no objects after retry!');
+              isLoadingImportedResumeRef.current = false;
+            }
+          }, 200);
+        }
+      }, 300); // Increased timeout to ensure objects are fully loaded and configured
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('imported');
+      params.delete('source');
+      const newQuery = params.toString();
+      router.replace(newQuery ? `/resume-builder?${newQuery}` : '/resume-builder');
+
+      return true;
+    } catch (err) {
+      console.error('Error loading imported resume:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load uploaded resume.');
+      isLoadingImportedResumeRef.current = false; // Clear flag on error
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    canvasState.fabricCanvas,
+    getBaseDimensions,
+    handleZoomChange,
+    hasLoadedImportedResume,
+    router,
+    searchParams,
+    updateCanvasState,
+  ]);
+
+  // Custom canvas ready handler that also checks for imported resume and upload modal
+  const handleCanvasReadyWithImport = useCallback((canvas: any) => {
+    console.log('🎯 Canvas ready with import check - Objects:', canvas.getObjects().length);
+    
+    // Call the original handler to set canvas in state
+    handleCanvasReady(canvas);
+    
+    // Immediately check and load imported resume if needed
+    // This ensures it loads as soon as canvas is ready, not waiting for useEffect
+    const shouldImport = searchParams.get('imported') === 'true';
+    const storedData = typeof window !== 'undefined' ? window.localStorage.getItem('importedResumeCanvas') : null;
+    
+    console.log('🔍 Import check - shouldImport:', shouldImport, 'hasData:', !!storedData, 'hasLoaded:', hasLoadedImportedResume);
+    
+    if (shouldImport && storedData && !hasLoadedImportedResume) {
+      console.log('📥 Starting immediate import with provided canvas');
+      // Load immediately with the canvas that was just passed in
+      // This avoids waiting for state updates
+      // Use a small delay to ensure canvas is fully initialized
+      setTimeout(() => {
+        loadImportedResume(canvas);
+      }, 100);
+    }
+
+    // Check if we should open upload modal after canvas is ready
+    const shouldOpenUpload = searchParams.get('openUpload') === 'true';
+    if (shouldOpenUpload && !isUploadModalOpen) {
+      console.log('📤 Opening upload modal after canvas ready');
+      // Small delay to ensure canvas is fully rendered
+      setTimeout(() => {
+        setIsUploadModalOpen(true);
+        // Clean up the query parameter
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('openUpload');
+        const newQuery = params.toString();
+        router.replace(newQuery ? `/resume-builder?${newQuery}` : '/resume-builder');
+      }, 200);
+    }
+  }, [handleCanvasReady, searchParams, hasLoadedImportedResume, isUploadModalOpen, router]);
+
+  useEffect(() => {
+    // Also keep the useEffect as a fallback for when canvas is set in state
+    // But only if we haven't already loaded via the direct canvas ready handler
+    // And only if we're not currently loading
+    if (canvasState.fabricCanvas && !hasLoadedImportedResume && !isLoadingImportedResumeRef.current) {
+      const shouldImport = searchParams.get('imported') === 'true';
+      const storedData = typeof window !== 'undefined' ? window.localStorage.getItem('importedResumeCanvas') : null;
+      
+      if (shouldImport && storedData) {
+        console.log('📥 Fallback: Loading imported resume from useEffect');
+        loadImportedResume();
+      }
+    }
+  }, [canvasState.fabricCanvas, hasLoadedImportedResume, searchParams, loadImportedResume]);
+
+  // Check for openUpload query parameter - fallback if canvas is already ready
+  useEffect(() => {
+    const shouldOpenUpload = searchParams.get('openUpload') === 'true';
+    // Only open if canvas is already ready (in case canvas was ready before the handler ran)
+    if (shouldOpenUpload && !isUploadModalOpen && canvasState.fabricCanvas) {
+      console.log('📤 Opening upload modal (canvas already ready)');
+      setTimeout(() => {
+        setIsUploadModalOpen(true);
+        // Clean up the query parameter
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('openUpload');
+        const newQuery = params.toString();
+        router.replace(newQuery ? `/resume-builder?${newQuery}` : '/resume-builder');
+      }, 200);
+    }
+  }, [searchParams, isUploadModalOpen, router, canvasState.fabricCanvas]);
+
   // Error fallback component
   const errorFallback = (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -502,6 +1038,7 @@ export default function ResumeBuilderPage() {
                 setActiveSidebarTab={setActiveSidebarTab}
                 currentTemplateId={canvasState.currentTemplateId}
                 onTemplateSelect={(templateId) => handleTemplateSelect(templateId, true)}
+                onUploadResume={() => setIsUploadModalOpen(true)}
               />
             )}
           </div>
@@ -556,13 +1093,14 @@ export default function ResumeBuilderPage() {
               )}
               
               <ResumeBuilderCanvas
-                onCanvasReady={handleCanvasReady}
+                onCanvasReady={handleCanvasReadyWithImport}
                 onStateChange={handleStateChange}
               />
               
               {/* Canvas Edit Manager */}
               {canvasState.fabricCanvas && (
                 <CanvasEditManager
+                  key={`canvas-edit-${canvasEditKey}-${hasLoadedImportedResume ? 'imported' : 'default'}-${canvasState.currentTemplateId}`}
                   canvas={canvasState.fabricCanvas}
                   getFabricInstance={getFabricInstance}
                   onEditToolbarUpdate={updateEditToolbarState}
@@ -703,6 +1241,11 @@ export default function ResumeBuilderPage() {
           onClose={handleCloseEditToolbar}
         />
       </div>
+
+      <ResumeUploadModal 
+        open={isUploadModalOpen} 
+        onOpenChange={setIsUploadModalOpen} 
+      />
     </ErrorBoundary>
   );
 }

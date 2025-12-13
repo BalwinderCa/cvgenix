@@ -66,6 +66,7 @@ interface ResumeBuilderSidebarProps {
   setActiveSidebarTab: (tab: string) => void;
   currentTemplateId: string;
   onTemplateSelect: (templateId: string) => void;
+  onUploadResume: () => void;
 }
 
 export default function ResumeBuilderSidebar({ 
@@ -73,7 +74,8 @@ export default function ResumeBuilderSidebar({
   activeSidebarTab, 
   setActiveSidebarTab,
   currentTemplateId,
-  onTemplateSelect
+  onTemplateSelect,
+  onUploadResume
 }: ResumeBuilderSidebarProps) {
   const [showAllShapes, setShowAllShapes] = useState(false);
   const [showAllResumeElements, setShowAllResumeElements] = useState(false);
@@ -215,6 +217,7 @@ export default function ResumeBuilderSidebar({
             currentTemplateId={currentTemplateId}
             onTemplateSelect={onTemplateSelect}
             canvasReady={!!fabricCanvas}
+            onUploadResume={onUploadResume}
           />
         )}
         

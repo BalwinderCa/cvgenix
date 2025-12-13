@@ -74,6 +74,8 @@ app.use(cors({
 }))
 
 // Rate limiting
+// Use lenient rate limiting for public read-only endpoints (templates)
+app.use('/api/templates', security.lenientRateLimit || security.rateLimit)
 app.use('/api/', security.rateLimit) // General rate limiting
 app.use('/api/auth/login', security.strictRateLimit) // Strict rate limiting for login
 app.use('/api/auth/signup', security.strictRateLimit) // Strict rate limiting for signup

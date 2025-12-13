@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, DragEvent, ChangeEvent } from "react";
-import { UploadCloud, FileText, X, ShieldCheck, Zap, Eye, Lock, Trash2, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { UploadCloud, FileText, X, ShieldCheck, Zap, Eye, Lock, Trash2, CheckCircle, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,6 +15,7 @@ const formatFileSize = (bytes: number): string => {
 };
 
 export const ATSUploadBox = () => {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,37 @@ export const ATSUploadBox = () => {
     setFile(null);
     setError(null);
   }, []);
+
+  const handleAnalyzeResume = useCallback(async () => {
+    if (!file) return;
+
+    try {
+      // Convert file to base64 and store in sessionStorage
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        const fileData = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: base64String,
+          timestamp: Date.now()
+        };
+        
+        sessionStorage.setItem('pendingResumeFile', JSON.stringify(fileData));
+        
+        // Redirect to ATS score page
+        router.push('/ats-score');
+      };
+      reader.onerror = () => {
+        setError('Failed to process file. Please try again.');
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Failed to process file. Please try again.');
+      console.error('Error processing file:', err);
+    }
+  }, [file, router]);
 
   const handleKeyboardDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -194,30 +227,43 @@ export const ATSUploadBox = () => {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="mt-6 p-6 rounded-xl bg-emerald-50 border border-emerald-200"
+              className="mt-6 space-y-4"
             >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-emerald-600" />
+              <div className="p-6 rounded-xl bg-emerald-50 border border-emerald-200">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-emerald-900 truncate">{file.name}</p>
+                    <p className="text-sm text-emerald-700">{formatFileSize(file.size)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-emerald-600" />
+                    <span className="text-sm font-medium text-emerald-700">Ready</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveFile}
+                    className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+                    aria-label="Remove file"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-emerald-900 truncate">{file.name}</p>
-                  <p className="text-sm text-emerald-700">{formatFileSize(file.size)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm font-medium text-emerald-700">Ready</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRemoveFile}
-                  className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
-                  aria-label="Remove file"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
+              
+              {/* Analyze Button */}
+              <Button
+                onClick={handleAnalyzeResume}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-6 text-base font-semibold rounded-xl"
+                size="lg"
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                Analyze Resume
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>

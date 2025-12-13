@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
@@ -127,21 +127,55 @@ export default function ATSScorePage() {
     return 'ats-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   };
 
+  // Check for pending file from homepage upload
+  useEffect(() => {
+    const pendingFileData = sessionStorage.getItem('pendingResumeFile');
+    if (pendingFileData && !uploadedFile) {
+      try {
+        const fileData = JSON.parse(pendingFileData);
+        
+        // Convert base64 back to File object
+        const byteCharacters = atob(fileData.data.split(',')[1]);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: fileData.type });
+        const file = new File([blob], fileData.name, { type: fileData.type });
+        
+        setUploadedFile(file);
+        
+        // Clear the pending file from sessionStorage
+        sessionStorage.removeItem('pendingResumeFile');
+        
+        // Show a toast notification
+        toast.success('Resume loaded from homepage');
+      } catch (error) {
+        console.error('Error loading pending file:', error);
+        sessionStorage.removeItem('pendingResumeFile');
+      }
+    }
+  }, [uploadedFile]);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
-    if (file && file.type === 'application/pdf') {
+    const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (file && allowedTypes.includes(file.type)) {
       setUploadedFile(file);
       setError('');
       setAtsResult(null);
     } else {
-      setError('Please upload a PDF file');
+      setError('Please upload a PDF, DOC, or DOCX file');
     }
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/pdf': ['.pdf']
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
     },
     multiple: false
   });
@@ -299,7 +333,7 @@ export default function ATSScorePage() {
                       {/* Content */}
                       <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow flex-1">
                         <h3 className="font-semibold text-gray-900 mb-1">Upload Your Resume</h3>
-                        <p className="text-gray-600 text-sm">Simply drag and drop your PDF resume</p>
+                        <p className="text-gray-600 text-sm">Simply drag and drop your resume (PDF, DOC, or DOCX)</p>
                       </div>
                     </div>
                     <div className="flex justify-center">
@@ -440,7 +474,7 @@ export default function ATSScorePage() {
                             {isDragActive ? 'Drop your resume here' : 'Upload Resume'}
                           </p>
                           <p className="text-sm text-gray-500">
-                            Drag & drop or click to browse • PDF files only
+                            Drag & drop or click to browse • PDF, DOC, DOCX files
                           </p>
                         </div>
                       </div>

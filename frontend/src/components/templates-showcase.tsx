@@ -524,7 +524,7 @@ function TemplateCard({ template, onUseTemplate, realTemplate }: { template: Tem
               }
             }}
             onLoad={() => {
-              console.log(`Successfully loaded thumbnail for template ${realTemplate.name || template.name}`);
+            //  console.log(`Successfully loaded thumbnail for template ${realTemplate.name || template.name}`);
             }}
           />
         ) : (

@@ -13,7 +13,8 @@ import {
   Check,
   Eye,
   Crown,
-  Sparkles
+  Sparkles,
+  Upload
 } from 'lucide-react'
 
 interface Template {
@@ -38,12 +39,14 @@ interface TemplateSidebarProps {
   currentTemplateId: string
   onTemplateSelect: (templateId: string) => void
   canvasReady?: boolean
+  onUploadResume?: () => void
 }
 
 export default function TemplateSidebar({ 
   currentTemplateId, 
   onTemplateSelect,
-  canvasReady = false
+  canvasReady = false,
+  onUploadResume
 }: TemplateSidebarProps) {
   const [templates, setTemplates] = useState<Template[]>([])
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([])
@@ -144,6 +147,30 @@ export default function TemplateSidebar({
           <h3 className="font-medium text-gray-900 text-sm">Templates</h3>
           <p className="text-xs text-gray-500">Choose a template to get started</p>
         </div>
+
+        {onUploadResume && (
+          <button
+            onClick={onUploadResume}
+            disabled={!canvasReady}
+            className={`w-full flex items-center gap-3 rounded-lg border text-left p-3 text-sm font-medium transition-colors ${
+              canvasReady
+                ? 'border-primary/60 bg-primary/5 text-primary hover:bg-primary/10'
+                : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white">
+              <Upload className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Bring Your Own Resume
+              </p>
+              <p className="text-sm font-semibold text-gray-900">
+                Upload &amp; edit
+              </p>
+            </div>
+          </button>
+        )}
         
 
         {/* Search */}
@@ -239,7 +266,7 @@ export default function TemplateSidebar({
                           }
                         }}
                         onLoad={() => {
-                          console.log(`Successfully loaded thumbnail for template ${template.name}`);
+                         // console.log(`Successfully loaded thumbnail for template ${template.name}`);
                         }}
                       />
                     ) : (

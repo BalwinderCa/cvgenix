@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Columns3, LayoutPanelTop, PenLine, GripVertical, Download, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -29,17 +30,36 @@ export default function HeroSection({
   primaryLabel = "Build My Resume",
   secondaryLabel = "Import my existing resume",
   primaryHref = "/resume-builder",
-  secondaryHref = "/resume-builder",
+  secondaryHref = "/resume-builder?upload=true",
   onPrimaryClick,
   onSecondaryClick
 }: HeroSectionProps) {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [loginModalOpen, setLoginModalOpen] = React.useState(false);
   const [signupModalOpen, setSignupModalOpen] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setIsMounted(true);
     const token = localStorage.getItem('token');
     setIsAuthenticated(!!token);
+  }, []);
+  
+  // Handle primary button click - redirect to resume-builder with full page reload
+  const handlePrimaryClick = React.useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    window.location.href = primaryHref;
+  }, [primaryHref]);
+
+  // Handle secondary button click - redirect to resume-builder with openUpload flag
+  const handleSecondaryClick = React.useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    window.location.href = '/resume-builder?openUpload=true';
   }, []);
   return (
     <section
@@ -76,43 +96,53 @@ export default function HeroSection({
 
          {/* Floating particles - commented out */}
 
-        {/* Additional sparkle particles */}
-        <div className="absolute inset-0">
-          {[...Array(32)].map((_, i) => {
-            const size = Math.random() * 2 + 0.5; // 0.5-2.5px
-            const colors = ['#fbbf24', '#f59e0b', '#d97706', 'var(--color-primary)', 'var(--color-secondary)'];
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            
-            return (
-              <motion.div
-                key={`sparkle-${i}`}
-                className="absolute"
-                style={{
-                  width: `${size}px`,
-                  height: `${size}px`,
-                  backgroundColor: color,
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  opacity: 0.8,
-                  borderRadius: '50%',
-                  boxShadow: `0 0 ${size * 3}px ${color}`,
-                }}
-                animate={{
-                  y: [0, -120, 0],
-                  x: [0, Math.random() * 60 - 30, 0],
-                  opacity: [0.8, 0.2, 0.8],
-                  scale: [1, 0.3, 1.8, 1],
-                }}
-                transition={{
-                  duration: 6 + Math.random() * 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: Math.random() * 6,
-                }}
-              />
-            );
-          })}
-        </div>
+        {/* Additional sparkle particles - only render on client to avoid hydration mismatch */}
+        {isMounted && (
+          <div className="absolute inset-0">
+            {[...Array(32)].map((_, i) => {
+              // Use deterministic seeded values to avoid hydration mismatch
+              // Create a simple hash from index for consistent but varied values
+              const seed = i * 7919; // Prime number for better distribution
+              const size = ((seed % 200) / 100) + 0.5; // 0.5-2.5px
+              const colors = ['#fbbf24', '#f59e0b', '#d97706', 'var(--color-primary)', 'var(--color-secondary)'];
+              const color = colors[seed % colors.length];
+              const left = (seed * 137) % 100; // Pseudo-random but deterministic
+              const top = (seed * 197) % 100;
+              const xOffset = ((seed * 73) % 60) - 30;
+              const duration = 6 + ((seed * 41) % 400) / 100;
+              const delay = ((seed * 59) % 600) / 100;
+              
+              return (
+                <motion.div
+                  key={`sparkle-${i}`}
+                  className="absolute"
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    opacity: 0.8,
+                    borderRadius: '50%',
+                    boxShadow: `0 0 ${size * 3}px ${color}`,
+                  }}
+                  animate={{
+                    y: [0, -120, 0],
+                    x: [0, xOffset, 0],
+                    opacity: [0.8, 0.2, 0.8],
+                    scale: [1, 0.3, 1.8, 1],
+                  }}
+                  transition={{
+                    duration: duration,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: delay,
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
 
         {/* Animated mesh gradient */}
         <motion.div
@@ -183,77 +213,25 @@ export default function HeroSection({
                   </li>
                 </ul>
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  {isAuthenticated ? (
-                    <Link 
-                      href={primaryHref} 
-                      className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary"
-                      aria-label={primaryLabel}>
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: '-100%',
-                        width: '100%',
-                        height: '100%',
-                        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                        transition: 'left 0.5s'
-                      }} className="hover:left-full" />
-                      <LayoutPanelTop className="mr-2 h-5 w-5 relative z-10" aria-hidden="true" />
-                      <span className="relative z-10">{primaryLabel}</span>
-                    </Link>
-                  ) : (
-                    <button
-                      className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary"
-                      onClick={() => setSignupModalOpen(true)}
-                      aria-label={primaryLabel}>
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: '-100%',
-                        width: '100%',
-                        height: '100%',
-                        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                        transition: 'left 0.5s'
-                      }} className="hover:left-full" />
-                      <LayoutPanelTop className="mr-2 h-5 w-5 relative z-10" aria-hidden="true" />
-                      <span className="relative z-10">{primaryLabel}</span>
-                    </button>
-                  )}
-
-                  {secondaryHref ?
-                  <Link
-                    href={secondaryHref}
-                    className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20"
-                    style={{
-                      height: '48px',
-                      paddingLeft: '24px',
-                      paddingRight: '24px',
-                      fontSize: '16px',
-                      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                      color: '#1e293b',
-                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(226, 232, 240, 0.8)',
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
-                    aria-label={secondaryLabel}>
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: '-100%',
-                        width: '100%',
-                        height: '100%',
-                        background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent)',
-                        transition: 'left 0.5s'
-                      }} className="hover:left-full" />
-                      <Columns3 className="mr-2 h-5 w-5 relative z-10" aria-hidden="true" />
-                      <span className="relative z-10">{secondaryLabel}</span>
-                    </Link> :
+                  <button
+                    className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold text-white rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 bg-primary cursor-pointer"
+                    onClick={onPrimaryClick || handlePrimaryClick}
+                    aria-label={primaryLabel}>
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: '-100%',
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                      transition: 'left 0.5s'
+                    }} className="hover:left-full" />
+                    <LayoutPanelTop className="mr-2 h-5 w-5 relative z-10" aria-hidden="true" />
+                    <span className="relative z-10">{primaryLabel}</span>
+                  </button>
 
                   <button
-                    className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20"
+                    className="inline-flex items-center justify-center w-full sm:w-auto sm:min-w-[280px] h-12 px-6 text-base font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary/20 cursor-pointer"
                     style={{
                       height: '48px',
                       paddingLeft: '24px',
@@ -268,7 +246,7 @@ export default function HeroSection({
                       position: 'relative',
                       overflow: 'hidden'
                     }}
-                    onClick={onSecondaryClick}
+                    onClick={onSecondaryClick || handleSecondaryClick}
                     aria-label={secondaryLabel}>
                       <div style={{
                         position: 'absolute',
@@ -282,7 +260,6 @@ export default function HeroSection({
                       <Columns3 className="mr-2 h-5 w-5 relative z-10" aria-hidden="true" />
                       <span className="relative z-10">{secondaryLabel}</span>
                     </button>
-                  }
                 </div>
                 {/* trust badges */}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-700">

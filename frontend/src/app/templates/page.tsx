@@ -266,7 +266,7 @@ export default function TemplatesPage() {
                         }
                       }}
                       onLoad={() => {
-                        console.log(`Successfully loaded thumbnail for template ${template.name}`);
+                       // console.log(`Successfully loaded thumbnail for template ${template.name}`);
                       }}
                     />
                   ) : template.thumbnail && template.thumbnail.startsWith('data:text/html') ? (
