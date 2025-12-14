@@ -79,12 +79,13 @@ router.post('/signup',
     throw new ConflictError('User already exists')
     }
 
-    // Create new user
+    // Create new user with free credits (2 exports + 1 ATS analysis = 3 credits)
     user = new User({
       firstName,
       lastName,
       email,
-      password
+      password,
+      credits: 3 // Free credits: 2 for exports (PDF/PNG/JPG), 1 for ATS analysis
     })
 
     // Hash password

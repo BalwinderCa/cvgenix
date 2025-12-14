@@ -9,6 +9,9 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SimpleProgressModal } from '@/components/ui/simple-progress-modal';
+import LoginModal from '@/components/auth/LoginModal';
+import SignupModal from '@/components/auth/SignupModal';
+import UpgradeModal from '@/components/upgrade-modal';
 import { 
   Upload, 
   FileText, 
@@ -90,6 +93,9 @@ export default function ATSScorePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState('technology');
   const [selectedRole, setSelectedRole] = useState('Senior');
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   // Industry options
   const industryOptions = [
@@ -186,6 +192,40 @@ export default function ATSScorePage() {
       return;
     }
 
+    // Check authentication first
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please sign up or log in to analyze your resume');
+      setLoginModalOpen(true);
+      return;
+    }
+
+    // Check if user has credits
+    try {
+      const apiBaseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+        ? `${window.location.protocol}//${window.location.host}/api`
+        : 'http://localhost:3001/api';
+
+      const creditCheck = await fetch(`${apiBaseUrl}/payments/check-feature-access`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ feature: 'atsAnalysis' })
+      });
+
+      const creditData = await creditCheck.json();
+      
+      if (!creditData.hasAccess) {
+        setUpgradeModalOpen(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking credits:', error);
+      // Continue with analysis if check fails (graceful degradation)
+    }
+
     setLoading(true);
     setError('');
     setProgressError('');
@@ -198,11 +238,11 @@ export default function ATSScorePage() {
     setSessionId(newSessionId);
 
     try {
-    const formData = new FormData();
-    formData.append('resume', uploadedFile);
-    formData.append('sessionId', newSessionId);
-    formData.append('industry', selectedIndustry);
-    formData.append('role', selectedRole);
+      const formData = new FormData();
+      formData.append('resume', uploadedFile);
+      formData.append('sessionId', newSessionId);
+      formData.append('industry', selectedIndustry);
+      formData.append('role', selectedRole);
 
       console.log(`🚀 Starting analysis with session ID: ${newSessionId}`);
 
@@ -214,12 +254,23 @@ export default function ATSScorePage() {
       // Start the request - this will trigger the SSE progress updates
       const response = await fetch(`${apiBaseUrl}/ats/analyze`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData
       });
 
+      if (response.status === 401 || response.status === 403) {
+        const errorData = await response.json();
+        setLoading(false);
+        setShowProgressModal(false);
+        toast.error(errorData.message || errorData.error || 'Authentication required. Please sign up or log in.');
+        setLoginModalOpen(true);
+        return;
+      }
+
       if (response.ok) {
         const result = await response.json();
-        
         
         const analysisId = generateAnalysisId();
         setCurrentAnalysisId(analysisId);
@@ -616,6 +667,30 @@ export default function ATSScorePage() {
           sessionId={sessionId || undefined}
         />
       )}
+
+      {/* Auth Modals */}
+      <LoginModal
+        open={loginModalOpen}
+        onOpenChange={setLoginModalOpen}
+        onSwitchToSignup={() => {
+          setLoginModalOpen(false);
+          setSignupModalOpen(true);
+        }}
+      />
+      <SignupModal
+        open={signupModalOpen}
+        onOpenChange={setSignupModalOpen}
+        onSwitchToLogin={() => {
+          setSignupModalOpen(false);
+          setLoginModalOpen(true);
+        }}
+      />
+      
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        message="You've run out of credits! Purchase a credit pack to analyze your resume. (Each ATS analysis costs 1 credit)"
+      />
     </div>
   );
 }

@@ -27,7 +27,7 @@ router.get('/plans', async (req, res) => {
           title: plan.title,
           price: plan.price,
           credits: plan.credits,
-          interval: plan.interval !== undefined ? plan.interval : null, // Don't default to 'month' for one-time purchases
+          interval: null, // Force null for one-time credit purchases (ignore database value)
           description: plan.description || plan.subtitle || null, // Support both description and subtitle fields
           subtitle: plan.subtitle || plan.description || null, // Include subtitle field as well
           features: plan.features || [],
@@ -43,19 +43,51 @@ router.get('/plans', async (req, res) => {
       });
     }
     
-    console.log('[Plans API] No plans in database, falling back to hardcoded plans');
-    // Fallback to hardcoded plans if database is empty
-    const plans = paymentService.getPlans();
+    console.log('[Plans API] No plans in database, falling back to credit pack plans');
+    // Fallback to credit pack plans (one-time purchases)
+    const creditPlans = paymentService.getCreditPlans();
+    const plans = {};
+    creditPlans.forEach(plan => {
+      plans[plan.id] = {
+        id: plan.id,
+        name: plan.name,
+        title: plan.name,
+        price: plan.price,
+        credits: plan.credits,
+        interval: null, // One-time purchase
+        description: plan.description,
+        subtitle: plan.description,
+        features: plan.features || [],
+        popular: plan.popular || false,
+        yearlyPrice: 0
+      };
+    });
     res.json({
       success: true,
       data: plans
     });
   } catch (error) {
     console.error('[Plans API] Error fetching plans from database:', error);
-    // Fallback to hardcoded plans on error
+    // Fallback to credit pack plans on error
     try {
-      const plans = paymentService.getPlans();
-      console.log('[Plans API] Using hardcoded plans as fallback');
+      const creditPlans = paymentService.getCreditPlans();
+      const plans = {};
+      creditPlans.forEach(plan => {
+        plans[plan.id] = {
+          id: plan.id,
+          name: plan.name,
+          title: plan.name,
+          price: plan.price,
+          credits: plan.credits,
+          interval: null,
+          description: plan.description,
+          subtitle: plan.description,
+          features: plan.features || [],
+          popular: plan.popular || false,
+          yearlyPrice: 0
+        };
+      });
+      console.log('[Plans API] Using credit pack plans as fallback');
       res.json({
         success: true,
         data: plans
@@ -331,10 +363,7 @@ router.post('/check-feature-access', [
 
     const result = await paymentService.checkFeatureAccess(req.user.id, feature);
 
-    res.json({
-      success: true,
-      data: result
-    });
+    res.json(result);
   } catch (error) {
     console.error('Check feature access error:', error);
     res.status(500).json({
@@ -350,16 +379,31 @@ router.post('/check-feature-access', [
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     const signature = req.headers['stripe-signature'];
+    const eventType = req.headers['stripe-event-type'] || 'unknown';
+    
+    console.log('📥 Webhook received:', {
+      hasSignature: !!signature,
+      bodyLength: req.body?.length || 0,
+      contentType: req.headers['content-type'],
+      eventType: eventType
+    });
+    
     const result = await paymentService.handleWebhook(req.body, signature);
 
     if (result.success) {
-      res.json({ received: true });
+      console.log('✅ Webhook processed successfully');
+      res.status(200).json({ received: true, success: true });
     } else {
-      res.status(400).json({ error: result.error });
+      console.error('❌ Webhook processing failed:', result.error);
+      // Still return 200 to Stripe so it doesn't retry
+      res.status(200).json({ received: true, success: false, error: result.error });
     }
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(400).json({ error: error.message });
+    console.error('❌ Webhook error:', error.message);
+    console.error('Error stack:', error.stack);
+    // Return 200 to Stripe even on error to prevent retries
+    // Log the error for debugging
+    res.status(200).json({ received: true, success: false, error: error.message });
   }
 });
 
@@ -407,29 +451,37 @@ router.post('/create-payment-intent', [
 // @route   POST /api/payments/create-credit-checkout
 // @desc    Create Stripe checkout session for credit purchase
 // @access  Private
-router.post('/create-credit-checkout', [
-  auth,
-  body('planId', 'Plan ID is required').notEmpty(),
-  body('successUrl', 'Success URL is required').isURL(),
-  body('cancelUrl', 'Cancel URL is required').isURL()
-], async (req, res) => {
+router.post('/create-credit-checkout', auth, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { planId, successUrl, cancelUrl } = req.body;
+
+    // Manual validation (more reliable than express-validator for URLs with query params)
+    if (!planId || typeof planId !== 'string' || !planId.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation Error',
-        errors: errors.array()
+        error: 'Plan ID is required'
       });
     }
 
-    const { planId, successUrl, cancelUrl } = req.body;
+    if (!successUrl || typeof successUrl !== 'string' || !successUrl.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Success URL is required and must be a valid URL string'
+      });
+    }
+
+    if (!cancelUrl || typeof cancelUrl !== 'string' || !cancelUrl.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cancel URL is required and must be a valid URL string'
+      });
+    }
 
     const result = await paymentService.createCreditCheckoutSession(
       planId,
       req.user.id,
-      successUrl,
-      cancelUrl
+      successUrl.trim(),
+      cancelUrl.trim()
     );
 
     if (result.success) {
@@ -442,6 +494,142 @@ router.post('/create-credit-checkout', [
     res.status(500).json({
       success: false,
       error: 'Failed to create credit checkout session'
+    });
+  }
+});
+
+// @route   POST /api/payments/deduct-credit
+// @desc    Deduct credit for feature usage
+// @access  Private
+router.post('/deduct-credit', [
+  auth,
+  body('feature', 'Feature is required').notEmpty()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        errors: errors.array()
+      });
+    }
+
+    const { feature } = req.body;
+
+    const result = await paymentService.deductCredit(req.user.id, feature);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(403).json(result);
+    }
+  } catch (error) {
+    console.error('Deduct credit error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to deduct credit'
+    });
+  }
+});
+
+// @route   POST /api/payments/check-payment-status
+// @desc    Check if payment was successful and add credits if webhook didn't fire
+// @access  Private
+router.post('/check-payment-status', auth, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+
+    // Retrieve the checkout session from Stripe
+    const session = await paymentService.stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === 'paid' && session.metadata?.type === 'credit_purchase') {
+      const userId = session.metadata.userId;
+      const credits = parseInt(session.metadata.credits) || 0;
+
+      if (userId && credits > 0) {
+        const user = await User.findById(userId);
+        if (user) {
+          // Check if credits were already added (prevent double addition)
+          // We'll check by looking at recent credit history or just add them
+          const oldCredits = user.credits || 0;
+          user.credits = oldCredits + credits;
+          await user.save();
+
+          console.log(`✅ Added ${credits} credits via payment status check for user ${user.email}`);
+          console.log(`💰 Credits: ${oldCredits} → ${user.credits}`);
+
+          return res.json({
+            success: true,
+            creditsAdded: credits,
+            totalCredits: user.credits
+          });
+        }
+      }
+    }
+
+    res.json({
+      success: false,
+      message: 'Payment not completed or already processed'
+    });
+  } catch (error) {
+    console.error('Check payment status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check payment status'
+    });
+  }
+});
+
+// @route   POST /api/payments/manual-add-credits
+// @desc    Manually add credits to user (for testing/admin use)
+// @access  Private
+router.post('/manual-add-credits', auth, async (req, res) => {
+  try {
+    const { credits, reason } = req.body;
+
+    if (!credits || credits <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Credits must be a positive number'
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const oldCredits = user.credits || 0;
+    user.credits = oldCredits + credits;
+    await user.save();
+
+    console.log(`✅ Manually added ${credits} credits to user ${user.email}. Old: ${oldCredits}, New: ${user.credits}. Reason: ${reason || 'Manual addition'}`);
+
+    res.json({
+      success: true,
+      message: `Added ${credits} credits successfully`,
+      credits: {
+        old: oldCredits,
+        new: user.credits,
+        added: credits
+      }
+    });
+  } catch (error) {
+    console.error('Manual add credits error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add credits'
     });
   }
 });

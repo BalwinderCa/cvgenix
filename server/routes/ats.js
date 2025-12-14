@@ -6,6 +6,8 @@ const SimpleATSAnalyzer = require('../utils/simpleATSAnalyzer');
 const EnhancedResumeParser = require('../utils/enhancedResumeParser');
 const progressTracker = require('../utils/progressTracker');
 const PDFDocument = require('pdfkit');
+const auth = require('../middleware/auth');
+const User = require('../models/User');
 
 const router = express.Router();
 const analyzer = new SimpleATSAnalyzer();
@@ -43,11 +45,43 @@ const upload = multer({
   }
 });
 
-// ATS Analysis endpoint
-router.post('/analyze', upload.single('resume'), async (req, res) => {
+// ATS Analysis endpoint - Requires authentication and credits
+router.post('/analyze', auth, upload.single('resume'), async (req, res) => {
   const startTime = Date.now();
   const timeout = 120000; // 2 minutes timeout
   const sessionId = req.body.sessionId || `ats-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    // Check if user has credits
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Check if user has credits (1 credit per ATS analysis)
+    if (user.credits < 1) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient credits',
+        message: 'You need at least 1 credit to perform ATS analysis. Please purchase a credit pack.',
+        credits: user.credits
+      });
+    }
+
+    // Deduct credit before processing
+    user.credits -= 1;
+    await user.save();
+    console.log(`💰 Deducted 1 credit from user ${user.email}. Remaining credits: ${user.credits}`);
+  } catch (error) {
+    console.error('Error checking/deducting credits:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to process credit check'
+    });
+  }
   
   // Set response timeout
   res.setTimeout(timeout, () => {

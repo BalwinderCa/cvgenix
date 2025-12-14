@@ -285,6 +285,32 @@ router.post('/:id/export', auth, async (req, res) => {
       })
     }
 
+    // Check and deduct credits for all export formats (1 credit per export - PDF/PNG/JPG)
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // All export formats cost 1 credit (PDF/PNG/JPG)
+    if (user.credits < 1) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient credits',
+        message: `You need at least 1 credit to export your resume as ${format.toUpperCase()}. Please purchase a credit pack.`,
+        credits: user.credits
+      });
+    }
+
+    // Deduct credit before processing
+    user.credits -= 1;
+    await user.save();
+    console.log(`💰 Deducted 1 credit from user ${user.email} for ${format.toUpperCase()} export. Remaining credits: ${user.credits}`);
+
     console.log(`📄 Exporting resume as ${format.toUpperCase()}`)
     console.log(`👤 User: ${req.user.id}`)
     console.log(`📋 Resume: ${resume.personalInfo.firstName} ${resume.personalInfo.lastName}`)

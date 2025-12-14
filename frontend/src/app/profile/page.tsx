@@ -76,6 +76,49 @@ export default function ProfilePage() {
   useEffect(() => {
     loadUserData();
     loadCreditPlans();
+    
+    // Check if returning from successful payment
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'true') {
+      const sessionId = localStorage.getItem('pendingPaymentSessionId');
+      
+      if (sessionId) {
+        // Wait a bit for webhook to process, then check payment status
+        setTimeout(async () => {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:3001/api/payments/check-payment-status', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ sessionId })
+            });
+
+            const data = await response.json();
+            
+            if (data.success && data.creditsAdded) {
+              toast.success(`✅ Payment successful! Added ${data.creditsAdded} credits. Total: ${data.totalCredits}`);
+              localStorage.removeItem('pendingPaymentSessionId');
+            } else {
+              // Webhook might have already processed it, just refresh
+              toast.success('Payment successful! Checking credits...');
+            }
+            
+            // Refresh user data to show updated credits
+            loadUserData();
+          } catch (error) {
+            console.error('Error checking payment status:', error);
+            toast.info('Payment successful! Credits should be added shortly.');
+            loadUserData();
+          }
+        }, 3000); // Wait 3 seconds for webhook to process
+      } else {
+        toast.success('Payment successful!');
+        loadUserData();
+      }
+    }
   }, []);
 
   // Track which section is in view
@@ -699,18 +742,21 @@ export default function ProfilePage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 border rounded-lg">
                               <div className="flex items-center justify-between mb-2">
-                                <h3 className="font-medium">Resume Credits</h3>
-                                <span className="text-2xl font-bold">2</span>
+                                <h3 className="font-medium">Total Credits</h3>
+                                <span className="text-2xl font-bold text-primary">{user?.credits || 0}</span>
                               </div>
-                              <p className="text-sm text-muted-foreground">Create and download resumes</p>
+                              <p className="text-sm text-muted-foreground">Available credits for exports and analysis</p>
                             </div>
                             
                             <div className="p-4 border rounded-lg">
                               <div className="flex items-center justify-between mb-2">
-                                <h3 className="font-medium">ATS Credits</h3>
-                                <span className="text-2xl font-bold">1</span>
+                                <h3 className="font-medium">Credit Usage</h3>
+                                <span className="text-sm text-muted-foreground">1 credit per action</span>
                               </div>
-                              <p className="text-sm text-muted-foreground">Analyze resume with ATS</p>
+                              <p className="text-sm text-muted-foreground">
+                                • Export (PDF/PNG/JPG): 1 credit<br/>
+                                • ATS Analysis: 1 credit
+                              </p>
                             </div>
                           </div>
                           

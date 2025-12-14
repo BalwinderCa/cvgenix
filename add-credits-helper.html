@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Credits Helper</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Add Credits Manually</h2>
+        <p>Use this if webhook didn't fire after purchase</p>
+        
+        <label>Number of Credits:</label>
+        <input type="number" id="credits" value="15" min="1">
+        
+        <label>Reason (optional):</label>
+        <input type="text" id="reason" value="Manual addition for purchase">
+        
+        <button onclick="addCredits()">Add Credits</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function addCredits() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showResult('Please log in first!', 'error');
+                return;
+            }
+
+            const credits = parseInt(document.getElementById('credits').value);
+            const reason = document.getElementById('reason').value;
+
+            try {
+                const response = await fetch('http://localhost:3001/api/payments/manual-add-credits', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ credits, reason })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult(`✅ Success! Added ${credits} credits. New total: ${data.credits.new}`, 'success');
+                    setTimeout(() => {
+                        window.location.href = '/profile';
+                    }, 2000);
+                } else {
+                    showResult('❌ Error: ' + (data.error || 'Failed to add credits'), 'error');
+                }
+            } catch (error) {
+                showResult('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = 'result ' + type;
+        }
+    </script>
+</body>
+</html>
+

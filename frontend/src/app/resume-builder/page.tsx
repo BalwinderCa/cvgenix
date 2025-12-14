@@ -9,6 +9,9 @@ import ResumeBuilderTopBar from '@/components/resume-builder-topbar';
 import ResumeBuilderCanvas from '@/components/resume-builder-canvas';
 import CanvasEditToolbar from '@/components/canvas-edit-toolbar';
 import ResumeUploadModal from '@/components/resume-upload-modal';
+import LoginModal from '@/components/auth/LoginModal';
+import SignupModal from '@/components/auth/SignupModal';
+import UpgradeModal from '@/components/upgrade-modal';
 import { CanvasEditManager } from '@/components/canvas/CanvasEditManager';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -30,6 +33,9 @@ export default function ResumeBuilderPage() {
   const [zoomLevel, setZoomLevel] = useState(100);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [hasLoadedImportedResume, setHasLoadedImportedResume] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [canvasEditKey, setCanvasEditKey] = useState(0); // Force CanvasEditManager remount
   const isLoadingImportedResumeRef = useRef(false); // Prevent multiple simultaneous loads
   const isDraggingSlider = useRef(false);
@@ -76,8 +82,37 @@ export default function ResumeBuilderPage() {
     }
   }, [canvasState.fabricCanvas]);
 
-  // Handle download
-  const handleDownload = useCallback(() => {
+  // Handle download - all formats (PDF/PNG/JPG) cost 1 credit each
+  const handleDownload = useCallback(async () => {
+    // Check authentication first
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setLoginModalOpen(true);
+      return;
+    }
+
+    // Check if user has credits (1 credit per export - all formats)
+    try {
+      const response = await fetch('http://localhost:3001/api/payments/check-feature-access', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ feature: 'exports' })
+      });
+
+      const data = await response.json();
+      
+      if (!data.hasAccess) {
+        setUpgradeModalOpen(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking credits:', error);
+      // Continue with export if check fails (graceful degradation)
+    }
+
     if (canvasState.fabricCanvas) {
       const format = exportState.exportFormat.toLowerCase();
       
@@ -180,8 +215,34 @@ export default function ResumeBuilderPage() {
         link.href = dataURL;
         link.click();
       }
+
+      // Deduct credit after successful export (all formats: PDF/PNG/JPG cost 1 credit)
+      if (token) {
+        try {
+          const deductResponse = await fetch('http://localhost:3001/api/payments/deduct-credit', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              feature: 'exports',
+              format: format
+            })
+          });
+          
+          const deductData = await deductResponse.json();
+          if (!deductData.success) {
+            console.error('Credit deduction failed:', deductData.error);
+            // Don't block the user, but log the error
+          }
+        } catch (error) {
+          console.error('Error deducting credit:', error);
+          // Don't block the user if credit deduction fails
+        }
+      }
     }
-  }, [canvasState.fabricCanvas, exportState.exportFormat]);
+  }, [canvasState.fabricCanvas, exportState.exportFormat, router]);
 
   // Handle template selection
   const handleTemplateSelect = useCallback(async (templateId: string, isManual = false) => {
@@ -1242,9 +1303,33 @@ export default function ResumeBuilderPage() {
         />
       </div>
 
-      <ResumeUploadModal 
-        open={isUploadModalOpen} 
-        onOpenChange={setIsUploadModalOpen} 
+      <ResumeUploadModal
+        open={isUploadModalOpen}
+        onOpenChange={setIsUploadModalOpen}
+      />
+      
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        message="You've run out of credits! Purchase a credit pack to export your resume. (Each export costs 1 credit)"
+      />
+      
+      {/* Auth Modals */}
+      <LoginModal
+        open={loginModalOpen}
+        onOpenChange={setLoginModalOpen}
+        onSwitchToSignup={() => {
+          setLoginModalOpen(false);
+          setSignupModalOpen(true);
+        }}
+      />
+      <SignupModal
+        open={signupModalOpen}
+        onOpenChange={setSignupModalOpen}
+        onSwitchToLogin={() => {
+          setSignupModalOpen(false);
+          setLoginModalOpen(true);
+        }}
       />
     </ErrorBoundary>
   );

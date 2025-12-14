@@ -1,3 +1,5 @@
+"use client";
+
 import NavigationHeader from "@/components/navigation-header";
 import HeroSection from "@/components/hero-section";
 import FeaturesSection from "@/components/features-section";
@@ -141,7 +143,97 @@ export default function Page() {
         {/* Pricing */}
         <section id="pricing" className="bg-background">
           <div className="container py-16 md:py-20">
-            <PricingSection />
+            <PricingSection 
+              title="Choose Your Credit Pack"
+              subtitle="One-time purchase. Credits never expire. Use them whenever you need."
+              onSelectPlan={async (plan, billing) => {
+                // Check if user is authenticated
+                const token = localStorage.getItem('token');
+                if (!token) {
+                  // Redirect to signup or show login modal
+                  window.location.href = '/profile?redirect=pricing';
+                  return;
+                }
+
+                // Skip free plan
+                if (plan.monthlyPrice === 0) {
+                  window.location.href = '/resume-builder';
+                  return;
+                }
+
+                try {
+                  // Map plan name to credit plan ID (since DB uses MongoDB IDs)
+                  const planNameToIdMap: Record<string, string> = {
+                    'Starter Pack': 'starter',
+                    'Popular Pack': 'popular',
+                    'Professional Pack': 'professional',
+                    'starter': 'starter',
+                    'popular': 'popular',
+                    'professional': 'professional',
+                    'starter_credits': 'starter',
+                    'popular_credits': 'popular',
+                    'professional_credits': 'professional'
+                  };
+
+                  // Map plan name to credit plan ID (since DB uses MongoDB IDs)
+                  let creditPlanId = planNameToIdMap[plan.name];
+                  
+                  // If not found by name, try by ID (for backward compatibility)
+                  if (!creditPlanId) {
+                    creditPlanId = planNameToIdMap[plan.id];
+                  }
+                  
+                  // Last resort: try to extract from ID
+                  if (!creditPlanId && plan.id) {
+                    const idLower = plan.id.toLowerCase();
+                    if (idLower.includes('starter')) creditPlanId = 'starter';
+                    else if (idLower.includes('popular')) creditPlanId = 'popular';
+                    else if (idLower.includes('professional')) creditPlanId = 'professional';
+                  }
+                  
+                  if (!creditPlanId) {
+                    console.error('Could not map plan:', { id: plan.id, name: plan.name });
+                    alert(`Error: Could not identify plan. Please try again or contact support.`);
+                    return;
+                  }
+
+                  console.log('Creating checkout for plan:', { 
+                    planId: plan.id, 
+                    planName: plan.name, 
+                    creditPlanId 
+                  });
+
+                  const response = await fetch('http://localhost:3001/api/payments/create-credit-checkout', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      planId: creditPlanId,
+                      successUrl: `${window.location.origin}/profile?success=true`,
+                      cancelUrl: `${window.location.origin}/?pricing=true`
+                    })
+                  });
+
+                  const data = await response.json();
+                  
+                  if (data.success && data.url) {
+                    // Store session ID to check payment status later
+                    if (data.sessionId) {
+                      localStorage.setItem('pendingPaymentSessionId', data.sessionId);
+                    }
+                    window.location.href = data.url;
+                  } else {
+                    console.error('Checkout error:', data);
+                    alert(data.error || data.message || 'Failed to create checkout session. Please try again.');
+                  }
+                } catch (error) {
+                  console.error('Error creating checkout:', error);
+                  alert('Failed to process payment. Please try again.');
+                }
+              }}
+            />
           </div>
         </section>
 

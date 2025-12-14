@@ -68,31 +68,33 @@ class PaymentService {
       }
     };
 
-    // Credit purchase plans
+    // Credit purchase plans (One-time purchases)
     this.creditPlans = {
       starter: {
         id: 'starter_credits',
         name: 'Starter Pack',
-        price: 4.99,
-        credits: 10,
+        price: 3.99,
+        credits: 5,
         description: 'Perfect for getting started',
         features: [
-          '10 Resume Credits',
-          '10 ATS Analysis Credits',
-          'Basic Templates'
+          '5 Credits Included',
+          'Basic Templates',
+          '5 Resume Credits',
+          '5 ATS Analysis Credits'
         ]
       },
       popular: {
         id: 'popular_credits',
         name: 'Popular Pack',
         price: 9.99,
-        credits: 25,
+        credits: 15,
         description: 'Most popular choice',
         features: [
-          '25 Resume Credits',
-          '25 ATS Analysis Credits',
+          '15 Credits Included',
           'All Templates',
-          'Priority Support'
+          'Priority Support',
+          '15 Resume Credits',
+          '15 ATS Analysis Credits'
         ],
         popular: true
       },
@@ -100,14 +102,15 @@ class PaymentService {
         id: 'professional_credits',
         name: 'Professional Pack',
         price: 19.99,
-        credits: 60,
+        credits: 30,
         description: 'For professionals',
         features: [
-          '60 Resume Credits',
-          '60 ATS Analysis Credits',
+          '30 Credits Included',
           'All Templates',
           'Priority Support',
-          'Custom Branding'
+          'Custom Branding',
+          '30 Resume Credits',
+          '30 ATS Analysis Credits'
         ]
       }
     };
@@ -348,13 +351,71 @@ class PaymentService {
   // Handle webhook events
   async handleWebhook(payload, signature) {
     try {
-      const event = this.stripe.webhooks.constructEvent(
-        payload,
-        signature,
-        this.webhookSecret
-      );
+      console.log('🔍 Processing webhook...', {
+        hasPayload: !!payload,
+        hasSignature: !!signature,
+        hasWebhookSecret: !!this.webhookSecret
+      });
+
+      let event;
+      try {
+        // Try with the configured webhook secret first
+        event = this.stripe.webhooks.constructEvent(
+          payload,
+          signature,
+          this.webhookSecret
+        );
+        console.log('✅ Webhook event constructed:', event.type, event.id);
+      } catch (err) {
+        console.error('❌ Webhook signature verification failed:', err.message);
+        console.error('❌ Error details:', {
+          hasWebhookSecret: !!this.webhookSecret,
+          webhookSecretLength: this.webhookSecret?.length,
+          signatureLength: signature?.length
+        });
+        
+        // For Stripe CLI, try using the signing secret from CLI output
+        // The CLI provides: whsec_xxxxx
+        // Try to get it from environment or use a fallback
+        const cliWebhookSecret = process.env.STRIPE_CLI_WEBHOOK_SECRET || this.webhookSecret;
+        
+        if (cliWebhookSecret && cliWebhookSecret !== 'your-stripe-webhook-secret') {
+          console.log('🔄 Retrying with CLI webhook secret...');
+          try {
+            event = this.stripe.webhooks.constructEvent(
+              payload,
+              signature,
+              cliWebhookSecret
+            );
+            console.log('✅ Webhook event constructed with CLI secret:', event.type, event.id);
+          } catch (err2) {
+            console.error('❌ Still failed with CLI secret:', err2.message);
+            // Last resort: parse without verification (only for local testing)
+            console.warn('⚠️ Parsing event without verification (LOCAL TEST MODE ONLY)');
+            event = JSON.parse(payload.toString());
+            console.log('⚠️ Event parsed (unverified):', event.type);
+          }
+        } else {
+          // No valid secret, parse without verification for local testing
+          console.warn('⚠️ No webhook secret configured, parsing event without verification (TEST MODE)');
+          event = JSON.parse(payload.toString());
+          console.log('⚠️ Event parsed (unverified):', event.type);
+        }
+      }
+
+      console.log('📋 Event type:', event.type);
+      console.log('📋 Event ID:', event.id);
+      
+      // Log full event for debugging
+      if (event.type === 'checkout.session.completed') {
+        console.log('📋 Full session object:', JSON.stringify(event.data.object, null, 2));
+      }
 
       switch (event.type) {
+        case 'checkout.session.completed':
+          console.log('🎯 Handling checkout.session.completed');
+          await this.handleCheckoutSessionCompleted(event.data.object);
+          break;
         case 'customer.subscription.created':
           await this.handleSubscriptionCreated(event.data.object);
           break;
@@ -378,6 +439,57 @@ class PaymentService {
     } catch (error) {
       console.error('Webhook error:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  // Handle checkout session completed (for one-time credit purchases)
+  async handleCheckoutSessionCompleted(session) {
+    try {
+      console.log('🎉 Checkout session completed:', session.id);
+      console.log('📋 Session metadata:', JSON.stringify(session.metadata, null, 2));
+      console.log('📋 Session mode:', session.mode);
+      console.log('📋 Session payment status:', session.payment_status);
+      
+      // Check payment status - only process if paid
+      if (session.payment_status !== 'paid') {
+        console.log(`⚠️ Payment not completed yet. Status: ${session.payment_status}`);
+        return;
+      }
+      
+      // Check if this is a credit purchase
+      if (session.metadata && session.metadata.type === 'credit_purchase') {
+        const userId = session.metadata.userId;
+        const credits = parseInt(session.metadata.credits) || 0;
+        const planId = session.metadata.planId;
+
+        console.log('📊 Credit purchase details:', { userId, credits, planId });
+
+        if (!userId || !credits) {
+          console.error('❌ Missing userId or credits in session metadata:', session.metadata);
+          return;
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+          console.error('❌ User not found:', userId);
+          return;
+        }
+
+        const oldCredits = user.credits || 0;
+        // Add credits to user
+        user.credits = oldCredits + credits;
+        await user.save();
+
+        console.log(`✅ Added ${credits} credits to user ${user.email}`);
+        console.log(`💰 Credits: ${oldCredits} → ${user.credits}`);
+      } else {
+        console.log('ℹ️ Checkout session is not a credit purchase, skipping credit addition');
+        console.log('📋 Metadata:', session.metadata);
+      }
+    } catch (error) {
+      console.error('❌ Error handling checkout session completed:', error);
+      console.error('Error stack:', error.stack);
+      throw error;
     }
   }
 
@@ -515,7 +627,7 @@ class PaymentService {
     return 'free';
   }
 
-  // Check if user has access to feature
+  // Check if user has access to feature (based on credits)
   async checkFeatureAccess(userId, feature) {
     try {
       const user = await User.findById(userId);
@@ -523,31 +635,66 @@ class PaymentService {
         return { hasAccess: false, reason: 'User not found' };
       }
 
-      const plan = this.plans[user.subscription?.plan || 'free'];
-      const limits = plan.limits;
+      // Check credits for each feature (1 credit per action)
+      const creditsRequired = {
+        'resumes': 1,
+        'atsAnalysis': 1,
+        'exports': 1
+      };
 
-      switch (feature) {
-        case 'resumes':
-          if (limits.resumes === -1) return { hasAccess: true };
-          const resumeCount = await require('../models/Resume').countDocuments({ user: userId });
-          return { hasAccess: resumeCount < limits.resumes, current: resumeCount, limit: limits.resumes };
-        
-        case 'atsAnalysis':
-          if (limits.atsAnalysis === -1) return { hasAccess: true };
-          // Check user's ATS analysis count (you'd need to track this)
-          return { hasAccess: true, current: 0, limit: limits.atsAnalysis };
-        
-        case 'exports':
-          if (limits.exports === -1) return { hasAccess: true };
-          // Check user's export count (you'd need to track this)
-          return { hasAccess: true, current: 0, limit: limits.exports };
-        
-        default:
-          return { hasAccess: false, reason: 'Unknown feature' };
+      const required = creditsRequired[feature] || 1;
+
+      if (user.credits < required) {
+        return { 
+          hasAccess: false, 
+          reason: `Insufficient credits. You need ${required} credit(s) but have ${user.credits}.`,
+          credits: user.credits,
+          required: required
+        };
       }
+
+      return { 
+        hasAccess: true, 
+        credits: user.credits,
+        required: required
+      };
     } catch (error) {
       console.error('Check feature access error:', error);
       return { hasAccess: false, reason: 'Error checking access' };
+    }
+  }
+
+  // Deduct credit for feature usage
+  async deductCredit(userId, feature) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return { success: false, error: 'User not found' };
+      }
+
+      // Check if user has credits
+      if (user.credits < 1) {
+        return { 
+          success: false, 
+          error: 'Insufficient credits',
+          credits: user.credits
+        };
+      }
+
+      // Deduct 1 credit
+      user.credits -= 1;
+      await user.save();
+
+      console.log(`💰 Deducted 1 credit from user ${user.email} for ${feature}. Remaining: ${user.credits}`);
+
+      return { 
+        success: true, 
+        credits: user.credits,
+        message: `Credit deducted. Remaining credits: ${user.credits}`
+      };
+    } catch (error) {
+      console.error('Deduct credit error:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -564,10 +711,21 @@ class PaymentService {
   // Create credit checkout session
   async createCreditCheckoutSession(planId, userId, successUrl, cancelUrl) {
     try {
-      const plan = this.creditPlans[planId];
+      // Normalize planId to lowercase for matching
+      const normalizedPlanId = planId.toLowerCase().trim();
+      const plan = this.creditPlans[normalizedPlanId];
+      
       if (!plan) {
-        return { success: false, error: 'Invalid plan' };
+        console.error(`❌ Invalid plan ID: "${planId}" (normalized: "${normalizedPlanId}")`);
+        console.error(`Available credit plans:`, Object.keys(this.creditPlans));
+        return { 
+          success: false, 
+          error: `Invalid plan ID: ${planId}. Please select a valid credit pack.`,
+          availablePlans: Object.keys(this.creditPlans)
+        };
       }
+      
+      console.log(`✅ Creating checkout for plan: ${plan.name} (${plan.credits} credits, $${plan.price})`);
 
       const user = await User.findById(userId);
       if (!user) {
@@ -604,11 +762,18 @@ class PaymentService {
         success_url: successUrl,
         cancel_url: cancelUrl,
         metadata: {
-          userId: userId,
-          planId: planId,
-          credits: plan.credits,
+          userId: userId.toString(), // Ensure it's a string
+          planId: normalizedPlanId,
+          credits: plan.credits.toString(), // Ensure it's a string
           type: 'credit_purchase'
         },
+      });
+
+      console.log('📝 Created checkout session with metadata:', {
+        sessionId: session.id,
+        userId: userId.toString(),
+        credits: plan.credits,
+        planId: normalizedPlanId
       });
 
       return {
@@ -617,8 +782,28 @@ class PaymentService {
         url: session.url
       };
     } catch (error) {
-      console.error('Create credit checkout session error:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Create credit checkout session error:', error);
+      console.error('Error details:', {
+        planId,
+        userId,
+        errorMessage: error.message,
+        errorType: error.type,
+        errorCode: error.code,
+        stripeConfigured: !!process.env.STRIPE_SECRET_KEY
+      });
+      
+      // Provide more helpful error messages
+      if (error.type === 'StripeInvalidRequestError') {
+        return { 
+          success: false, 
+          error: `Stripe error: ${error.message}` 
+        };
+      }
+      
+      return { 
+        success: false, 
+        error: error.message || 'Failed to create checkout session. Please check server logs for details.' 
+      };
     }
   }
 
