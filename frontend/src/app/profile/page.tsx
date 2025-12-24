@@ -18,10 +18,13 @@ import {
   Shield,
   CreditCard,
   FileText,
-  Download
+  Download,
+  Receipt,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationHeader from '@/components/navigation-header';
+import UpgradeModal from '@/components/upgrade-modal';
 
 interface UserData {
   _id: string;
@@ -41,6 +44,24 @@ interface UserData {
   };
 }
 
+interface Resume {
+  _id: string;
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  template?: {
+    name: string;
+    category?: string;
+  };
+  updatedAt: string;
+  createdAt: string;
+  exportedPdfPath?: string;
+  exportedPngPath?: string;
+  exportedJpgPath?: string;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
@@ -57,9 +78,14 @@ export default function ProfilePage() {
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [creditPlans, setCreditPlans] = useState<any[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(false);
-  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [loadingResumes, setLoadingResumes] = useState(false);
+  const [deletingResumeId, setDeletingResumeId] = useState<string | null>(null);
+  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -75,18 +101,22 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadUserData();
-    loadCreditPlans();
+    loadResumes();
     
     // Check if returning from successful payment
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('success') === 'true') {
       const sessionId = localStorage.getItem('pendingPaymentSessionId');
       
-      if (sessionId) {
-        // Wait a bit for webhook to process, then check payment status
-        setTimeout(async () => {
-          try {
-            const token = localStorage.getItem('token');
+      // Show initial success message
+      toast.success('Payment successful! Processing credits...');
+      
+      // Wait a bit for webhook to process, then check payment status
+      const checkPaymentStatus = async (retryCount = 0) => {
+        try {
+          const token = localStorage.getItem('token');
+          
+          if (sessionId) {
             const response = await fetch('http://localhost:3001/api/payments/check-payment-status', {
               method: 'POST',
               headers: {
@@ -101,30 +131,52 @@ export default function ProfilePage() {
             if (data.success && data.creditsAdded) {
               toast.success(`✅ Payment successful! Added ${data.creditsAdded} credits. Total: ${data.totalCredits}`);
               localStorage.removeItem('pendingPaymentSessionId');
-            } else {
-              // Webhook might have already processed it, just refresh
-              toast.success('Payment successful! Checking credits...');
+              // Refresh user data to show updated credits
+              loadUserData();
+              // Clean up URL
+              window.history.replaceState({}, '', '/profile');
+              return;
             }
-            
-            // Refresh user data to show updated credits
-            loadUserData();
-          } catch (error) {
-            console.error('Error checking payment status:', error);
-            toast.info('Payment successful! Credits should be added shortly.');
-            loadUserData();
           }
-        }, 3000); // Wait 3 seconds for webhook to process
-      } else {
-        toast.success('Payment successful!');
-        loadUserData();
-      }
+          
+          // If no sessionId or check failed, try refreshing user data anyway
+          // The webhook might have already processed it
+          await loadUserData();
+          
+          // If still no credits after refresh and we have retries left, try again
+          if (retryCount < 2) {
+            setTimeout(() => checkPaymentStatus(retryCount + 1), 2000);
+          } else {
+            toast.info('Payment successful! If credits don\'t appear, please refresh the page.');
+            localStorage.removeItem('pendingPaymentSessionId');
+            // Clean up URL
+            window.history.replaceState({}, '', '/profile');
+          }
+        } catch (error) {
+          console.error('Error checking payment status:', error);
+          // Refresh user data anyway
+          await loadUserData();
+          if (retryCount < 2) {
+            setTimeout(() => checkPaymentStatus(retryCount + 1), 2000);
+          } else {
+            toast.info('Payment successful! If credits don\'t appear, please refresh the page.');
+            localStorage.removeItem('pendingPaymentSessionId');
+            // Clean up URL
+            window.history.replaceState({}, '', '/profile');
+          }
+        }
+      };
+      
+      // Start checking after a short delay to allow webhook to process
+      setTimeout(() => checkPaymentStatus(), 2000);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Track which section is in view
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['profile', 'credits', 'resume', 'preferences'];
+      const sections = ['profile', 'credits', 'payments', 'resume', 'preferences'];
       const scrollPosition = window.scrollY + 100;
 
       for (const sectionId of sections) {
@@ -142,6 +194,13 @@ export default function ProfilePage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Load payment history when payments section is active
+  useEffect(() => {
+    if (activeSection === 'payments') {
+      loadPaymentHistory();
+    }
+  }, [activeSection]);
 
   const loadUserData = async () => {
     try {
@@ -292,6 +351,10 @@ export default function ProfilePage() {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    // Refresh resumes when resume section is clicked
+    if (sectionId === 'resume') {
+      loadResumes();
+    }
   };
 
   const handlePasswordReset = async () => {
@@ -372,53 +435,237 @@ export default function ProfilePage() {
     }
   };
 
-  const loadCreditPlans = async () => {
-    try {
-      setLoadingPlans(true);
-      const response = await fetch('http://localhost:3001/api/payments/credit-plans');
-      const data = await response.json();
-      
-      if (data.success) {
-        setCreditPlans(data.data);
-      } else {
-        toast.error('Failed to load credit plans');
-      }
-    } catch (error) {
-      console.error('Error loading credit plans:', error);
-      toast.error('Failed to load credit plans');
-    } finally {
-      setLoadingPlans(false);
-    }
-  };
 
-  const handleCreditPurchase = async (planId: string) => {
+  const loadResumes = async () => {
     try {
+      setLoadingResumes(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/payments/create-credit-checkout', {
-        method: 'POST',
+      if (!token) {
+        return;
+      }
+
+      const response = await fetch('http://localhost:3001/api/resumes', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          planId: planId,
-          successUrl: `${window.location.origin}/profile?success=true`,
-          cancelUrl: `${window.location.origin}/profile?canceled=true`
-        })
+        }
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
-        // Open Stripe checkout in new tab
-        window.open(data.url, '_blank');
+      if (response.ok) {
+        const data = await response.json();
+        setResumes(data);
+      } else if (response.status === 401) {
+        // Token expired, redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
       } else {
-        toast.error(data.error || 'Failed to create checkout session');
+        console.error('Failed to load resumes');
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
-      toast.error('Failed to create checkout session');
+      console.error('Error loading resumes:', error);
+      toast.error('Failed to load resumes');
+    } finally {
+      setLoadingResumes(false);
     }
+  };
+
+  const loadPaymentHistory = async () => {
+    try {
+      setLoadingPayments(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return;
+      }
+
+      const response = await fetch('http://localhost:3001/api/payments/history', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPaymentHistory(data.payments || []);
+        }
+      } else if (response.status === 401) {
+        // Token expired, redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
+      } else {
+        console.error('Failed to load payment history');
+      }
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+      toast.error('Failed to load payment history');
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  const handleEditResume = (resumeId: string) => {
+    router.push(`/resume-builder?resumeId=${resumeId}`);
+  };
+
+  const handleDownloadResume = async (resumeId: string) => {
+    try {
+      setDownloadingResumeId(resumeId);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please log in to download resumes');
+        router.push('/login');
+        return;
+      }
+
+      // Find the resume to check which formats are available
+      const resume = resumes.find(r => r._id === resumeId);
+      
+      // Determine which format to try first (priority: PDF -> PNG -> JPG)
+      const formatsToTry = [];
+      if (resume) {
+        if (resume.exportedPdfPath) formatsToTry.push('pdf');
+        if (resume.exportedPngPath) formatsToTry.push('png');
+        if (resume.exportedJpgPath) formatsToTry.push('jpg');
+      }
+      
+      // If no format info available, try all formats in order
+      if (formatsToTry.length === 0) {
+        formatsToTry.push('pdf', 'png', 'jpg');
+      }
+
+      // Try each format until one works
+      let lastError = null;
+      for (const format of formatsToTry) {
+        try {
+          const response = await fetch(`http://localhost:3001/api/resumes/${resumeId}/download?format=${format}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Get filename from response headers or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `resume.${format}`;
+            if (contentDisposition) {
+              const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+              if (filenameMatch) {
+                filename = filenameMatch[1];
+              }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            toast.success('Resume downloaded successfully');
+            return; // Success, exit function
+          } else {
+            const errorData = await response.json();
+            lastError = errorData.message || `Failed to download ${format.toUpperCase()}`;
+            // Continue to next format
+          }
+        } catch (error) {
+          lastError = `Error downloading ${format.toUpperCase()}: ${error}`;
+          // Continue to next format
+        }
+      }
+
+      // If we get here, all formats failed
+      toast.error(lastError || 'Failed to download resume. Please export the resume first.');
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      toast.error('Failed to download resume');
+    } finally {
+      setDownloadingResumeId(null);
+    }
+  };
+
+  const handleDeleteResume = async (resumeId: string) => {
+    if (!confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeletingResumeId(resumeId);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please log in to delete resumes');
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:3001/api/resumes/${resumeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        toast.success('Resume deleted successfully');
+        // Reload resumes
+        loadResumes();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to delete resume');
+      }
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      toast.error('Failed to delete resume');
+    } finally {
+      setDeletingResumeId(null);
+    }
+  };
+
+  const formatResumeDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7);
+      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+    } else if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30);
+      return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+    } else {
+      const years = Math.floor(diffDays / 365);
+      return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+    }
+  };
+
+  const getResumeName = (resume: Resume) => {
+    if (resume.personalInfo?.firstName && resume.personalInfo?.lastName) {
+      return `${resume.personalInfo.firstName} ${resume.personalInfo.lastName} Resume`;
+    }
+    if (resume.personalInfo?.firstName) {
+      return `${resume.personalInfo.firstName} Resume`;
+    }
+    if (resume.template?.name) {
+      return resume.template.name;
+    }
+    return 'Untitled Resume';
   };
 
   if (loading) {
@@ -467,6 +714,14 @@ export default function ProfilePage() {
                     >
                       <CreditCard className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="text-sm">Credits & Account</span>
+                    </Button>
+                    <Button
+                      variant={activeSection === 'payments' ? 'default' : 'ghost'}
+                      className="w-full justify-start text-left h-auto py-3 px-3"
+                      onClick={() => scrollToSection('payments')}
+                    >
+                      <Receipt className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span className="text-sm">Payment History</span>
                     </Button>
                     <Button
                       variant={activeSection === 'resume' ? 'default' : 'ghost'}
@@ -764,11 +1019,233 @@ export default function ProfilePage() {
                           <div className="pt-4">
                             <Button 
                               className="w-full"
-                              onClick={() => setShowCreditModal(true)}
+                              onClick={() => setUpgradeModalOpen(true)}
                             >
                               Buy More Credits
                             </Button>
                           </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Payment History Section */}
+                  {activeSection === 'payments' && (
+                    <div className="space-y-8">
+                      <Card id="payments">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Receipt className="h-5 w-5" />
+                            Payment History
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {loadingPayments ? (
+                            <div className="flex items-center justify-center py-8">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            </div>
+                          ) : paymentHistory.length === 0 ? (
+                            <div className="text-center py-8">
+                              <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                              <p className="text-muted-foreground">No payment history found</p>
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Your payment history will appear here after you make a purchase.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {paymentHistory.map((payment) => (
+                                <div
+                                  key={payment.id}
+                                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <h4 className="font-medium">{payment.description}</h4>
+                                        <Badge
+                                          variant={
+                                            payment.status === 'paid' || payment.status === 'succeeded'
+                                              ? 'default'
+                                              : 'secondary'
+                                          }
+                                        >
+                                          {payment.status === 'paid' || payment.status === 'succeeded'
+                                            ? 'Paid'
+                                            : payment.status}
+                                        </Badge>
+                                      </div>
+                                      <div className="space-y-1 text-sm text-muted-foreground">
+                                        <p>
+                                          <Calendar className="h-3 w-3 inline mr-1" />
+                                          {new Date(payment.date).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </p>
+                                        {payment.credits && (
+                                          <p>Credits: {payment.credits}</p>
+                                        )}
+                                        {payment.invoiceNumber && (
+                                          <p>Invoice: {payment.invoiceNumber}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="text-right ml-4">
+                                      <div className="text-lg font-semibold">
+                                        ${payment.amount.toFixed(2)} {payment.currency}
+                                      </div>
+                                      <div className="flex gap-2 mt-2">
+                                        {payment.invoiceUrl && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={async () => {
+                                              try {
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                  toast.error('Please log in to view invoice');
+                                                  return;
+                                                }
+                                                
+                                                // Use payment _id (MongoDB ID) for invoice access
+                                                const paymentId = (payment as any)._id || payment.invoiceUrl?.split('/').pop();
+                                                
+                                                if (!paymentId) {
+                                                  toast.error('Payment ID not found');
+                                                  return;
+                                                }
+                                                
+                                                // Fetch invoice with auth token
+                                                const response = await fetch(`http://localhost:3001/api/invoices/${paymentId}`, {
+                                                  headers: {
+                                                    'Authorization': `Bearer ${token}`,
+                                                  }
+                                                });
+                                                
+                                                if (response.ok) {
+                                                  const html = await response.text();
+                                                  // Open in new window with the HTML content
+                                                  const newWindow = window.open('', '_blank');
+                                                  if (newWindow) {
+                                                    newWindow.document.write(html);
+                                                    newWindow.document.close();
+                                                  }
+                                                } else {
+                                                  const errorData = await response.json().catch(() => ({ message: 'Failed to load invoice' }));
+                                                  toast.error(errorData.message || 'Failed to load invoice');
+                                                }
+                                              } catch (error) {
+                                                console.error('Error loading invoice:', error);
+                                                toast.error('Failed to load invoice');
+                                              }
+                                            }}
+                                            className="flex items-center gap-1"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                            Invoice
+                                          </Button>
+                                        )}
+                                        {payment.invoiceUrl && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={downloadingInvoiceId === ((payment as any)._id || payment.invoiceUrl?.split('/').pop())}
+                                            onClick={async () => {
+                                              // Use payment _id (MongoDB ID) for invoice access
+                                              const paymentId = (payment as any)._id || payment.invoiceUrl?.split('/').pop();
+                                              
+                                              if (!paymentId) {
+                                                toast.error('Payment ID not found');
+                                                return;
+                                              }
+                                              
+                                              // Prevent multiple clicks
+                                              if (downloadingInvoiceId === paymentId) {
+                                                return;
+                                              }
+                                              
+                                              setDownloadingInvoiceId(paymentId);
+                                              
+                                              try {
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                  toast.error('Please log in to download invoice');
+                                                  setDownloadingInvoiceId(null);
+                                                  return;
+                                                }
+                                                
+                                                // Download invoice PDF
+                                                const response = await fetch(`http://localhost:3001/api/invoices/${paymentId}/pdf`, {
+                                                  headers: {
+                                                    'Authorization': `Bearer ${token}`,
+                                                  }
+                                                });
+                                                
+                                                if (response.ok) {
+                                                  const blob = await response.blob();
+                                                  const url = window.URL.createObjectURL(blob);
+                                                  const a = document.createElement('a');
+                                                  a.href = url;
+                                                  
+                                                  const contentDisposition = response.headers.get('Content-Disposition');
+                                                  let filename = 'invoice.pdf';
+                                                  if (contentDisposition) {
+                                                    const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+                                                    if (filenameMatch) {
+                                                      filename = filenameMatch[1];
+                                                    }
+                                                  }
+                                                  
+                                                  a.download = filename;
+                                                  document.body.appendChild(a);
+                                                  a.click();
+                                                  window.URL.revokeObjectURL(url);
+                                                  document.body.removeChild(a);
+                                                  
+                                                  toast.success('Invoice downloaded successfully');
+                                                } else {
+                                                  const errorData = await response.json().catch(() => ({ message: 'Failed to download invoice' }));
+                                                  toast.error(errorData.message || 'Failed to download invoice');
+                                                }
+                                              } catch (error) {
+                                                console.error('Error downloading invoice:', error);
+                                                toast.error('Failed to download invoice');
+                                              } finally {
+                                                setDownloadingInvoiceId(null);
+                                              }
+                                            }}
+                                            className="flex items-center gap-1"
+                                          >
+                                            {downloadingInvoiceId === ((payment as any)._id || payment.invoiceUrl?.split('/').pop()) ? (
+                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                                            ) : (
+                                              <Download className="h-3 w-3" />
+                                            )}
+                                            PDF
+                                          </Button>
+                                        )}
+                                        {payment.receiptUrl && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => window.open(payment.receiptUrl, '_blank')}
+                                            className="flex items-center gap-1"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                            Receipt
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </div>
@@ -802,103 +1279,75 @@ export default function ProfilePage() {
                             </h4>
                             
                             {/* Resume List */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between py-3 px-3 bg-muted/50 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <FileText className="h-4 w-4 text-primary" />
-                                  <div>
-                                    <p className="font-medium text-sm">Software Engineer Resume</p>
-                                    <p className="text-xs text-muted-foreground">Created 2 days ago</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button variant="ghost" size="sm">
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm">
-                                    <Edit3 className="h-3 w-3" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      if (confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
-                                        toast.success('Resume deleted successfully');
-                                      }
-                                    }}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                            {loadingResumes ? (
+                              <div className="flex items-center justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                               </div>
-                              
-                              <div className="flex items-center justify-between py-3 px-3 bg-muted/50 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <FileText className="h-4 w-4 text-primary" />
-                                  <div>
-                                    <p className="font-medium text-sm">Marketing Manager Resume</p>
-                                    <p className="text-xs text-muted-foreground">Created 1 week ago</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button variant="ghost" size="sm">
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm">
-                                    <Edit3 className="h-3 w-3" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      if (confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
-                                        toast.success('Resume deleted successfully');
-                                      }
-                                    }}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                            ) : resumes.length === 0 ? (
+                              <div className="text-center py-8">
+                                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                <p className="text-muted-foreground mb-4">You haven't created any resumes yet.</p>
+                                <Button asChild>
+                                  <a href="/resume-builder">
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Create Your First Resume
+                                  </a>
+                                </Button>
                               </div>
-                              
-                              <div className="flex items-center justify-between py-3 px-3 bg-muted/50 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <FileText className="h-4 w-4 text-primary" />
-                                  <div>
-                                    <p className="font-medium text-sm">Data Analyst Resume</p>
-                                    <p className="text-xs text-muted-foreground">Created 2 weeks ago</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {resumes.map((resume) => (
+                                  <div key={resume._id} className="flex items-center justify-between py-3 px-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="font-medium text-sm truncate">{getResumeName(resume)}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {resume.updatedAt ? `Updated ${formatResumeDate(resume.updatedAt)}` : resume.createdAt ? `Created ${formatResumeDate(resume.createdAt)}` : 'No date available'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => handleDownloadResume(resume._id)}
+                                        disabled={downloadingResumeId === resume._id}
+                                        title="Download as PDF"
+                                      >
+                                        {downloadingResumeId === resume._id ? (
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                                        ) : (
+                                          <Download className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => handleEditResume(resume._id)}
+                                        title="Edit Resume"
+                                      >
+                                        <Edit3 className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => handleDeleteResume(resume._id)}
+                                        disabled={deletingResumeId === resume._id}
+                                        className="text-destructive hover:text-destructive"
+                                        title="Delete Resume"
+                                      >
+                                        {deletingResumeId === resume._id ? (
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-destructive"></div>
+                                        ) : (
+                                          <X className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button variant="ghost" size="sm">
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm">
-                                    <Edit3 className="h-3 w-3" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      if (confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
-                                        toast.success('Resume deleted successfully');
-                                      }
-                                    }}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                                ))}
                               </div>
-                            </div>
-                            
-                            <div className="pt-2">
-                              <Button variant="ghost" size="sm" className="w-full">
-                                View All Resumes
-                              </Button>
-                            </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -1022,81 +1471,12 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Credit Plans Modal */}
-      {showCreditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-6 w-6" />
-                <h3 className="text-xl font-semibold">Buy More Credits</h3>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCreditModal(false)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {loadingPlans ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {creditPlans.map((plan) => (
-                  <div 
-                    key={plan.id} 
-                    className={`p-6 border rounded-lg relative ${
-                      plan.popular ? 'border-primary bg-primary/5' : 'border-border'
-                    }`}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <Badge className="bg-primary text-white">Most Popular</Badge>
-                      </div>
-                    )}
-                    
-                    <div className="text-center">
-                      <h3 className="font-semibold text-xl mb-2">{plan.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
-                      
-                      <div className="mb-6">
-                        <span className="text-4xl font-bold">${plan.price}</span>
-                        <span className="text-muted-foreground"> / one-time</span>
-                      </div>
-                      
-                      <div className="mb-6">
-                        <div className="text-3xl font-bold text-primary">{plan.credits} Credits</div>
-                        <p className="text-sm text-muted-foreground">Resume + ATS Analysis</p>
-                      </div>
-                      
-                      <ul className="text-sm text-muted-foreground mb-6 space-y-2">
-                        {plan.features.map((feature: string, index: number) => (
-                          <li key={index} className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                      
-                      <Button 
-                        className="w-full"
-                        onClick={() => handleCreditPurchase(plan.id)}
-                      >
-                        Buy Now
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Credit Plans Modal - Using UpgradeModal component */}
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        message="You've run out of credits! Purchase a credit pack to download resumes. (Each export costs 1 credit)"
+      />
     </div>
   );
 }

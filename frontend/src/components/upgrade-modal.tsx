@@ -110,6 +110,10 @@ export default function UpgradeModal({ open, onOpenChange, message }: UpgradeMod
       const data = await response.json();
       
       if (data.success && data.url) {
+        // Store session ID in localStorage for payment status check after redirect
+        if (data.sessionId) {
+          localStorage.setItem('pendingPaymentSessionId', data.sessionId);
+        }
         window.location.href = data.url;
       } else {
         toast.error(data.error || 'Failed to create checkout session');

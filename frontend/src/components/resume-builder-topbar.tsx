@@ -75,7 +75,6 @@ interface TextProperties {
 
 interface ResumeBuilderTopBarProps {
   fabricCanvas: FabricCanvas | null;
-  onSave: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
   canUndo?: boolean;
@@ -1202,7 +1201,6 @@ const AdvancedToolsOverlay = ({
 // Main component with better error boundaries
 export default function ResumeBuilderTopBar({ 
   fabricCanvas, 
-  onSave,
   onUndo,
   onRedo,
   canUndo = false,

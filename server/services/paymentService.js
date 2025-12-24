@@ -1,5 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const User = require('../models/User');
+const Payment = require('../models/Payment');
 const emailService = require('./emailService');
 
 class PaymentService {
@@ -442,6 +443,30 @@ class PaymentService {
     }
   }
 
+  // Save payment record to database
+  async savePaymentRecord(paymentData) {
+    try {
+      // Check if payment already exists
+      const existingPayment = await Payment.findOne({ 
+        stripePaymentId: paymentData.stripePaymentId 
+      });
+
+      if (existingPayment) {
+        console.log(`Payment ${paymentData.stripePaymentId} already exists, skipping`);
+        return existingPayment;
+      }
+
+      const payment = new Payment(paymentData);
+      await payment.save();
+      console.log(`✅ Saved payment record: ${paymentData.stripePaymentId}`);
+      return payment;
+    } catch (error) {
+      console.error('Error saving payment record:', error);
+      // Don't throw - we don't want to fail the webhook if payment record save fails
+      return null;
+    }
+  }
+
   // Handle checkout session completed (for one-time credit purchases)
   async handleCheckoutSessionCompleted(session) {
     try {
@@ -478,13 +503,131 @@ class PaymentService {
         const oldCredits = user.credits || 0;
         // Add credits to user
         user.credits = oldCredits + credits;
+        
+        // Update or set stripeCustomerId if not set
+        if (session.customer && !user.stripeCustomerId) {
+          user.stripeCustomerId = session.customer;
+        }
+        
         await user.save();
 
         console.log(`✅ Added ${credits} credits to user ${user.email}`);
         console.log(`💰 Credits: ${oldCredits} → ${user.credits}`);
+
+        // Save payment record to database
+        // Normalize planId - metadata might have 'starter_credits' but creditPlans uses 'starter'
+        const normalizedPlanId = planId?.toLowerCase().trim();
+        const planKey = normalizedPlanId?.replace('_credits', '') || normalizedPlanId;
+        const plan = this.creditPlans[planKey] || { name: planId || 'Unknown Plan' };
+        
+        // Get amount from session - try multiple sources
+        let amount = 0;
+        if (session.amount_total) {
+          amount = session.amount_total / 100;
+        } else if (session.amount_subtotal) {
+          amount = session.amount_subtotal / 100;
+        } else {
+          // Fallback: get amount from payment intent
+          if (session.payment_intent) {
+            try {
+              const paymentIntent = await this.stripe.paymentIntents.retrieve(session.payment_intent);
+              amount = paymentIntent.amount ? paymentIntent.amount / 100 : 0;
+            } catch (error) {
+              console.error('Error retrieving payment intent for amount:', error);
+            }
+          }
+          // If still 0, use plan price as fallback
+          if (amount === 0 && plan.price) {
+            amount = plan.price;
+          }
+        }
+        
+        console.log(`💰 Payment amount: $${amount} (from session.amount_total: ${session.amount_total}, session.amount_subtotal: ${session.amount_subtotal})`);
+        
+        // Get receipt URL from payment intent if available
+        let receiptUrl = null;
+        if (session.payment_intent) {
+          try {
+            const paymentIntent = await this.stripe.paymentIntents.retrieve(session.payment_intent);
+            receiptUrl = paymentIntent.charges?.data[0]?.receipt_url || null;
+          } catch (error) {
+            console.error('Error retrieving payment intent for receipt URL:', error);
+          }
+        }
+        
+        // Generate our own invoice URL (we'll create the payment record first, then update with invoice URL)
+        const paymentRecord = await this.savePaymentRecord({
+          user: userId,
+          stripeCustomerId: session.customer || user.stripeCustomerId,
+          stripePaymentId: session.payment_intent || session.id,
+          stripeSessionId: session.id,
+          type: 'credit_purchase',
+          amount: amount,
+          currency: session.currency?.toUpperCase() || 'USD',
+          status: session.payment_status,
+          description: `${plan.name || planId} - ${credits} Credits`,
+          credits: credits,
+          planId: planId,
+          invoiceUrl: null, // Will be set after payment is saved
+          receiptUrl: receiptUrl,
+          metadata: session.metadata || {},
+          paymentDate: new Date(session.created * 1000)
+        });
+
+        // Update with our invoice URL
+        if (paymentRecord && paymentRecord._id) {
+          const apiUrl = process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3001';
+          const invoiceUrl = `${apiUrl}/api/invoices/${paymentRecord._id}`;
+          paymentRecord.invoiceUrl = invoiceUrl;
+          await paymentRecord.save();
+        }
       } else {
         console.log('ℹ️ Checkout session is not a credit purchase, skipping credit addition');
         console.log('📋 Metadata:', session.metadata);
+        
+        // Still save payment record for non-credit purchases
+        if (session.metadata?.userId) {
+          const userId = session.metadata.userId;
+          const user = await User.findById(userId);
+          if (user) {
+            const amount = session.amount_total ? session.amount_total / 100 : 0;
+            
+            // Get receipt URL from payment intent if available
+            let receiptUrl = null;
+            if (session.payment_intent) {
+              try {
+                const paymentIntent = await this.stripe.paymentIntents.retrieve(session.payment_intent);
+                receiptUrl = paymentIntent.charges?.data[0]?.receipt_url || null;
+              } catch (error) {
+                console.error('Error retrieving payment intent for receipt URL:', error);
+              }
+            }
+            
+            const paymentRecord = await this.savePaymentRecord({
+              user: userId,
+              stripeCustomerId: session.customer || user.stripeCustomerId,
+              stripePaymentId: session.payment_intent || session.id,
+              stripeSessionId: session.id,
+              type: 'payment',
+              amount: amount,
+              currency: session.currency?.toUpperCase() || 'USD',
+              status: session.payment_status,
+              description: session.metadata?.description || 'Payment',
+              invoiceUrl: null, // Will be set after payment is saved
+              receiptUrl: receiptUrl,
+              metadata: session.metadata || {},
+              paymentDate: new Date(session.created * 1000)
+            });
+
+            // Update with our invoice URL
+            if (paymentRecord && paymentRecord._id) {
+              const apiUrl = process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3001';
+              const invoiceUrl = `${apiUrl}/api/invoices/${paymentRecord._id}`;
+              paymentRecord.invoiceUrl = invoiceUrl;
+              await paymentRecord.save();
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('❌ Error handling checkout session completed:', error);
@@ -589,6 +732,28 @@ class PaymentService {
         // Send payment confirmation email
         emailService.sendPaymentConfirmationEmail(user, invoice).catch(err => {
           console.error('Payment confirmation email failed:', err);
+        });
+
+        // Save payment record to database
+        const amount = invoice.amount_paid ? invoice.amount_paid / 100 : 0;
+        const description = invoice.lines.data[0]?.description || 'Subscription Payment';
+        const subscriptionId = invoice.subscription;
+
+        await this.savePaymentRecord({
+          user: user._id,
+          stripeCustomerId: customerId,
+          stripePaymentId: invoice.id,
+          stripeInvoiceId: invoice.id,
+          type: subscriptionId ? 'subscription' : 'invoice',
+          amount: amount,
+          currency: invoice.currency?.toUpperCase() || 'USD',
+          status: invoice.status,
+          description: description,
+          invoiceUrl: invoice.hosted_invoice_url || invoice.invoice_pdf,
+          receiptUrl: invoice.receipt_url,
+          invoiceNumber: invoice.number,
+          metadata: {},
+          paymentDate: new Date(invoice.created * 1000)
         });
 
         console.log(`✅ Payment succeeded for user ${user.email}: ${invoice.id}`);
@@ -827,6 +992,47 @@ class PaymentService {
       };
     } catch (error) {
       console.error('Get user plan error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Get payment history for a user (from database)
+  async getPaymentHistory(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return { success: false, error: 'User not found' };
+      }
+
+      // Get payments from database
+      const dbPayments = await Payment.find({ user: userId })
+        .sort({ paymentDate: -1 })
+        .limit(500); // Limit to last 500 payments
+
+      console.log(`Found ${dbPayments.length} payments in database for user ${user.email}`);
+
+      // Convert to format expected by frontend
+      const payments = dbPayments.map(payment => ({
+        id: payment.stripePaymentId,
+        _id: payment._id.toString(), // Include MongoDB _id for invoice access
+        type: payment.type,
+        date: payment.paymentDate,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: payment.status,
+        description: payment.description,
+        credits: payment.credits,
+        invoiceUrl: payment.invoiceUrl,
+        receiptUrl: payment.receiptUrl,
+        invoiceNumber: payment.invoiceNumber,
+      }));
+
+      return {
+        success: true,
+        payments: payments
+      };
+    } catch (error) {
+      console.error('Get payment history error:', error);
       return { success: false, error: error.message };
     }
   }

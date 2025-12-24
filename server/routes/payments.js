@@ -553,6 +553,7 @@ router.post('/check-payment-status', auth, async (req, res) => {
     if (session.payment_status === 'paid' && session.metadata?.type === 'credit_purchase') {
       const userId = session.metadata.userId;
       const credits = parseInt(session.metadata.credits) || 0;
+      const planId = session.metadata.planId;
 
       if (userId && credits > 0) {
         const user = await User.findById(userId);
@@ -561,10 +562,90 @@ router.post('/check-payment-status', auth, async (req, res) => {
           // We'll check by looking at recent credit history or just add them
           const oldCredits = user.credits || 0;
           user.credits = oldCredits + credits;
+          
+          // Update or set stripeCustomerId if not set
+          if (session.customer && !user.stripeCustomerId) {
+            user.stripeCustomerId = session.customer;
+          }
+          
           await user.save();
 
           console.log(`✅ Added ${credits} credits via payment status check for user ${user.email}`);
           console.log(`💰 Credits: ${oldCredits} → ${user.credits}`);
+
+          // Save payment record to database (fallback if webhook didn't fire)
+          // Normalize planId to match creditPlans structure
+          const normalizedPlanId = planId?.toLowerCase().trim();
+          const creditPlansMap = {
+            'starter_credits': { name: 'Starter Pack' },
+            'popular_credits': { name: 'Popular Pack' },
+            'professional_credits': { name: 'Professional Pack' },
+            'starter': { name: 'Starter Pack' },
+            'popular': { name: 'Popular Pack' },
+            'professional': { name: 'Professional Pack' }
+          };
+          const plan = creditPlansMap[normalizedPlanId] || { name: planId || 'Unknown Plan' };
+          
+          // Get amount from session - try multiple sources
+          let amount = 0;
+          if (session.amount_total) {
+            amount = session.amount_total / 100;
+          } else if (session.amount_subtotal) {
+            amount = session.amount_subtotal / 100;
+          } else {
+            // Fallback: get amount from payment intent
+            if (session.payment_intent) {
+              try {
+                const paymentIntent = await paymentService.stripe.paymentIntents.retrieve(session.payment_intent);
+                amount = paymentIntent.amount ? paymentIntent.amount / 100 : 0;
+              } catch (error) {
+                console.error('Error retrieving payment intent for amount:', error);
+              }
+            }
+            // If still 0, use plan price as fallback
+            if (amount === 0 && plan.price) {
+              amount = plan.price;
+            }
+          }
+          
+          console.log(`💰 Payment amount: $${amount} (from session.amount_total: ${session.amount_total})`);
+          
+          // Get receipt URL from payment intent if available
+          let receiptUrl = null;
+          if (session.payment_intent) {
+            try {
+              const paymentIntent = await paymentService.stripe.paymentIntents.retrieve(session.payment_intent);
+              receiptUrl = paymentIntent.charges?.data[0]?.receipt_url || null;
+            } catch (error) {
+              console.error('Error retrieving payment intent for receipt URL:', error);
+            }
+          }
+          
+          const paymentRecord = await paymentService.savePaymentRecord({
+            user: userId,
+            stripeCustomerId: session.customer || user.stripeCustomerId,
+            stripePaymentId: session.payment_intent || session.id,
+            stripeSessionId: session.id,
+            type: 'credit_purchase',
+            amount: amount,
+            currency: session.currency?.toUpperCase() || 'USD',
+            status: session.payment_status,
+            description: `${plan.name || planId} - ${credits} Credits`,
+            credits: credits,
+            planId: planId,
+            invoiceUrl: null, // Will be set after payment is saved
+            receiptUrl: receiptUrl,
+            metadata: session.metadata || {},
+            paymentDate: new Date(session.created * 1000)
+          });
+
+          // Update with our invoice URL
+          if (paymentRecord && paymentRecord._id) {
+            const apiUrl = process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3001';
+            const invoiceUrl = `${apiUrl}/api/invoices/${paymentRecord._id}`;
+            paymentRecord.invoiceUrl = invoiceUrl;
+            await paymentRecord.save();
+          }
 
           return res.json({
             success: true,
@@ -630,6 +711,27 @@ router.post('/manual-add-credits', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to add credits'
+    });
+  }
+});
+
+// @route   GET /api/payments/history
+// @desc    Get user's payment history
+// @access  Private
+router.get('/history', auth, async (req, res) => {
+  try {
+    const result = await paymentService.getPaymentHistory(req.user.id);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Get payment history error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get payment history'
     });
   }
 });

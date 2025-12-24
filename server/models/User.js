@@ -38,6 +38,35 @@ const UserSchema = new mongoose.Schema({
     default: 3,
     min: 0
   },
+  stripeCustomerId: {
+    type: String,
+    default: null,
+    sparse: true
+  },
+  subscription: {
+    plan: {
+      type: String,
+      enum: ['free', 'standard', 'pro'],
+      default: 'free'
+    },
+    status: {
+      type: String,
+      enum: ['active', 'canceled', 'expired', 'past_due'],
+      default: 'active'
+    },
+    stripeSubscriptionId: {
+      type: String,
+      default: null
+    },
+    currentPeriodStart: {
+      type: Date,
+      default: null
+    },
+    currentPeriodEnd: {
+      type: Date,
+      default: null
+    }
+  },
   preferences: {
     emailNotifications: {
       type: Boolean,

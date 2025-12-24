@@ -44,6 +44,15 @@ class ResumePdfService {
   // Get available templates
   getAvailableTemplates() {
     try {
+      // Check if templates directory exists
+      if (!fs.existsSync(this.templatesPath)) {
+        console.warn(`Templates directory does not exist: ${this.templatesPath}`);
+        // Create the directory if it doesn't exist
+        fs.mkdirSync(this.templatesPath, { recursive: true });
+        console.log(`Created templates directory: ${this.templatesPath}`);
+        return [];
+      }
+
       const templates = [];
       const files = fs.readdirSync(this.templatesPath);
       

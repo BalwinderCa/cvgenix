@@ -7,26 +7,32 @@ const ResumeSchema = new mongoose.Schema({
     required: true
   },
   template: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Template',
+    type: mongoose.Schema.Types.Mixed,
     required: true
+  },
+  canvasData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
   },
   personalInfo: {
     firstName: {
       type: String,
-      required: true,
-      trim: true
+      required: false,
+      trim: true,
+      default: ''
     },
     lastName: {
       type: String,
-      required: true,
-      trim: true
+      required: false,
+      trim: true,
+      default: ''
     },
     email: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
-      lowercase: true
+      lowercase: true,
+      default: ''
     },
     phone: {
       type: String,
@@ -316,6 +322,30 @@ const ResumeSchema = new mongoose.Schema({
   lastModified: {
     type: Date,
     default: Date.now
+  },
+  exportedPdfPath: {
+    type: String,
+    default: null
+  },
+  exportedPdfGeneratedAt: {
+    type: Date,
+    default: null
+  },
+  exportedPngPath: {
+    type: String,
+    default: null
+  },
+  exportedPngGeneratedAt: {
+    type: Date,
+    default: null
+  },
+  exportedJpgPath: {
+    type: String,
+    default: null
+  },
+  exportedJpgGeneratedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

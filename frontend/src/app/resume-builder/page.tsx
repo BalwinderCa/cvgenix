@@ -19,6 +19,7 @@ import { useCanvasManager } from '@/hooks/useCanvasManager';
 import { useCanvasDimensions } from '@/hooks/useCanvasDimensions';
 import { TemplateService } from '@/services/templateService';
 import { ExportState } from '@/types/canvas';
+import { toast } from 'sonner';
 
 export default function ResumeBuilderPage() {
   const searchParams = useSearchParams();
@@ -36,6 +37,8 @@ export default function ResumeBuilderPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [signupModalOpen, setSignupModalOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [canvasEditKey, setCanvasEditKey] = useState(0); // Force CanvasEditManager remount
   const isLoadingImportedResumeRef = useRef(false); // Prevent multiple simultaneous loads
   const isDraggingSlider = useRef(false);
@@ -73,22 +76,143 @@ export default function ResumeBuilderPage() {
     minHeight: 375
   });
 
-  // Handle save
-  const handleSave = useCallback(() => {
-    if (canvasState.fabricCanvas) {
-      const data = canvasState.fabricCanvas.toJSON();
-      console.log('Saving canvas data:', data);
-      // Implement save logic here
+  // Save resume to database (called before export)
+  const saveResumeToDatabase = useCallback(async (): Promise<string | null> => {
+    if (!canvasState.fabricCanvas) {
+      toast.error('Canvas not ready. Please wait...');
+      return null;
     }
-  }, [canvasState.fabricCanvas]);
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please log in to save your resume');
+      setLoginModalOpen(true);
+      return null;
+    }
+
+    try {
+      // Get canvas data
+      const canvasData = canvasState.fabricCanvas.toJSON();
+      
+      // Ensure width, height, and version are included
+      const fullCanvasData = {
+        ...canvasData,
+        width: canvasState.fabricCanvas.getWidth(),
+        height: canvasState.fabricCanvas.getHeight(),
+        version: canvasData.version || '5.3.0',
+      };
+
+      // Extract basic info from canvas if available (for display purposes)
+      // Try to find name, email, etc. from text objects on canvas
+      let personalInfo: any = {
+        firstName: '',
+        lastName: '',
+        email: '',
+      };
+
+      // Try to extract personal info from canvas text objects
+      if (canvasData.objects) {
+        const textObjects = canvasData.objects.filter((obj: any) => obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+        // Look for common patterns (this is a basic extraction)
+        textObjects.forEach((obj: any) => {
+          const text = (obj.text || '').toLowerCase();
+          if (text.includes('@') && !personalInfo.email) {
+            // Try to extract email
+            const emailMatch = text.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+            if (emailMatch) personalInfo.email = emailMatch[0];
+          }
+        });
+      }
+
+      // Prepare resume data
+      const resumeData: any = {
+        templateId: canvasState.currentTemplateId || 'professional-classic',
+        canvasData: fullCanvasData,
+        personalInfo: personalInfo,
+      };
+
+      let response;
+      if (currentResumeId) {
+        // Update existing resume
+        response = await fetch(`http://localhost:3001/api/resumes/${currentResumeId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(resumeData)
+        });
+      } else {
+        // Create new resume
+        response = await fetch('http://localhost:3001/api/resumes', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(resumeData)
+        });
+      }
+
+      if (response.ok) {
+        const savedResume = await response.json();
+        if (!currentResumeId) {
+          setCurrentResumeId(savedResume._id);
+          // Update URL with resume ID
+          router.replace(`/resume-builder?resumeId=${savedResume._id}`);
+        }
+        return savedResume._id;
+      } else {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          toast.error('Session expired. Please log in again.');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setLoginModalOpen(true);
+        } else {
+          toast.error(errorData.message || 'Failed to save resume');
+        }
+        return null;
+      }
+    } catch (error) {
+      console.error('Error saving resume:', error);
+      toast.error('Failed to save resume. Please try again.');
+      return null;
+    }
+  }, [canvasState.fabricCanvas, canvasState.currentTemplateId, currentResumeId, router]);
+
+  // Keep handleSave for backward compatibility (though it's not used in UI anymore)
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    await saveResumeToDatabase();
+    setIsSaving(false);
+  }, [saveResumeToDatabase]);
 
   // Handle download - all formats (PDF/PNG/JPG) cost 1 credit each
+  // This also saves the resume automatically before exporting
   const handleDownload = useCallback(async () => {
     // Check authentication first
     const token = localStorage.getItem('token');
     if (!token) {
       setLoginModalOpen(true);
       return;
+    }
+
+    // Save resume first before exporting (required for server-side export)
+    setIsSaving(true);
+    const savedResumeId = await saveResumeToDatabase();
+    setIsSaving(false);
+    
+    if (!savedResumeId && !currentResumeId) {
+      // If save failed and we don't have a resume ID, don't proceed with export
+      toast.error('Please save your resume before exporting');
+      return;
+    }
+    
+    // Show save confirmation
+    const resumeIdToExport = savedResumeId || currentResumeId;
+    if (resumeIdToExport) {
+      toast.success('Resume saved! Exporting now...');
     }
 
     // Check if user has credits (1 credit per export - all formats)
@@ -116,6 +240,61 @@ export default function ResumeBuilderPage() {
     if (canvasState.fabricCanvas) {
       const format = exportState.exportFormat.toLowerCase();
       
+      // If we have a resume ID, use the server export endpoint for all formats (saves to server)
+      if (resumeIdToExport && (format === 'pdf' || format === 'png' || format === 'jpg' || format === 'jpeg')) {
+        try {
+          const exportResponse = await fetch(`http://localhost:3001/api/resumes/${resumeIdToExport}/export`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ format: format })
+          });
+
+          if (exportResponse.ok) {
+            const blob = await exportResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            const contentDisposition = exportResponse.headers.get('Content-Disposition');
+            let filename = `resume.${format}`;
+            if (contentDisposition) {
+              const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+              if (filenameMatch) {
+                filename = filenameMatch[1];
+              }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            toast.success('Resume exported and saved successfully!');
+            // Refresh user data to show updated credits
+            return;
+          } else {
+            const errorData = await exportResponse.json();
+            if (exportResponse.status === 403) {
+              toast.error(errorData.message || 'Insufficient credits. Please purchase a credit pack.');
+              setUpgradeModalOpen(true);
+              return;
+            } else {
+              // Fall through to client-side export
+              console.warn('Server export failed, using client-side export:', errorData);
+            }
+          }
+        } catch (error) {
+          console.error('Error with server export, using client-side export:', error);
+          // Fall through to client-side export
+        }
+      }
+      
+      // Fallback to client-side export if server export failed or no resume ID
+      // Note: This won't save to server, but allows export to work
       if (format === 'pdf') {
         // Handle PDF export differently
         try {
@@ -203,7 +382,7 @@ export default function ResumeBuilderPage() {
           alert('PDF export failed. Please try again or use PNG/JPEG export instead.');
         }
       } else {
-        // Handle image exports (PNG, JPG)
+        // Handle image exports (PNG, JPG) - client-side fallback
         const dataURL = canvasState.fabricCanvas.toDataURL({
           format: format,
           quality: format === 'jpg' ? 0.9 : 1,
@@ -215,32 +394,9 @@ export default function ResumeBuilderPage() {
         link.href = dataURL;
         link.click();
       }
-
-      // Deduct credit after successful export (all formats: PDF/PNG/JPG cost 1 credit)
-      if (token) {
-        try {
-          const deductResponse = await fetch('http://localhost:3001/api/payments/deduct-credit', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-              feature: 'exports',
-              format: format
-            })
-          });
-          
-          const deductData = await deductResponse.json();
-          if (!deductData.success) {
-            console.error('Credit deduction failed:', deductData.error);
-            // Don't block the user, but log the error
-          }
-        } catch (error) {
-          console.error('Error deducting credit:', error);
-          // Don't block the user if credit deduction fails
-        }
-      }
+      
+      // Note: Credit deduction is handled by the server export endpoint
+      // No need to deduct credits here for client-side fallback
     }
   }, [canvasState.fabricCanvas, exportState.exportFormat, router]);
 
@@ -1039,6 +1195,63 @@ export default function ResumeBuilderPage() {
   }, [canvasState.fabricCanvas, hasLoadedImportedResume, searchParams, loadImportedResume]);
 
   // Check for openUpload query parameter - fallback if canvas is already ready
+  // Function to load resume by ID
+  const loadResumeById = useCallback(async (resumeId: string) => {
+    const canvas = canvasState.fabricCanvas;
+    if (!canvas) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please log in to load your resume');
+      setLoginModalOpen(true);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`http://localhost:3001/api/resumes/${resumeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const resume = await response.json();
+        setCurrentResumeId(resume._id);
+
+        // Load canvas data if available
+        if (resume.canvasData) {
+          const fabric = await import('fabric').then(m => m.fabric);
+          canvas.loadFromJSON(resume.canvasData, () => {
+            canvas.renderAll();
+            toast.success('Resume loaded successfully!');
+          });
+        } else {
+          toast.info('Resume loaded, but no canvas data found. Starting fresh.');
+        }
+      } else if (response.status === 401) {
+        toast.error('Not authorized to view this resume');
+        router.push('/profile');
+      } else {
+        toast.error('Failed to load resume');
+      }
+    } catch (error) {
+      console.error('Error loading resume:', error);
+      toast.error('Failed to load resume');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [canvasState.fabricCanvas, router]);
+
+  // Load existing resume if resumeId is in URL
+  useEffect(() => {
+    const resumeId = searchParams.get('resumeId');
+    if (resumeId && resumeId !== currentResumeId && canvasState.fabricCanvas) {
+      loadResumeById(resumeId);
+    }
+  }, [searchParams, canvasState.fabricCanvas, currentResumeId, loadResumeById]);
+
   useEffect(() => {
     const shouldOpenUpload = searchParams.get('openUpload') === 'true';
     // Only open if canvas is already ready (in case canvas was ready before the handler ran)
@@ -1137,7 +1350,6 @@ export default function ResumeBuilderPage() {
             <div className="flex-shrink-0">
               <ResumeBuilderTopBar
                 fabricCanvas={canvasState.fabricCanvas}
-                onSave={handleSave}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 canUndo={canUndo()}

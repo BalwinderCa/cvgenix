@@ -50,6 +50,7 @@ const userRoutes = require('./routes/users')
 const atsRoutes = require('./routes/ats')
 const resumeSharingRoutes = require('./routes/resumeSharing')
 const companySettingsRoutes = require('./routes/companySettings')
+const invoiceRoutes = require('./routes/invoices')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -119,6 +120,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/ats', atsRoutes)
 app.use('/api/progress', require('./routes/progress')) // Simple progress tracking
 app.use('/api/payments', require('./routes/payments'))
+app.use('/api/invoices', invoiceRoutes) // Invoice routes
 app.use('/api/faqs', require('./routes/faqs')) // FAQ routes
 app.use('/api/resumes/sharing', resumeSharingRoutes) // Resume sharing routes
 app.use('/api/company-settings', companySettingsRoutes) // Company settings routes
