@@ -5,8 +5,6 @@ import {
   Activity, 
   CheckCircle2, 
   AlertCircle, 
-  Clock, 
-  Server, 
   Database, 
   Globe, 
   RefreshCw,
@@ -274,51 +272,7 @@ export default function SystemStatusPage() {
             <span className="ml-3 text-muted-foreground">Loading system status...</span>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* System Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Server className="w-5 h-5" />
-                  System Information
-                </CardTitle>
-                <CardDescription>
-                  Current system metrics and uptime
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant={getStatusBadgeVariant(systemStatus?.status || 'unknown')}>
-                    {systemStatus?.status || 'Unknown'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Uptime
-                  </span>
-                  <span className="text-sm font-medium">
-                    {systemStatus?.uptime ? formatUptime(systemStatus.uptime) : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Environment</span>
-                  <Badge variant="outline">
-                    {systemStatus?.environment || 'Unknown'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last Check</span>
-                  <span className="text-sm font-medium">
-                    {systemStatus?.timestamp 
-                      ? new Date(systemStatus.timestamp).toLocaleString() 
-                      : 'N/A'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
+          <div className="grid gap-6">
             {/* Service Status */}
             <Card>
               <CardHeader>
@@ -359,7 +313,7 @@ export default function SystemStatusPage() {
             </Card>
 
             {/* Recent Updates / Status History */}
-            <Card className="md:col-span-2">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Database className="w-5 h-5" />
