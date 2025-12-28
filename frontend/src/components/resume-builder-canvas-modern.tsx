@@ -92,7 +92,7 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
             }
           };
 
-          console.log('🎨 Canvas initialized successfully - Objects count:', canvas.getObjects().length);
+          //console.log('🎨 Canvas initialized successfully - Objects count:', canvas.getObjects().length);
           onCanvasReady(canvas);
         } catch (error) {
           console.error('Failed to initialize Fabric.js canvas:', error);

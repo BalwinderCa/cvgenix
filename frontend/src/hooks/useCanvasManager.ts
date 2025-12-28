@@ -55,8 +55,6 @@ export const useCanvasManager = () => {
       return;
     }
     
-    console.log('🎨 Canvas ready callback triggered - Objects count:', canvas.getObjects().length);
-    
     setCanvasState(prev => {
       // Only update if the canvas is different
       if (prev.fabricCanvas === canvas) {
@@ -224,13 +222,20 @@ export const useCanvasManager = () => {
     ];
     const isEmptyState = emptyStatePatterns.includes(state);
     
-    if (!hasObjects && !isEmptyState) {
+    // CRITICAL: Don't restore if template is currently loading
+    // This prevents state restoration from interfering with template loading
+    const isTemplateLoading = state.includes('"objects":[]') === false && hasObjects === false;
+    
+    if (!hasObjects && !isEmptyState && !isTemplateLoading) {
       const restoreTimeout = setTimeout(() => {
+        // Double-check canvas is still empty before restoring
         if (fabricCanvas && fabricCanvas.getElement && fabricCanvas.getElement()) {
-          console.log('Parent: Canvas empty, restoring state');
-          restoreCanvasState();
+          const currentObjects = fabricCanvas.getObjects().length;
+          if (currentObjects === 0) {
+            restoreCanvasState();
+          }
         }
-      }, 300);
+      }, 500); // Increased delay to avoid interfering with template loading
       
       return () => clearTimeout(restoreTimeout);
     }

@@ -10,6 +10,241 @@ interface CanvasEditManagerProps {
   registerCleanup: (cleanup: () => void) => void;
 }
 
+/**
+ * Attach only hover handlers when they're missing but other handlers exist
+ */
+const attachHoverHandlersOnly = async (
+  canvas: any,
+  existingHandlers: CanvasEventHandlers,
+  getFabricInstance: () => Promise<any>
+) => {
+  const objects = canvas.getObjects();
+  const textObjects = objects.filter((obj: any) => 
+    (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text')
+  );
+  
+  if (textObjects.length === 0) {
+    setTimeout(() => attachHoverHandlersOnly(canvas, existingHandlers, getFabricInstance), 100);
+    return;
+  }
+  
+  // Ensure all objects have coordinates set
+  objects.forEach((obj: any) => {
+    if (obj.setCoords) {
+      obj.setCoords();
+    }
+  });
+  canvas.calcOffset();
+  
+  // Check if objects are interactive
+  const interactiveObjects = textObjects.filter((obj: any) => obj.selectable && obj.evented);
+  if (interactiveObjects.length < textObjects.length) {
+    setTimeout(() => attachHoverHandlersOnly(canvas, existingHandlers, getFabricInstance), 50);
+    return;
+  }
+  
+  try {
+    const fabric = await getFabricInstance();
+    if (!fabric) return;
+    
+    canvas.calcOffset();
+    canvas.renderAll();
+    
+    const createOrUpdateOverlay = (obj: any) => {
+      const bounds = obj.getBoundingRect();
+      const padding = 5;
+      
+      if (canvas.hoverOverlay) {
+        canvas.hoverOverlay.set({
+          left: bounds.left - padding,
+          top: bounds.top - padding,
+          width: bounds.width + (padding * 2),
+          height: bounds.height + (padding * 2),
+        });
+        canvas.bringToFront(canvas.hoverOverlay);
+      } else {
+        canvas.hoverOverlay = new fabric.Rect({
+          left: bounds.left - padding,
+          top: bounds.top - padding,
+          width: bounds.width + (padding * 2),
+          height: bounds.height + (padding * 2),
+          fill: 'transparent',
+          stroke: '#10b981',
+          strokeWidth: 3,
+          strokeDashArray: [5, 5],
+          selectable: false,
+          evented: false,
+          absolutePositioned: true
+        });
+        canvas.add(canvas.hoverOverlay);
+        canvas.bringToFront(canvas.hoverOverlay);
+      }
+      canvas.renderAll();
+    };
+    
+    const removeOverlay = () => {
+      if (canvas.hoverOverlay) {
+        canvas.remove(canvas.hoverOverlay);
+        canvas.hoverOverlay = null;
+        canvas.renderAll();
+      }
+    };
+    
+    const handleMouseOver = (e: any) => {
+      const obj = e.target;
+      const activeObject = canvas.getActiveObject();
+      const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text');
+      
+      if (activeObject || !obj || !isTextObject || obj.isEditing) {
+        return;
+      }
+      
+      if (!obj.selectable || !obj.evented) {
+        return;
+      }
+      
+      canvas.hoveredObject = obj;
+      createOrUpdateOverlay(obj);
+    };
+    
+    const handleMouseOut = (e: any) => {
+      const obj = e.target;
+      const activeObject = canvas.getActiveObject();
+      const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text');
+      
+      if (activeObject || !obj || !isTextObject) {
+        return;
+      }
+      
+      canvas.hoveredObject = null;
+      if (!obj.isEditing) {
+        removeOverlay();
+      }
+    };
+    
+    let mouseMoveTimeout: NodeJS.Timeout | undefined;
+    const handleMouseMove = (e: any) => {
+      if (mouseMoveTimeout) {
+        clearTimeout(mouseMoveTimeout);
+      }
+      mouseMoveTimeout = setTimeout(() => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+          if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+            removeOverlay();
+            canvas.hoveredObject = null;
+          }
+          return;
+        }
+        
+        const obj = canvas.findTarget(e.e, false);
+        const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text') && obj.selectable && obj.evented;
+        
+        if (isTextObject) {
+          if (canvas.hoveredObject !== obj) {
+            if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+              removeOverlay();
+            }
+            canvas.hoveredObject = obj;
+            if (!obj.isEditing) {
+              createOrUpdateOverlay(obj);
+            }
+          }
+        } else if (canvas.hoveredObject) {
+          if (!canvas.hoveredObject.isEditing) {
+            removeOverlay();
+          }
+          canvas.hoveredObject = null;
+        }
+      }, 30);
+    };
+    
+    // Attach hover handlers
+    canvas.on('mouse:over', handleMouseOver);
+    canvas.on('mouse:out', handleMouseOut);
+    canvas.on('mouse:move', handleMouseMove);
+    
+    // Update existing handlers object with hover handlers
+    existingHandlers.mouseOver = handleMouseOver;
+    existingHandlers.mouseOut = handleMouseOut;
+    existingHandlers.mouseMove = handleMouseMove;
+    existingHandlers.getMouseMoveTimeout = () => mouseMoveTimeout;
+    
+    // Also attach to canvas element
+    const canvasElement = canvas.getElement();
+    if (canvasElement) {
+      canvasElement.style.pointerEvents = 'auto';
+      canvasElement.style.cursor = 'default';
+      
+      let elementMouseMoveTimeout: NodeJS.Timeout | undefined;
+      const elementMouseMove = (e: MouseEvent) => {
+        if (elementMouseMoveTimeout) {
+          clearTimeout(elementMouseMoveTimeout);
+        }
+        elementMouseMoveTimeout = setTimeout(() => {
+          try {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) {
+              if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+                removeOverlay();
+                canvas.hoveredObject = null;
+              }
+              return;
+            }
+            
+            const obj = canvas.findTarget(e, false);
+            const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text') && obj.selectable && obj.evented;
+            
+            if (isTextObject) {
+              if (canvas.hoveredObject !== obj) {
+                if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+                  removeOverlay();
+                }
+                canvas.hoveredObject = obj;
+                if (!obj.isEditing) {
+                  createOrUpdateOverlay(obj);
+                }
+              }
+            } else if (canvas.hoveredObject) {
+              if (!canvas.hoveredObject.isEditing) {
+                removeOverlay();
+              }
+              canvas.hoveredObject = null;
+            }
+          } catch (err) {
+            // Silently handle errors
+          }
+        }, 30);
+      };
+      
+      canvasElement.addEventListener('mousemove', elementMouseMove, { passive: true });
+      (existingHandlers as any).elementMouseMove = elementMouseMove;
+      (existingHandlers as any).elementMouseMoveTimeout = () => elementMouseMoveTimeout;
+    }
+    
+    // CRITICAL: Mark that edit listeners are attached
+    canvas.hasEditListeners = true;
+    canvas.eventHandlers = existingHandlers;
+    
+    // CRITICAL: Recalculate offset after attaching handlers
+    // This ensures hit detection works correctly after navigation
+    canvas.calcOffset();
+    canvas.renderAll();
+    
+    // Recalculate offset again after layout settles
+    setTimeout(() => {
+      if (canvas && canvas.calcOffset) {
+        canvas.calcOffset();
+        canvas.renderAll();
+      }
+    }, 200);
+    
+  } catch (err) {
+    console.error('Error attaching hover handlers only:', err);
+    setTimeout(() => attachHoverHandlersOnly(canvas, existingHandlers, getFabricInstance), 200);
+  }
+};
+
 export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
   canvas,
   getFabricInstance,
@@ -19,30 +254,52 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
   
   const addEditFunctionality = useCallback(() => {
     if (!canvas) {
-      console.log('⚠️ CanvasEditManager: No canvas available');
       return;
     }
     
-    // Check flag, but also verify if listeners are actually attached
-    // Sometimes the flag is set but listeners were cleaned up
-    if (canvas.hasEditListeners) {
-      // Double-check if listeners are actually still there
-      if (canvas.eventHandlers) {
-        console.log('⚠️ CanvasEditManager: Listeners already exist, skipping initialization');
-        return;
-      } else {
-        // Flag is set but handlers are gone - clear the flag and continue
-        console.log('⚠️ CanvasEditManager: Flag set but no handlers, clearing flag and re-initializing');
-        canvas.hasEditListeners = false;
-      }
+    const objects = canvas.getObjects();
+    const hasObjects = objects.length > 0;
+    
+    // If no objects, don't initialize - wait for objects to be added
+    if (!hasObjects) {
+      return;
     }
     
-    console.log('✅ CanvasEditManager: Initializing edit functionality');
+    // ALWAYS clear previous handlers when we have objects and need to initialize
+    // This ensures fresh handlers are attached that work with the current objects
+    const previousHandlers = canvas.eventHandlers;
+    canvas.hasEditListeners = false;
+    canvas.eventHandlers = null;
+    
+    // Remove only OUR specific event listeners to prevent duplicates
+    // Don't use canvas.off('eventName') without handler - it removes ALL handlers including topbar's
+    try {
+      if (previousHandlers) {
+        if (previousHandlers.mouseOver) canvas.off('mouse:over', previousHandlers.mouseOver);
+        if (previousHandlers.mouseOut) canvas.off('mouse:out', previousHandlers.mouseOut);
+        if (previousHandlers.mouseMove) canvas.off('mouse:move', previousHandlers.mouseMove);
+        if (previousHandlers.dblclick) canvas.off('mouse:dblclick', previousHandlers.dblclick);
+        if (previousHandlers.selectionCreated) canvas.off('selection:created', previousHandlers.selectionCreated);
+        if (previousHandlers.selectionUpdated) canvas.off('selection:updated', previousHandlers.selectionUpdated);
+        if (previousHandlers.selectionCleared) canvas.off('selection:cleared', previousHandlers.selectionCleared);
+      }
+    } catch (e) {
+      // Ignore if events don't exist
+    }
+    
+    // Initializing edit functionality
     
     // Ensure canvas is interactive
     (canvas as any).selection = true;
     if ((canvas as any).interactive !== undefined) {
       (canvas as any).interactive = true;
+    }
+    
+    // Ensure canvas element can receive mouse events
+    const canvasElement = canvas.getElement();
+    if (canvasElement) {
+      canvasElement.style.pointerEvents = 'auto';
+      canvasElement.style.cursor = 'default';
     }
     
     const eventHandlers: CanvasEventHandlers = {};
@@ -141,8 +398,82 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
     canvas.hoveredObject = null;
     canvas.hoverOverlay = null;
     
-    getFabricInstance().then(fabric => {
-      if (!fabric) return;
+    // Attach hover handlers asynchronously after ensuring objects are ready
+    // Wait for objects to be fully loaded and interactive
+    const attachHoverHandlers = () => {
+      // Check if objects are ready
+      const objects = canvas.getObjects();
+      const textObjects = objects.filter((obj: any) => 
+        (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text')
+      );
+      
+      if (textObjects.length === 0) {
+        // No objects yet, wait a bit and try again
+        setTimeout(attachHoverHandlers, 100);
+        return;
+      }
+      
+      // CRITICAL: Ensure all objects have their coordinates set before attaching handlers
+      // This is essential for hit detection to work
+      objects.forEach((obj: any) => {
+        if (obj.setCoords) {
+          obj.setCoords();
+        }
+      });
+      canvas.calcOffset();
+      
+      // Check if objects are interactive
+      const interactiveObjects = textObjects.filter((obj: any) => obj.selectable && obj.evented);
+      if (interactiveObjects.length < textObjects.length) {
+        // Some objects not ready yet, wait a bit more
+        setTimeout(attachHoverHandlers, 50);
+        return;
+      }
+      
+      // Objects are ready, attach handlers
+      getFabricInstance().then(fabric => {
+        if (!fabric) return;
+      
+      // CRITICAL FIX: Find the ACTUAL upper canvas element in the DOM
+      // Both canvas.wrapperEl and canvas.upperCanvasEl might be stale due to React re-mounting
+      // DON'T modify Fabric.js internal references - it breaks dispose()
+      // Instead, just attach event listeners to the correct element
+      const allUpperCanvases = document.querySelectorAll('.upper-canvas');
+      
+      if (allUpperCanvases.length > 0) {
+        // Find the visible upper-canvas
+        for (let i = allUpperCanvases.length - 1; i >= 0; i--) {
+          const upperEl = allUpperCanvases[i] as HTMLCanvasElement;
+          const rect = upperEl.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            if (upperEl !== canvas.upperCanvasEl) {
+              // Don't modify canvas.upperCanvasEl - just attach handlers to the correct element
+              // This preserves Fabric.js's internal state for proper cleanup
+              if (canvas._onMouseDown) {
+                upperEl.addEventListener('mousedown', canvas._onMouseDown);
+                if (canvas._onMouseUp) upperEl.addEventListener('mouseup', canvas._onMouseUp);
+                if (canvas._onMouseMove) upperEl.addEventListener('mousemove', canvas._onMouseMove);
+                if (canvas._onMouseEnter) upperEl.addEventListener('mouseenter', canvas._onMouseEnter);
+                if (canvas._onMouseOut) upperEl.addEventListener('mouseleave', canvas._onMouseOut);
+                if (canvas._onMouseWheel) upperEl.addEventListener('wheel', canvas._onMouseWheel);
+                if (canvas._onContextMenu) upperEl.addEventListener('contextmenu', canvas._onContextMenu);
+                if (canvas._onDoubleClick) upperEl.addEventListener('dblclick', canvas._onDoubleClick);
+              }
+            }
+            break;
+          }
+        }
+      }
+      
+      // Ensure canvas is interactive
+      if (!canvas.interactive || canvas.skipTargetFind) {
+        canvas.interactive = true;
+        canvas.skipTargetFind = false;
+      }
+        
+      // Refresh canvas state for hit detection
+      canvas.calcOffset();
+      canvas.renderAll();
       
       const createOrUpdateOverlay = (obj: any) => {
         const bounds = obj.getBoundingRect();
@@ -197,6 +528,11 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
           return;
         }
         
+        // Ensure object is interactive
+        if (!obj.selectable || !obj.evented) {
+          return;
+        }
+        
         canvas.hoveredObject = obj;
         createOrUpdateOverlay(obj);
       };
@@ -227,30 +563,44 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
         mouseMoveTimeout = setTimeout(() => {
           const activeObject = canvas.getActiveObject();
           if (activeObject) {
+            // If there's an active object, remove hover overlay
+            if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+              removeOverlay();
+              canvas.hoveredObject = null;
+            }
             return;
           }
           
+          // Use findTarget with skipGroup = false to find objects even if they're in groups
+          // The second parameter (false) means we want to include non-selectable objects too
+          // But we'll filter them ourselves
           const obj = canvas.findTarget(e.e, false);
           
           // Check for text, textbox, or i-text objects
-          const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text');
+          const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text') && obj.selectable && obj.evented;
           
           if (isTextObject) {
             if (canvas.hoveredObject !== obj) {
+              // Remove previous overlay if switching to a different object
+              if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+                removeOverlay();
+              }
               canvas.hoveredObject = obj;
               if (!obj.isEditing) {
                 createOrUpdateOverlay(obj);
               }
             }
           } else if (canvas.hoveredObject) {
+            // No text object under cursor, remove overlay
             if (!canvas.hoveredObject.isEditing) {
               removeOverlay();
             }
             canvas.hoveredObject = null;
           }
-        }, 50);
+        }, 30); // Reduced debounce time for more responsive hover
       };
       
+      // Attach Fabric.js mouse event handlers
       canvas.on('mouse:over', handleMouseOver);
       canvas.on('mouse:out', handleMouseOut);
       canvas.on('mouse:move', handleMouseMove);
@@ -258,10 +608,77 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
       eventHandlers.mouseOver = handleMouseOver;
       eventHandlers.mouseOut = handleMouseOut;
       eventHandlers.mouseMove = handleMouseMove;
-      
-      console.log('✅ CanvasEditManager: Hover event handlers attached');
       eventHandlers.getMouseMoveTimeout = () => mouseMoveTimeout;
-    });
+      
+      // Also attach directly to canvas element as fallback for newly added objects
+      const canvasElement = canvas.getElement();
+      if (canvasElement) {
+        canvasElement.style.pointerEvents = 'auto';
+        canvasElement.style.cursor = 'default';
+        
+        let elementMouseMoveTimeout: NodeJS.Timeout | undefined;
+        const elementMouseMove = (e: MouseEvent) => {
+          if (elementMouseMoveTimeout) {
+            clearTimeout(elementMouseMoveTimeout);
+          }
+          elementMouseMoveTimeout = setTimeout(() => {
+            try {
+              const activeObject = canvas.getActiveObject();
+              if (activeObject) {
+                if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+                  removeOverlay();
+                  canvas.hoveredObject = null;
+                }
+                return;
+              }
+              
+              const obj = canvas.findTarget(e, false);
+              const isTextObject = obj && (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text') && obj.selectable && obj.evented;
+              
+              if (isTextObject) {
+                if (canvas.hoveredObject !== obj) {
+                  if (canvas.hoveredObject && !canvas.hoveredObject.isEditing) {
+                    removeOverlay();
+                  }
+                  canvas.hoveredObject = obj;
+                  if (!obj.isEditing) {
+                    createOrUpdateOverlay(obj);
+                  }
+                }
+              } else if (canvas.hoveredObject) {
+                if (!canvas.hoveredObject.isEditing) {
+                  removeOverlay();
+                }
+                canvas.hoveredObject = null;
+              }
+            } catch (err) {
+              // Silently handle errors
+            }
+          }, 30);
+        };
+        
+        canvasElement.addEventListener('mousemove', elementMouseMove, { passive: true });
+        (eventHandlers as any).elementMouseMove = elementMouseMove;
+        (eventHandlers as any).elementMouseMoveTimeout = () => elementMouseMoveTimeout;
+      }
+      
+      canvas.renderAll();
+      
+      // Mark handlers as attached
+      canvas.hasEditListeners = true;
+      canvas.eventHandlers = eventHandlers;
+      }).catch(err => {
+        // Ignore extension context errors (browser extension issues, not app errors)
+        if (err && err.message && err.message.includes('Extension context')) {
+          return;
+        }
+        // Retry after error
+        setTimeout(attachHoverHandlers, 200);
+      });
+    };
+    
+    // Start attaching handlers after a short delay
+    setTimeout(attachHoverHandlers, 100);
 
     // Keyboard shortcuts
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -418,41 +835,14 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
     canvas.hasEditListeners = true;
     canvas.eventHandlers = eventHandlers;
     
-    // Note: Hover handlers are attached asynchronously in getFabricInstance().then()
-    // So they might not be in eventHandlers yet when this log runs
-    console.log('✅ CanvasEditManager: Edit functionality initialized successfully');
-    console.log('✅ CanvasEditManager: Event handlers attached (sync):', Object.keys(eventHandlers).filter(k => k !== 'mouseOver' && k !== 'mouseOut' && k !== 'mouseMove'));
-    console.log('✅ CanvasEditManager: Canvas objects count:', canvas.getObjects().length);
-    
-    // Verify objects are selectable and interactive
-    const selectableObjects = canvas.getObjects().filter((obj: any) => obj.selectable && obj.evented);
-    console.log('✅ CanvasEditManager: Selectable objects count:', selectableObjects.length);
-    
-    // Verify canvas is interactive
-    console.log('✅ CanvasEditManager: Canvas selection:', (canvas as any).selection);
-    console.log('✅ CanvasEditManager: Canvas interactive:', (canvas as any).interactive);
-    
-    // Test if objects can receive events - log any non-interactive objects
-    const nonInteractiveObjects: any[] = [];
-    canvas.getObjects().forEach((obj: any, index: number) => {
+    // Ensure all text objects are properly configured for interaction
+    canvas.getObjects().forEach((obj: any) => {
       if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
         if (!obj.selectable || !obj.evented) {
-          nonInteractiveObjects.push({
-            index,
-            type: obj.type,
-            selectable: obj.selectable,
-            evented: obj.evented,
-            text: obj.text?.substring(0, 30)
-          });
+          obj.set({ selectable: true, evented: true });
         }
       }
     });
-    
-    if (nonInteractiveObjects.length > 0) {
-      console.warn('⚠️ CanvasEditManager: Non-interactive objects found:', nonInteractiveObjects);
-    } else {
-      console.log('✅ CanvasEditManager: All text objects are interactive');
-    }
     
     // Force a render to ensure everything is applied
     canvas.renderAll();
@@ -475,6 +865,19 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
       canvas.off('selection:updated', eventHandlers.selectionUpdated!);
       canvas.off('selection:cleared', eventHandlers.selectionCleared!);
       
+      // Remove direct element event listeners
+      const canvasElement = canvas.getElement();
+      if (canvasElement) {
+        const handlers = eventHandlers as any;
+        if (handlers.elementMouseMove) {
+          canvasElement.removeEventListener('mousemove', handlers.elementMouseMove);
+        }
+        if (handlers.elementMouseMoveTimeout) {
+          const timeout = handlers.elementMouseMoveTimeout();
+          if (timeout) clearTimeout(timeout);
+        }
+      }
+      
       // Clean up hover overlay
       if (canvas.hoverOverlay) {
         try {
@@ -488,15 +891,20 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
   }, [canvas, getFabricInstance, onEditToolbarUpdate, registerCleanup]);
 
   useEffect(() => {
-    if (canvas) {
-      const objectCount = canvas.getObjects().length;
-      console.log('🎯 CanvasEditManager initializing - Canvas objects:', objectCount, 'hasEditListeners:', canvas.hasEditListeners);
-      
-      // If listeners are already set, clean them up first to allow re-initialization
-      // This is important when remounting after loading imported resume
-      if (canvas.hasEditListeners && canvas.eventHandlers) {
-        console.log('🧹 Cleaning up existing listeners before re-initializing');
-        const handlers = canvas.eventHandlers;
+    if (!canvas) {
+      return;
+    }
+    
+    // Ensure canvas element exists
+    if (!canvas.getElement || !canvas.getElement()) {
+      return;
+    }
+    
+    // ALWAYS clean up existing listeners first, regardless of flag state
+    // This ensures a clean slate for re-initialization
+    if (canvas.hasEditListeners && canvas.eventHandlers) {
+      const handlers = canvas.eventHandlers;
+      try {
         document.removeEventListener('keydown', handlers.keyboard!);
         canvas.off('mouse:dblclick', handlers.dblclick!);
         canvas.off('text:editing:entered', handlers.editingEntered!);
@@ -512,38 +920,143 @@ export const CanvasEditManager: React.FC<CanvasEditManagerProps> = ({
         canvas.off('selection:updated', handlers.selectionUpdated!);
         canvas.off('selection:cleared', handlers.selectionCleared!);
         
-        // Clean up hover overlay
-        if (canvas.hoverOverlay) {
-          try {
-            canvas.remove(canvas.hoverOverlay);
-            canvas.hoverOverlay = null;
-          } catch (e) {
-            // Ignore cleanup errors
+        // Remove direct element listeners
+        const canvasElement = canvas.getElement();
+        if (canvasElement) {
+          const elementHandlers = handlers as any;
+          if (elementHandlers.elementMouseMove) {
+            canvasElement.removeEventListener('mousemove', elementHandlers.elementMouseMove);
+          }
+          if (elementHandlers.elementMouseMoveTimeout) {
+            const timeout = elementHandlers.elementMouseMoveTimeout();
+            if (timeout) clearTimeout(timeout);
           }
         }
-        
-        // Clear flags - must be done synchronously
-        canvas.hasEditListeners = false;
-        canvas.hoveredObject = null;
-        canvas.eventHandlers = null;
-        
-        console.log('✅ Flags cleared, hasEditListeners is now:', canvas.hasEditListeners);
+      } catch (e) {
+        // Ignore cleanup errors
       }
       
-      // Use a small timeout to ensure flag is cleared and any pending operations complete
-      // Then call addEditFunctionality
-      const initTimeout = setTimeout(() => {
-        console.log('🚀 Calling addEditFunctionality, hasEditListeners:', canvas.hasEditListeners);
-        addEditFunctionality();
-      }, 0);
+      // Clean up hover overlay
+      if (canvas.hoverOverlay) {
+        try {
+          canvas.remove(canvas.hoverOverlay);
+          canvas.hoverOverlay = null;
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
       
-      return () => clearTimeout(initTimeout);
+      // Clear flags
+      canvas.hasEditListeners = false;
+      canvas.hoveredObject = null;
+      canvas.eventHandlers = null;
+    }
+    
+    // Function to initialize handlers when objects are ready
+    let initAttempts = 0;
+    const maxInitAttempts = 50; // Prevent infinite loops
+    
+    const initializeWhenReady = () => {
+      if (!canvas || !canvas.getElement) return;
       
-      // Log after initialization
+      initAttempts++;
+      if (initAttempts > maxInitAttempts) {
+        console.error('⚠️ CanvasEditManager: Max initialization attempts reached, stopping');
+        return;
+      }
+      
+      const objects = canvas.getObjects();
+      const textObjects = objects.filter((obj: any) => 
+        (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text')
+      );
+      
+      // If no objects yet, wait a bit and try again
+      if (objects.length === 0) {
+        if (initAttempts < maxInitAttempts) {
+          setTimeout(initializeWhenReady, 100);
+        }
+        return;
+      }
+      
+      // CRITICAL: Force Fabric.js to refresh object coordinates and canvas state
+      // This is essential for hit detection to work after objects are added
+      objects.forEach((obj: any) => {
+        // Recalculate object coordinates - critical for hit detection
+        if (obj.setCoords) {
+          obj.setCoords();
+        }
+        // Ensure object is registered with canvas
+        if (obj.canvas !== canvas) {
+          obj.canvas = canvas;
+        }
+        // Ensure text objects are interactive
+        if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
+          obj.set({ 
+            selectable: true, 
+            evented: true,
+            hoverCursor: 'move',
+            moveCursor: 'move'
+          });
+        }
+      });
+      
+      // CRITICAL: Recalculate canvas offset - required for hit detection
+      canvas.calcOffset();
+      
+      // Ensure canvas is properly configured
+      (canvas as any).selection = true;
+      if ((canvas as any).interactive !== undefined) {
+        (canvas as any).interactive = true;
+      }
+      
+      const canvasElement = canvas.getElement();
+      if (canvasElement) {
+        canvasElement.style.pointerEvents = 'auto';
+        canvasElement.style.cursor = 'default';
+      }
+      
+      // Render after all updates
+      canvas.renderAll();
+      
+      // Add edit functionality - this will attach hover handlers
+      addEditFunctionality();
+      
+      // CRITICAL: Ensure canvas offset is recalculated after handlers are attached
+      // This is essential for hit detection to work, especially after navigation
+      const ensureOffset = () => {
+        if (canvas && canvas.calcOffset) {
+          canvas.calcOffset();
+          canvas.renderAll();
+        }
+      };
+      
+      // Recalculate offset multiple times to ensure layout is complete
+      requestAnimationFrame(ensureOffset);
+      setTimeout(ensureOffset, 100);
+      setTimeout(ensureOffset, 300);
+      
+      // Additional render after handlers are attached to ensure everything is ready
       setTimeout(() => {
-        const finalCount = canvas.getObjects().length;
-        console.log('🎯 CanvasEditManager initialized - Final objects:', finalCount, 'hasEditListeners:', canvas.hasEditListeners);
-      }, 100);
+        if (canvas) {
+          canvas.calcOffset();
+          canvas.renderAll();
+        }
+      }, 500);
+    };
+    
+    // Start initialization - check immediately if objects exist, otherwise wait
+    const objects = canvas.getObjects();
+    
+    if (objects.length > 0) {
+      // Objects already exist (e.g., after template load), initialize immediately
+      const initTimeout = setTimeout(() => {
+        initializeWhenReady();
+      }, 50);
+      return () => clearTimeout(initTimeout);
+    } else {
+      // No objects yet, wait a bit for them to be added
+      const initTimeout = setTimeout(initializeWhenReady, 150);
+      return () => clearTimeout(initTimeout);
     }
   }, [canvas, addEditFunctionality]);
 

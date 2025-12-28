@@ -36,7 +36,7 @@ router.get('/plans', async (req, res) => {
         };
       });
       
-      console.log(`[Plans API] Returning ${Object.keys(plans).length} plans from database`);
+     // console.log(`[Plans API] Returning ${Object.keys(plans).length} plans from database`);
       return res.json({
         success: true,
         data: plans

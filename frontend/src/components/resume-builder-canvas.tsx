@@ -26,80 +26,114 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
 
   useEffect(() => {
     const initCanvas = async () => {
-      if (canvasRef.current && !fabricCanvasRef.current && !isInitializingRef.current) {
-        isInitializingRef.current = true;
-        try {
-          const baseDimensions = getBaseDimensions();
-          
-          // Modern canvas configuration
-          const canvasConfig: CanvasConfig = {
-            width: baseDimensions.width,
-            height: baseDimensions.height,
-            backgroundColor: '#ffffff',
-            selection: true,
-            preserveObjectStacking: true,
-            allowTouchScrolling: true,
-            fireRightClick: true,
-            stopContextMenu: false,
-          };
+      // Check if canvas already exists to prevent duplicate initialization
+      if (!canvasRef.current || fabricCanvasRef.current || isInitializingRef.current) {
+        return;
+      }
+      
+      isInitializingRef.current = true;
+      try {
+        // Use fixed base dimensions (not from hook to avoid dependency issues)
+        const baseDimensions = { width: 800, height: 1000 };
+        
+        // Modern canvas configuration
+        const canvasConfig: CanvasConfig = {
+          width: baseDimensions.width,
+          height: baseDimensions.height,
+          backgroundColor: '#ffffff',
+          selection: true,
+          preserveObjectStacking: true,
+          allowTouchScrolling: true,
+          fireRightClick: true,
+          stopContextMenu: false,
+        };
 
-          // Create modern canvas manager
-          const canvasManager = new FabricCanvasManager(
-            canvasRef.current,
-            canvasConfig,
-            undefined, // Use default object controls
-            {
-              onObjectAdded: () => {
-                if (onStateChange && canvasManager.getCanvas()) {
-                  const state = JSON.stringify(canvasManager.getCanvas()?.toJSON());
-                  onStateChange(state);
-                }
-              },
-              onObjectRemoved: () => {
-                if (onStateChange && canvasManager.getCanvas()) {
-                  const state = JSON.stringify(canvasManager.getCanvas()?.toJSON());
-                  onStateChange(state);
-                }
-              },
-              onObjectModified: () => {
-                if (onStateChange && canvasManager.getCanvas()) {
-                  const state = JSON.stringify(canvasManager.getCanvas()?.toJSON());
-                  onStateChange(state);
-                }
-              },
-            }
-          );
+        // Create modern canvas manager
+        const canvasManager = new FabricCanvasManager(
+          canvasRef.current,
+          canvasConfig,
+          undefined, // Use default object controls
+          {
+            onObjectAdded: () => {
+              if (onStateChange && canvasManager.getCanvas()) {
+                const state = JSON.stringify(canvasManager.getCanvas()?.toJSON());
+                onStateChange(state);
+              }
+            },
+            onObjectRemoved: () => {
+              if (onStateChange && canvasManager.getCanvas()) {
+                const state = JSON.stringify(canvasManager.getCanvas()?.toJSON());
+                onStateChange(state);
+              }
+            },
+            onObjectModified: () => {
+              if (onStateChange && canvasManager.getCanvas()) {
+                const state = JSON.stringify(canvasManager.getCanvas()?.toJSON());
+                onStateChange(state);
+              }
+            },
+          }
+        );
 
-          // Initialize the canvas
-          const canvas = await canvasManager.initialize();
+        // Initialize the canvas
+        const canvas = await canvasManager.initialize();
 
-          // Apply initial zoom (canvas always renders at 100% internally)
-          canvas.setZoom(1);
-          
-          // Ensure initial render
-          canvas.requestRenderAll();
+        // Apply initial zoom (canvas always renders at 100% internally)
+        canvas.setZoom(1);
+        
+        // Ensure initial render
+        canvas.requestRenderAll();
 
-          // Store references for cleanup
-          canvasManagerRef.current = canvasManager;
-          fabricCanvasRef.current = canvas;
-          
-          // Add method to restore state from parent (for template loading)
-          canvas.restoreFromState = (state: string) => {
-            try {
-              canvas.loadFromJSON(state, () => {
-                canvas.requestRenderAll();
-              });
-            } catch (error) {
-              console.error('Error restoring canvas state from parent:', error);
-            }
-          };
+        // Store references for cleanup
+        canvasManagerRef.current = canvasManager;
+        fabricCanvasRef.current = canvas;
+        
+        // Add method to restore state from parent (for template loading)
+        canvas.restoreFromState = (state: string) => {
+          try {
+            canvas.loadFromJSON(state, () => {
+              canvas.requestRenderAll();
+            });
+          } catch (error) {
+            console.error('Error restoring canvas state from parent:', error);
+          }
+        };
 
-          console.log('🎨 Canvas initialized successfully - Objects count:', canvas.getObjects().length);
-          onCanvasReady(canvas);
-        } catch (error) {
-          console.error('Failed to initialize Fabric.js canvas:', error);
-          isInitializingRef.current = false;
-        }
+        // CRITICAL: Ensure canvas offset is calculated after layout is complete
+        // This is essential for hit detection to work correctly
+        // Use requestAnimationFrame to ensure layout is calculated
+        const ensureCanvasOffset = () => {
+          if (canvas && canvas.calcOffset) {
+            canvas.calcOffset();
+            canvas.renderAll();
+          }
+        };
+
+        // Calculate offset immediately
+        ensureCanvasOffset();
+        
+        // Recalculate after a short delay to ensure layout is complete (for navigation)
+        setTimeout(ensureCanvasOffset, 100);
+        setTimeout(ensureCanvasOffset, 300);
+        setTimeout(ensureCanvasOffset, 500);
+        
+        // Also recalculate on window resize
+        const handleResize = () => {
+          requestAnimationFrame(ensureCanvasOffset);
+        };
+        window.addEventListener('resize', handleResize);
+        
+        // Store cleanup function
+        const originalDispose = canvasManager.dispose.bind(canvasManager);
+        canvasManager.dispose = () => {
+          window.removeEventListener('resize', handleResize);
+          originalDispose();
+        };
+
+        onCanvasReady(canvas);
+      } catch (error) {
+        console.error('Failed to initialize Fabric.js canvas:', error);
+        isInitializingRef.current = false;
       }
     };
 
@@ -107,13 +141,18 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
 
     return () => {
       if (canvasManagerRef.current) {
-        canvasManagerRef.current.dispose();
+        try {
+          canvasManagerRef.current.dispose();
+        } catch (e) {
+          // Ignore dispose errors - can happen if DOM was already modified
+        }
         canvasManagerRef.current = null;
       }
       fabricCanvasRef.current = null;
       isInitializingRef.current = false;
     };
-  }, [getBaseDimensions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency - only run once on mount
 
   const scaledDimensions = getScaledDimensions();
 

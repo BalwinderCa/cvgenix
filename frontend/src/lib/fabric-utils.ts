@@ -86,12 +86,35 @@ export class FabricCanvasManager {
       throw new Error('Fabric.js can only be loaded in browser environment');
     }
 
+    // Check if fabric is already loaded
     if ((window as any).fabric) {
       return (window as any).fabric;
     }
 
+    // Check if script is already being loaded
+    const existingScript = document.getElementById('fabric-script') || document.getElementById('fabric-script-fallback');
+    if (existingScript) {
+      // Script exists, wait for it to load
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max
+        const checkFabric = () => {
+          if ((window as any).fabric) {
+            resolve((window as any).fabric);
+          } else if (attempts < maxAttempts) {
+            attempts++;
+            setTimeout(checkFabric, 100);
+          } else {
+            reject(new Error('Fabric.js failed to load from existing script'));
+          }
+        };
+        checkFabric();
+      });
+    }
+
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
+      script.id = 'fabric-script';
       script.src = 'https://cdn.jsdelivr.net/npm/fabric@latest/dist/fabric.min.js';
       script.crossOrigin = 'anonymous';
       

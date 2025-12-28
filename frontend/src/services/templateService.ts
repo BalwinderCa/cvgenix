@@ -153,11 +153,8 @@ export class TemplateService {
     this.loadingTemplates.add(templateId);
     
     try {
-      console.log('📄 Loading template:', templateId);
-      
       // Load template data
       const templateData = await this.loadTemplate(templateId);
-      console.log('📄 Template data loaded:', templateData);
       
       if (!templateData) {
         throw new Error('Template data is null or undefined');
@@ -186,13 +183,45 @@ export class TemplateService {
       // Create and add objects
       await this.createAndAddObjects(canvas, fabric, elementsToLoad);
       
+      // CRITICAL: After adding objects, Fabric.js needs to refresh its internal state
+      // This ensures hit detection and event handling work properly
+      const allObjects = canvas.getObjects();
+      allObjects.forEach((obj: any) => {
+        // Force object coordinates to be recalculated
+        // This is essential for Fabric.js to detect mouse events on the object
+        if (obj.setCoords) {
+          obj.setCoords();
+        }
+        // Ensure object is properly registered with canvas
+        if (obj.canvas !== canvas) {
+          obj.canvas = canvas;
+        }
+        // Ensure text objects are interactive
+        if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
+          obj.set({ 
+            selectable: true, 
+            evented: true,
+            hoverCursor: 'move',
+            moveCursor: 'move'
+          });
+        }
+      });
+      
+      // CRITICAL: Recalculate canvas offset and bounds
+      // This is required for Fabric.js hit detection to work correctly
+      canvas.calcOffset();
+      
+      // Ensure canvas is in selection mode
+      (canvas as any).selection = true;
+      if ((canvas as any).interactive !== undefined) {
+        (canvas as any).interactive = true;
+      }
+      
       // Final render and state save
       canvas.renderAll();
       if (canvas.saveState) {
         canvas.saveState();
       }
-      
-      console.log('✅ Template loaded successfully - Objects count:', canvas.getObjects().length);
       
     } catch (error) {
       console.error('Error loading template into canvas:', error);
@@ -248,8 +277,6 @@ export class TemplateService {
     canvas.setWidth(baseWidth);
     canvas.setHeight(baseHeight);
     canvas.setZoom(1);
-    
-    console.log('🎨 Canvas cleared and ready - Objects count:', canvas.getObjects().length);
     
     // Ensure render
     canvas.renderAll();
@@ -320,7 +347,11 @@ export class TemplateService {
         
         // Ensure textBaseline is set correctly for all text objects
         if (obj && (obj.type === 'text' || obj.type === 'textbox')) {
-          obj.set({ textBaseline: 'alphabetic' });
+          obj.set({ 
+            textBaseline: 'alphabetic',
+            selectable: true,
+            evented: true
+          });
           
           // Apply control visibility settings to template objects
           obj.setControlsVisibility({
@@ -331,7 +362,11 @@ export class TemplateService {
           
           objectsToAdd.push(obj);
         } else if (obj) {
-          // Non-text objects (e.g., rect, line)
+          // Non-text objects (e.g., rect, line) - make them non-interactive
+          obj.set({
+            selectable: false,
+            evented: false
+          });
           objectsToAdd.push(obj);
         }
       } catch (elementError) {
@@ -342,6 +377,34 @@ export class TemplateService {
     // Add all objects at once for better performance
     if (objectsToAdd.length > 0) {
       canvas.add(...objectsToAdd);
+      
+      // CRITICAL: Force Fabric.js to refresh its internal state after adding objects
+      // This ensures hit detection and event handling work properly
+      objectsToAdd.forEach((obj: any) => {
+        // Force object to be part of canvas's active detection
+        if (obj.setCoords) {
+          obj.setCoords();
+        }
+        // Ensure object is properly registered
+        if (obj.canvas !== canvas) {
+          obj.canvas = canvas;
+        }
+      });
+      
+      // Force canvas to recalculate bounds and update hit detection
+      canvas.calcOffset();
+      
+      // Ensure all objects are properly configured
+      objectsToAdd.forEach((obj: any) => {
+        if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') {
+          obj.set({ 
+            selectable: true, 
+            evented: true,
+            hoverCursor: 'move',
+            moveCursor: 'move'
+          });
+        }
+      });
     }
   }
 }

@@ -70,7 +70,7 @@ export default function TemplateSidebar({
       const response = await fetch('http://localhost:3001/api/templates')
       if (response.ok) {
         const data = await response.json()
-        console.log('Templates loaded:', data.templates)
+        //console.log('Templates loaded:', data.templates)
         setTemplates(data.templates || [])
       } else {
         console.log('API failed, using default templates')
