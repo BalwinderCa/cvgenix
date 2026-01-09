@@ -80,7 +80,7 @@ interface ResumeUploadModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PAGE_HEIGHT = 1100;
+const PAGE_HEIGHT = 1000; // Match resume builder canvas height
 const PAGE_GAP = 20;
 const CANVAS_WIDTH = 800;
 
@@ -96,6 +96,7 @@ interface TextBlock {
   fontStyle: string;
   charSpacing: number;
   height: number;
+  fill: string; // Text color
 }
 
 export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadModalProps) {
@@ -134,16 +135,86 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
     };
   }, []);
 
+  // Extract colors from PDF operator list
+  const extractColorsFromPage = async (page: any): Promise<Map<number, string>> => {
+    const colorMap = new Map<number, string>();
+    
+    try {
+      const operatorList = await page.getOperatorList();
+      const OPS = (window as any).pdfjsLib?.OPS || {};
+      
+      let currentFillColor = '#000000';
+      let textItemIndex = 0;
+      
+      for (let i = 0; i < operatorList.fnArray.length; i++) {
+        const op = operatorList.fnArray[i];
+        const args = operatorList.argsArray[i];
+        
+        // Handle different color operators
+        switch (op) {
+          case OPS.setFillRGBColor:
+            if (args && args.length >= 3) {
+              const r = Math.round(args[0] * 255);
+              const g = Math.round(args[1] * 255);
+              const b = Math.round(args[2] * 255);
+              currentFillColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.setFillGray:
+            if (args && args.length >= 1) {
+              const gray = Math.round(args[0] * 255);
+              currentFillColor = `#${gray.toString(16).padStart(2, '0')}${gray.toString(16).padStart(2, '0')}${gray.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.setFillCMYKColor:
+            if (args && args.length >= 4) {
+              // Convert CMYK to RGB
+              const c = args[0], m = args[1], y = args[2], k = args[3];
+              const r = Math.round(255 * (1 - c) * (1 - k));
+              const g = Math.round(255 * (1 - m) * (1 - k));
+              const b = Math.round(255 * (1 - y) * (1 - k));
+              currentFillColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.setFillColorN:
+            // Complex color space - try to extract if possible
+            if (args && args.length >= 3 && typeof args[0] === 'number') {
+              const r = Math.round(args[0] * 255);
+              const g = Math.round(args[1] * 255);
+              const b = Math.round(args[2] * 255);
+              currentFillColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.showText:
+          case OPS.showSpacedText:
+            // Text is being shown - associate current color with this text item
+            colorMap.set(textItemIndex, currentFillColor);
+            textItemIndex++;
+            break;
+        }
+      }
+    } catch (error) {
+      console.warn('Could not extract colors from PDF operator list:', error);
+    }
+    
+    return colorMap;
+  };
+
   const extractTextBlocks = async (
     txtContent: any,
     viewport: any,
     yOffset: number,
-    pdfjs: any
+    pdfjs: any,
+    colorMap: Map<number, string>
   ): Promise<TextBlock[]> => {
     const textBlocks: TextBlock[] = [];
+    let itemIndex = 0;
 
     txtContent.items.forEach((item: any) => {
-      if (!item.str || !item.str.trim()) return;
+      if (!item.str || !item.str.trim()) {
+        itemIndex++;
+        return;
+      }
 
       const transform = item.transform;
       let fontSize = Math.abs(transform[3]) * viewport.scale;
@@ -223,6 +294,9 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
         charSpacing = 20;
       }
 
+      // Get text color from color map or default to black
+      const fill = colorMap.get(itemIndex) || '#000000';
+
       textBlocks.push({
         text: item.str,
         x: x,
@@ -235,7 +309,10 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
         fontStyle: fontStyle,
         charSpacing: charSpacing,
         height: item.height || fontSize,
+        fill: fill,
       });
+      
+      itemIndex++;
     });
 
     return textBlocks;
@@ -251,6 +328,7 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
       fontWeight: string;
       fontStyle: string;
       charSpacing: number;
+      fill: string;
       blocks: TextBlock[];
     }> = [];
     let currentLine: typeof lines[0] | null = null;
@@ -266,6 +344,7 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
           fontWeight: block.fontWeight,
           fontStyle: block.fontStyle,
           charSpacing: block.charSpacing,
+          fill: block.fill,
           blocks: [block],
         };
       } else {
@@ -286,12 +365,20 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
           const gap = block.x - (current.x + current.width);
           const spaceWidth = current.fontSize * 0.25;
 
+          // When merging, keep the most prominent color (non-black if possible)
+          const mergeColor = (existingColor: string, newColor: string): string => {
+            if (existingColor === '#000000' && newColor !== '#000000') return newColor;
+            return existingColor;
+          };
+
           if (gap < spaceWidth * 0.5) {
             current.text += block.text;
             current.width = block.x + block.width - current.x;
+            current.fill = mergeColor(current.fill, block.fill);
           } else if (gap < spaceWidth * 3) {
             current.text += ' ' + block.text;
             current.width = block.x + block.width - current.x;
+            current.fill = mergeColor(current.fill, block.fill);
           } else {
             mergedBlocks.push(current);
             current = { ...block };
@@ -323,11 +410,11 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
           top: Math.round(canvasY),
           fontSize: Math.round(block.fontSize),
           fontFamily: block.fontFamily || 'Arial',
-          fill: block.fill || '#000000',
+          fill: block.fill || '#000000', // Use extracted color
           fontWeight: block.fontWeight || 'normal',
           textBaseline: 'alphabetic', // Same as templates
           fontStyle: block.fontStyle || 'normal',
-          textAlign: block.textAlign || 'left', // Same as templates
+          textAlign: 'left', // Same as templates
           width: block.width || 200,
           height: block.height || block.fontSize || 50,
           originX: 'left', // Same as templates
@@ -351,6 +438,169 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
         canvas.add(textBox);
       });
     });
+  };
+
+  // Extract background shapes/colors from PDF operator list
+  const extractBackgroundShapes = async (
+    page: any,
+    viewport: any,
+    yOffset: number,
+    canvas: any
+  ): Promise<void> => {
+    const Fabric = (window as any).fabric;
+    if (!Fabric) return;
+
+    try {
+      const operatorList = await page.getOperatorList();
+      const OPS = (window as any).pdfjsLib?.OPS || {};
+      
+      let currentFillColor = '#ffffff';
+      let currentPath: { x: number; y: number }[] = [];
+      let currentX = 0;
+      let currentY = 0;
+      
+      for (let i = 0; i < operatorList.fnArray.length; i++) {
+        const op = operatorList.fnArray[i];
+        const args = operatorList.argsArray[i];
+        
+        switch (op) {
+          case OPS.setFillRGBColor:
+            if (args && args.length >= 3) {
+              const r = Math.round(args[0] * 255);
+              const g = Math.round(args[1] * 255);
+              const b = Math.round(args[2] * 255);
+              currentFillColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.setFillGray:
+            if (args && args.length >= 1) {
+              const gray = Math.round(args[0] * 255);
+              currentFillColor = `#${gray.toString(16).padStart(2, '0')}${gray.toString(16).padStart(2, '0')}${gray.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.setFillCMYKColor:
+            if (args && args.length >= 4) {
+              const c = args[0], m = args[1], y = args[2], k = args[3];
+              const r = Math.round(255 * (1 - c) * (1 - k));
+              const g = Math.round(255 * (1 - m) * (1 - k));
+              const b = Math.round(255 * (1 - y) * (1 - k));
+              currentFillColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            break;
+          case OPS.moveTo:
+            if (args && args.length >= 2) {
+              currentPath = [];
+              currentX = args[0];
+              currentY = args[1];
+              currentPath.push({ x: currentX, y: currentY });
+            }
+            break;
+          case OPS.lineTo:
+            if (args && args.length >= 2) {
+              currentX = args[0];
+              currentY = args[1];
+              currentPath.push({ x: currentX, y: currentY });
+            }
+            break;
+          case OPS.rectangle:
+            // Rectangle: x, y, width, height
+            if (args && args.length >= 4 && currentFillColor !== '#ffffff' && currentFillColor !== '#000000') {
+              const pdfjs = (window as any).pdfjsLib;
+              let x1: number, y1: number, x2: number, y2: number;
+              
+              // Transform coordinates
+              if (pdfjs?.Util?.applyTransform) {
+                [x1, y1] = pdfjs.Util.applyTransform([args[0], args[1]], viewport.transform);
+                [x2, y2] = pdfjs.Util.applyTransform([args[0] + args[2], args[1] + args[3]], viewport.transform);
+              } else {
+                const vp = viewport.transform;
+                x1 = vp[0] * args[0] + vp[2] * args[1] + vp[4];
+                y1 = vp[1] * args[0] + vp[3] * args[1] + vp[5];
+                x2 = vp[0] * (args[0] + args[2]) + vp[2] * (args[1] + args[3]) + vp[4];
+                y2 = vp[1] * (args[0] + args[2]) + vp[3] * (args[1] + args[3]) + vp[5];
+              }
+              
+              const rectWidth = Math.abs(x2 - x1);
+              const rectHeight = Math.abs(y2 - y1);
+              const rectLeft = Math.min(x1, x2);
+              const rectTop = Math.min(y1, y2) + yOffset;
+              
+              // Only add significant rectangles (not tiny ones)
+              if (rectWidth > 5 && rectHeight > 5) {
+                const rect = new Fabric.Rect({
+                  left: rectLeft,
+                  top: rectTop,
+                  width: rectWidth,
+                  height: rectHeight,
+                  fill: currentFillColor,
+                  stroke: 'transparent',
+                  strokeWidth: 0,
+                  selectable: true,
+                  evented: true,
+                });
+                canvas.add(rect);
+                canvas.sendToBack(rect);
+              }
+            }
+            break;
+          case OPS.fill:
+          case OPS.eoFill:
+          case OPS.fillStroke:
+          case OPS.eoFillStroke:
+            // If we have a path, create a polygon
+            if (currentPath.length >= 3 && currentFillColor !== '#ffffff' && currentFillColor !== '#000000') {
+              const pdfjs = (window as any).pdfjsLib;
+              const transformedPoints = currentPath.map(pt => {
+                let x: number, y: number;
+                if (pdfjs?.Util?.applyTransform) {
+                  [x, y] = pdfjs.Util.applyTransform([pt.x, pt.y], viewport.transform);
+                } else {
+                  const vp = viewport.transform;
+                  x = vp[0] * pt.x + vp[2] * pt.y + vp[4];
+                  y = vp[1] * pt.x + vp[3] * pt.y + vp[5];
+                }
+                return { x, y: y + yOffset };
+              });
+              
+              // Calculate bounding box
+              const minX = Math.min(...transformedPoints.map(p => p.x));
+              const minY = Math.min(...transformedPoints.map(p => p.y));
+              const maxX = Math.max(...transformedPoints.map(p => p.x));
+              const maxY = Math.max(...transformedPoints.map(p => p.y));
+              
+              // Only add significant shapes
+              if (maxX - minX > 5 && maxY - minY > 5) {
+                try {
+                  const polygon = new Fabric.Polygon(transformedPoints, {
+                    fill: currentFillColor,
+                    stroke: 'transparent',
+                    strokeWidth: 0,
+                    selectable: true,
+                    evented: true,
+                  });
+                  canvas.add(polygon);
+                  canvas.sendToBack(polygon);
+                } catch (e) {
+                  // Ignore invalid polygons
+                }
+              }
+            }
+            currentPath = [];
+            break;
+          case OPS.closePath:
+            // Close the path
+            if (currentPath.length > 0) {
+              currentPath.push({ ...currentPath[0] });
+            }
+            break;
+          case OPS.endPath:
+            currentPath = [];
+            break;
+        }
+      }
+    } catch (error) {
+      console.warn('Could not extract background shapes from PDF:', error);
+    }
   };
 
   const loadAndExtractPage = async (
@@ -391,11 +641,17 @@ export default function ResumeUploadModal({ open, onOpenChange }: ResumeUploadMo
     const scale = CANVAS_WIDTH / viewport.width;
     const scaledViewport = page.getViewport({ scale });
 
+    // Extract background shapes/colors first (so they're behind text)
+    await extractBackgroundShapes(page, scaledViewport, yOffset, canvas);
+
+    // Extract text colors from operator list
+    const colorMap = await extractColorsFromPage(page);
+
     // Extract text content
     const txtContent = await page.getTextContent();
 
-    // Build text blocks
-    const textBlocks = await extractTextBlocks(txtContent, scaledViewport, yOffset, pdfjs);
+    // Build text blocks with colors
+    const textBlocks = await extractTextBlocks(txtContent, scaledViewport, yOffset, pdfjs, colorMap);
 
     // Sort by Y position, then X position
     textBlocks.sort((a, b) => {
