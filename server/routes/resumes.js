@@ -415,6 +415,59 @@ router.post('/:id/export', auth, async (req, res) => {
         error: `Failed to generate ${format.toUpperCase()} buffer`
       })
     }
+
+    // Validate buffer before processing
+    if (!Buffer.isBuffer(fileBuffer)) {
+      // If it's a string, it might be an error message
+      if (typeof fileBuffer === 'string') {
+        console.error(`❌ File buffer is a string (likely an error): ${fileBuffer.substring(0, 200)}`)
+        return res.status(500).json({
+          success: false,
+          message: 'Export failed',
+          error: `File generation returned an error: ${fileBuffer.substring(0, 200)}`
+        })
+      }
+      
+      // Try to convert to buffer (puppeteer sometimes returns Uint8Array or similar)
+      try {
+        console.log(`⚠️  Converting ${typeof fileBuffer} to Buffer for format: ${format}`)
+        fileBuffer = Buffer.from(fileBuffer)
+        console.log(`✅ Successfully converted to Buffer (${fileBuffer.length} bytes)`)
+      } catch (convertError) {
+        console.error(`❌ Cannot convert to Buffer:`, convertError)
+        return res.status(500).json({
+          success: false,
+          message: 'Export failed: Invalid file buffer',
+          error: `File buffer is not a valid Buffer: ${convertError.message}`
+        })
+      }
+    }
+
+    if (fileBuffer.length === 0) {
+      console.error(`❌ Empty file buffer for format: ${format}`)
+      return res.status(500).json({
+        success: false,
+        message: 'Export failed: Empty file buffer',
+        error: `Generated ${format.toUpperCase()} buffer is empty`
+      })
+    }
+
+    // Validate PDF format (should start with %PDF)
+    if (format.toLowerCase() === 'pdf') {
+      const pdfHeader = fileBuffer.slice(0, 4).toString('ascii')
+      const pdfHeaderHex = fileBuffer.slice(0, 4).toString('hex')
+      console.log(`📋 PDF header: "${pdfHeader}" (hex: ${pdfHeaderHex})`)
+      console.log(`📋 PDF buffer length: ${fileBuffer.length} bytes`)
+      
+      if (pdfHeader !== '%PDF') {
+        console.error(`❌ Invalid PDF format. Header: "${pdfHeader}" (hex: ${pdfHeaderHex})`)
+        return res.status(500).json({
+          success: false,
+          message: 'Export failed: Invalid PDF format',
+          error: `Generated file is not a valid PDF. Header: "${pdfHeader}"`
+        })
+      }
+    }
     
     try {
       fs.writeFileSync(savedPath, fileBuffer)
@@ -465,9 +518,12 @@ router.post('/:id/export', auth, async (req, res) => {
     if (format.toLowerCase() === 'png') contentType = 'image/png'
     else if (format.toLowerCase() === 'jpg' || format.toLowerCase() === 'jpeg') contentType = 'image/jpeg'
     
+    // Set headers before sending
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
     res.setHeader('Content-Length', fileBuffer.length)
+    
+    // Send the buffer (Express automatically handles Buffer objects as binary)
     res.send(fileBuffer)
 
     console.log(`✅ ${format.toUpperCase()} generated and saved: ${savedPath}`)

@@ -51,6 +51,7 @@ const atsRoutes = require('./routes/ats')
 const resumeSharingRoutes = require('./routes/resumeSharing')
 const companySettingsRoutes = require('./routes/companySettings')
 const invoiceRoutes = require('./routes/invoices')
+const ocrRoutes = require('./routes/ocr')
 
 // Initialize security middleware
 const security = securityMiddleware.initialize()
@@ -125,6 +126,7 @@ app.use('/api/faqs', require('./routes/faqs')) // FAQ routes
 app.use('/api/resumes/sharing', resumeSharingRoutes) // Resume sharing routes
 app.use('/api/company-settings', companySettingsRoutes) // Company settings routes
 app.use('/api/support', require('./routes/support')) // Support/Contact form routes
+app.use('/api/ocr', ocrRoutes) // OCR routes
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))

@@ -195,10 +195,13 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           }
         }}
         onClick={(e) => {
-          // Ensure container gets focus when clicked
-          const container = e.currentTarget;
-          if (container && typeof container.focus === 'function') {
-            container.focus();
+          // Don't prevent canvas clicks from reaching the canvas
+          // Only handle focus if click is on the container itself (not on canvas)
+          if (e.target === e.currentTarget) {
+            const container = e.currentTarget;
+            if (container && typeof container.focus === 'function') {
+              container.focus();
+            }
           }
         }}
         onKeyDown={(e) => {
@@ -226,7 +229,10 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
             transform: 'translateZ(0)',
             willChange: 'transform',
             backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden'
+            WebkitBackfaceVisibility: 'hidden',
+            pointerEvents: 'auto',
+            position: 'relative',
+            zIndex: 2
           }}
         />
         </div>

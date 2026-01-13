@@ -254,6 +254,26 @@ export default function ResumeBuilderPage() {
 
           if (exportResponse.ok) {
             const blob = await exportResponse.blob();
+            
+            // Verify blob is not empty
+            if (blob.size === 0) {
+              toast.error('Downloaded file is empty. Please try again.');
+              return;
+            }
+            
+            // Verify PDF format if downloading PDF
+            if (format === 'pdf') {
+              // Check if blob starts with PDF magic bytes
+              const firstBytes = await blob.slice(0, 4).arrayBuffer();
+              const decoder = new TextDecoder();
+              const header = decoder.decode(firstBytes);
+              if (header !== '%PDF') {
+                toast.error('Downloaded file is not a valid PDF. Please try again.');
+                console.error('Invalid PDF header:', header);
+                return;
+              }
+            }
+            
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -270,8 +290,12 @@ export default function ResumeBuilderPage() {
             a.download = filename;
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            
+            // Clean up after a short delay to ensure download starts
+            setTimeout(() => {
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+            }, 100);
             
             toast.success('Resume exported and saved successfully!');
             // Refresh user data to show updated credits
@@ -964,6 +988,16 @@ export default function ResumeBuilderPage() {
       fabricCanvas.discardActiveObject?.();
       fabricCanvas.backgroundColor = '#ffffff';
       
+      // Clear any hover overlays or other temporary objects
+      if ((fabricCanvas as any).hoverOverlay) {
+        try {
+          fabricCanvas.remove((fabricCanvas as any).hoverOverlay);
+          (fabricCanvas as any).hoverOverlay = null;
+        } catch (e) {
+          // Ignore removal errors
+        }
+      }
+      
       // Only set dimensions if canvas is fully initialized
       if (fabricCanvas.getElement && fabricCanvas.getElement()) {
         fabricCanvas.setWidth(targetWidth);
@@ -980,11 +1014,130 @@ export default function ResumeBuilderPage() {
               // Configure all objects
               configureImportedObjects(fabricCanvas, targetWidth, targetHeight);
               
+              // Ensure proper object ordering: page borders and backgrounds at back, text on top
+              const allObjects = fabricCanvas.getObjects();
+              console.log(`📋 Loaded ${allObjects.length} objects from imported resume`);
+              
+              // First, send all page borders and backgrounds to back
+              allObjects.forEach((obj: any) => {
+                if (isPageBorder(obj, targetWidth, targetHeight)) {
+                  // Page borders should be at the very back
+                  fabricCanvas.sendToBack(obj);
+                } else if (obj.type === 'rect' && obj !== fabricCanvas.hoverOverlay) {
+                  // Background rectangles (except hover overlay) should be behind text
+                  // Check if it's a page border by dimensions
+                  const isPageBorderRect = obj.width === targetWidth && 
+                                          (obj.height === targetHeight || Math.abs(obj.height - targetHeight) < 10);
+                  if (isPageBorderRect || (obj.fill === '#ffffff' && obj.stroke !== 'transparent')) {
+                    fabricCanvas.sendToBack(obj);
+                  } else if (obj.fill !== '#ffffff' && obj.stroke === 'transparent') {
+                    // Colored background shapes should be behind text
+                    fabricCanvas.sendToBack(obj);
+                  }
+                } else if (obj.type === 'polygon' && obj.fill !== '#ffffff' && obj.stroke === 'transparent') {
+                  // Background polygons should be behind text
+                  fabricCanvas.sendToBack(obj);
+                }
+              });
+              
+              // Then, bring all text objects to front and ensure they're individually selectable
+              const textObjects = allObjects.filter((obj: any) => 
+                obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text'
+              );
+              const imageObjects = allObjects.filter((obj: any) => obj.type === 'image');
+              
+              console.log(`📝 Found ${textObjects.length} text objects and ${imageObjects.length} image objects`);
+              
+              // Ensure all objects (text and images) are individually selectable
+              [...textObjects, ...imageObjects].forEach((obj: any) => {
+                // Ensure each object is individually selectable and not grouped
+                obj.set({
+                  selectable: true,
+                  evented: true,
+                  group: null, // Ensure not part of a group
+                  lockMovementX: false,
+                  lockMovementY: false,
+                });
+              });
+              
+              // Bring text to front, images stay in middle
+              textObjects.forEach((obj: any) => {
+                fabricCanvas.bringToFront(obj);
+              });
+              
+              // CRITICAL: Recalculate canvas offset for proper hit detection
+              // This must be done after objects are loaded and positioned
+              if (fabricCanvas.calcOffset) {
+                fabricCanvas.calcOffset();
+              }
+              
+              // Discard any active selection to ensure objects are individually selectable
+              fabricCanvas.discardActiveObject();
+              
               // Enable canvas interactivity
               (fabricCanvas as any).selection = true;
               if ((fabricCanvas as any).interactive !== undefined) {
                 (fabricCanvas as any).interactive = true;
               }
+              
+              // Ensure canvas is configured for individual object selection
+              if (fabricCanvas.skipTargetFind !== undefined) {
+                fabricCanvas.skipTargetFind = false;
+              }
+              
+              // Log object positions for debugging
+              if (textObjects.length > 0) {
+                console.log(`📍 Text object positions (first 3):`, textObjects.slice(0, 3).map((obj: any) => ({
+                  type: obj.type,
+                  left: obj.left,
+                  top: obj.top,
+                  width: obj.width,
+                  height: obj.height,
+                  selectable: obj.selectable,
+                  evented: obj.evented,
+                  boundingRect: obj.getBoundingRect ? obj.getBoundingRect() : null
+                })));
+              }
+              
+              // Recalculate offset again after a short delay to ensure layout is complete
+              setTimeout(() => {
+                if (fabricCanvas.calcOffset) {
+                  fabricCanvas.calcOffset();
+                  fabricCanvas.renderAll();
+                }
+                
+                // Add click handler to debug selection
+                const clickHandler = (e: any) => {
+                  const pointer = fabricCanvas.getPointer(e.e);
+                  const target = fabricCanvas.findTarget(e.e, false);
+                  
+                  if (target) {
+                    console.log('🖱️ Clicked on object:', {
+                      type: target.type,
+                      text: target.text?.substring(0, 50) || '',
+                      left: Math.round(target.left),
+                      top: Math.round(target.top),
+                      width: Math.round(target.width || 0),
+                      height: Math.round(target.height || 0),
+                      fontSize: target.fontSize || 0,
+                      fontFamily: target.fontFamily || '',
+                      fill: target.fill || '',
+                      selectable: target.selectable,
+                      evented: target.evented,
+                      pointer: pointer
+                    });
+                  } else {
+                    console.log('🖱️ Clicked on canvas (no object)', {
+                      pointer: pointer,
+                      canvasWidth: fabricCanvas.getWidth(),
+                      canvasHeight: fabricCanvas.getHeight(),
+                      objectsCount: fabricCanvas.getObjects().length
+                    });
+                  }
+                };
+                
+                fabricCanvas.on('mouse:down', clickHandler);
+              }, 100);
               
               // Initialize history and save state
               if (fabricCanvas.initializeHistory) {

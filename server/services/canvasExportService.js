@@ -174,7 +174,7 @@ class CanvasExportService {
       await page.evaluateHandle('document.fonts.ready');
       
       // Generate PDF using A4 format (more reliable than custom dimensions)
-      const pdfBuffer = await page.pdf({
+      let pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: {
@@ -186,6 +186,11 @@ class CanvasExportService {
         preferCSSPageSize: false,
         displayHeaderFooter: false
       });
+      
+      // Ensure pdfBuffer is a Buffer (puppeteer may return Uint8Array)
+      if (!Buffer.isBuffer(pdfBuffer)) {
+        pdfBuffer = Buffer.from(pdfBuffer);
+      }
       
       // Clean up temp file
       fs.unlinkSync(tempHtmlPath);
@@ -259,10 +264,15 @@ class CanvasExportService {
       
       // Take screenshot
       const canvas = await page.$('canvas');
-      const pngBuffer = await canvas.screenshot({
+      let pngBuffer = await canvas.screenshot({
         type: 'png',
         omitBackground: false
       });
+      
+      // Ensure pngBuffer is a Buffer (puppeteer may return Uint8Array)
+      if (!Buffer.isBuffer(pngBuffer)) {
+        pngBuffer = Buffer.from(pngBuffer);
+      }
       
       // Clean up temp file
       fs.unlinkSync(tempHtmlPath);
