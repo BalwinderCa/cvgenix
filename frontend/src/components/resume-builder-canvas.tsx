@@ -8,9 +8,13 @@ import { FabricCanvas, CanvasConfig } from '@/lib/fabric-types';
 interface ResumeBuilderCanvasProps {
   onCanvasReady: (canvas: any) => void;
   onStateChange?: (state: string) => void;
+  /** 1-based page index for multi-page (used for zoom/scroll targeting). */
+  pageIndex?: number;
+  /** When true, do not wrap in scroll container (parent provides single scroll). */
+  noScrollWrapper?: boolean;
 }
 
-export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: ResumeBuilderCanvasProps) {
+export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange, pageIndex = 1, noScrollWrapper = false }: ResumeBuilderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
   const canvasManagerRef = useRef<FabricCanvasManager | null>(null);
@@ -156,11 +160,13 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
 
   const scaledDimensions = getScaledDimensions();
 
-  return (
-    <div className="w-full h-full bg-gray-50 overflow-auto" style={{ padding: '2rem' }}>
-      {/* Wrapper div - contains the scaled canvas and allows scrolling when zoomed */}
+  const pageAttr = pageIndex != null ? { 'data-page': String(pageIndex) } : {};
+
+  const inner = (
+    <>
       <div 
         className="canvas-zoom-wrapper"
+        {...pageAttr}
         style={{
           width: `${getBaseDimensions().width * scaledDimensions.scale}px`,
           height: `${getBaseDimensions().height * scaledDimensions.scale}px`,
@@ -175,6 +181,7 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
       >
         <div 
           className="bg-white shadow-lg focus:outline-none canvas-container"
+          {...pageAttr}
           style={{
             width: `${getBaseDimensions().width}px`,
             height: `${getBaseDimensions().height}px`,
@@ -188,15 +195,11 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           }}
         tabIndex={0}
         onFocus={() => {
-          // Ensure canvas gets focus when container is focused
           if (fabricCanvasRef.current) {
-            // Fabric.js doesn't have setActive method, just ensure canvas is ready
             fabricCanvasRef.current.requestRenderAll();
           }
         }}
         onClick={(e) => {
-          // Don't prevent canvas clicks from reaching the canvas
-          // Only handle focus if click is on the container itself (not on canvas)
           if (e.target === e.currentTarget) {
             const container = e.currentTarget;
             if (container && typeof container.focus === 'function') {
@@ -205,11 +208,9 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
           }
         }}
         onKeyDown={(e) => {
-          // Handle Ctrl+A at the container level - this should take precedence
           if (e.ctrlKey && e.key === 'a') {
             e.preventDefault();
             e.stopPropagation();
-            
             if (canvasManagerRef.current) {
               canvasManagerRef.current.selectAllObjects();
             }
@@ -237,6 +238,16 @@ export default function ResumeBuilderCanvas({ onCanvasReady, onStateChange }: Re
         />
         </div>
       </div>
+    </>
+  );
+
+  if (noScrollWrapper) {
+    return inner;
+  }
+
+  return (
+    <div className="w-full h-full bg-gray-50 overflow-auto" style={{ padding: '2rem' }}>
+      {inner}
     </div>
   );
 }

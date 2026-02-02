@@ -1,4 +1,5 @@
 import { TemplateData } from '@/types/canvas';
+import { DEFAULT_OBJECT_CONTROLS } from '@/lib/fabric-types';
 
 export class TemplateService {
   private static instance: TemplateService;
@@ -204,6 +205,28 @@ export class TemplateService {
             hoverCursor: 'move',
             moveCursor: 'move'
           });
+        }
+        // Apply consistent selection style: green dotted border + custom handles (no rotation)
+        if (obj.selectable !== false) {
+          obj.set({
+            borderColor: DEFAULT_OBJECT_CONTROLS.borderColor,
+            borderWidth: DEFAULT_OBJECT_CONTROLS.borderWidth,
+            borderDashArray: DEFAULT_OBJECT_CONTROLS.borderDashArray,
+            cornerColor: DEFAULT_OBJECT_CONTROLS.cornerColor,
+            cornerStrokeColor: DEFAULT_OBJECT_CONTROLS.cornerStrokeColor,
+            cornerStyle: DEFAULT_OBJECT_CONTROLS.cornerStyle,
+            cornerSize: DEFAULT_OBJECT_CONTROLS.cornerSize,
+            transparentCorners: DEFAULT_OBJECT_CONTROLS.transparentCorners,
+            borderScaleFactor: DEFAULT_OBJECT_CONTROLS.borderScaleFactor,
+            hasRotatingPoint: DEFAULT_OBJECT_CONTROLS.hasRotatingPoint,
+          });
+          if (obj.setControlsVisibility) {
+            obj.setControlsVisibility({
+              mt: false, mb: false, mtr: false,
+              ml: true, mr: true,
+              tl: true, tr: true, bl: true, br: true
+            });
+          }
         }
       });
       

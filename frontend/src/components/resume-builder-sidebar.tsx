@@ -132,34 +132,35 @@ export default function ResumeBuilderSidebar({
           return;
       }
 
-      // Set common properties
+      // Set common properties: match canvas selection style (green dotted + custom handles)
       if (objectType === 'Line') {
         // For lines, only show left and right middle handles
         obj.setControlsVisibility({
-          mt: false, mb: false, mtr: false, // Hide rotation and top/bottom handles
-          ml: true, mr: true, // Keep middle left and right handles
-          tl: false, tr: false, bl: false, br: false // Hide corner handles
+          mt: false, mb: false, mtr: false,
+          ml: true, mr: true,
+          tl: false, tr: false, bl: false, br: false
         });
       } else {
-        // For other objects, use default control visibility
         obj.setControlsVisibility({
-          mt: false, mb: false, mtr: false, // Hide rotation handle
-          ml: true, mr: true, // Keep middle left and right handles
+          mt: false, mb: false, mtr: false,
+          ml: true, mr: true,
           tl: true, tr: true, bl: true, br: true
         });
       }
       obj.set({
-        borderColor: '#3b82f6',
-        cornerColor: '#ffffff',
-        cornerStrokeColor: '#999999',
+        borderColor: '#10b981',
+        borderWidth: 3,
+        borderDashArray: [5, 5],
+        cornerColor: '#10b981',
+        cornerStrokeColor: '#10b981',
         cornerStyle: 'circle',
         cornerSize: 12,
         transparentCorners: false,
         borderScaleFactor: 2,
-        lockRotation: true, // Disable rotation
-        hasRotatingPoint: false, // Remove rotation handle
-        originX: 'left', // Keep text anchored to left
-        originY: 'top' // Keep text anchored to top
+        lockRotation: true,
+        hasRotatingPoint: false,
+        originX: 'left',
+        originY: 'top'
       });
 
       // Ensure text objects have proper anchoring

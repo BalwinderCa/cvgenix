@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Download, Trash2, ZoomIn, ZoomOut, PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Trash2, ZoomIn, ZoomOut, PanelLeft, ChevronLeft, ChevronRight, FilePlus2, FileMinus2 } from 'lucide-react';
 import NavigationHeader from '@/components/navigation-header';
 import ResumeBuilderSidebar from '@/components/resume-builder-sidebar';
 import ResumeBuilderTopBar from '@/components/resume-builder-topbar';
@@ -40,14 +40,23 @@ export default function ResumeBuilderPage() {
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [canvasEditKey, setCanvasEditKey] = useState(0); // Force CanvasEditManager remount
+  const [canvasPageCount, setCanvasPageCount] = useState<1 | 2>(1); // Max 2 canvases
+  const [activeCanvasIndex, setActiveCanvasIndex] = useState(0); // 0 = page 1, 1 = page 2 (for undo/redo and toolbar)
   const isLoadingImportedResumeRef = useRef(false); // Prevent multiple simultaneous loads
   const isDraggingSlider = useRef(false);
   const zoomUpdateFrame = useRef<number | null>(null);
   const isManualSelection = useRef(false);
   const loadingTemplateIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const crossCanvasDragRef = useRef<{
+    lastPointer: { clientX: number; clientY: number } | null;
+    sourceCanvas: any | null;
+    previewEl: HTMLElement | null;
+    grabOffset: { x: number; y: number } | null;
+    draggedObject: any | null;
+  }>({ lastPointer: null, sourceCanvas: null, previewEl: null, grabOffset: null, draggedObject: null });
 
-  // Use the canvas manager hook
+  // Use the canvas manager hook for page 1
   const {
     canvasState,
     editToolbarState,
@@ -63,6 +72,24 @@ export default function ResumeBuilderPage() {
     handleRedo,
     canUndo,
     canRedo,
+  } = useCanvasManager();
+
+  // Second canvas (page 2) - only used when canvasPageCount === 2
+  const {
+    canvasState: canvas2State,
+    editToolbarState: editToolbar2State,
+    getFabricInstance: getFabricInstance2,
+    handleCanvasReady: handleCanvas2Ready,
+    handleStateChange: handleStateChange2,
+    handleDeleteSelected: handleDeleteSelected2,
+    handleCloseEditToolbar: handleCloseEditToolbar2,
+    updateEditToolbarState: updateEditToolbarState2,
+    updateCanvasState: updateCanvasState2,
+    registerCleanup: registerCleanup2,
+    handleUndo: handleUndo2,
+    handleRedo: handleRedo2,
+    canUndo: canUndo2,
+    canRedo: canRedo2,
   } = useCanvasManager();
 
   // Template service instance
@@ -91,28 +118,38 @@ export default function ResumeBuilderPage() {
     }
 
     try {
-      // Get canvas data
-      const canvasData = canvasState.fabricCanvas.toJSON();
-      
-      // Ensure width, height, and version are included
-      const fullCanvasData = {
-        ...canvasData,
+      // Get canvas data (single page or array for 2 pages)
+      const page1Data = canvasState.fabricCanvas.toJSON();
+      const fullPage1 = {
+        ...page1Data,
         width: canvasState.fabricCanvas.getWidth(),
         height: canvasState.fabricCanvas.getHeight(),
-        version: canvasData.version || '5.3.0',
+        version: page1Data.version || '5.3.0',
       };
+      let canvasData: unknown = fullPage1;
+      if (canvasPageCount === 2 && canvas2State.fabricCanvas) {
+        const page2Data = canvas2State.fabricCanvas.toJSON();
+        const fullPage2 = {
+          ...page2Data,
+          width: canvas2State.fabricCanvas.getWidth(),
+          height: canvas2State.fabricCanvas.getHeight(),
+          version: page2Data.version || '5.3.0',
+        };
+        canvasData = [fullPage1, fullPage2];
+      }
 
       // Extract basic info from canvas if available (for display purposes)
-      // Try to find name, email, etc. from text objects on canvas
+      // Try to find name, email, etc. from text objects on canvas (use first page)
       let personalInfo: any = {
         firstName: '',
         lastName: '',
         email: '',
       };
+      const firstPageData = Array.isArray(canvasData) ? canvasData[0] : canvasData;
 
       // Try to extract personal info from canvas text objects
-      if (canvasData.objects) {
-        const textObjects = canvasData.objects.filter((obj: any) => obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+      if (firstPageData?.objects) {
+        const textObjects = firstPageData.objects.filter((obj: any) => obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
         // Look for common patterns (this is a basic extraction)
         textObjects.forEach((obj: any) => {
           const text = (obj.text || '').toLowerCase();
@@ -179,7 +216,7 @@ export default function ResumeBuilderPage() {
       toast.error('Failed to save resume. Please try again.');
       return null;
     }
-  }, [canvasState.fabricCanvas, canvasState.currentTemplateId, currentResumeId, router]);
+  }, [canvasState.fabricCanvas, canvasState.currentTemplateId, currentResumeId, router, canvasPageCount, canvas2State.fabricCanvas]);
 
   // Keep handleSave for backward compatibility (though it's not used in UI anymore)
   const handleSave = useCallback(async () => {
@@ -318,84 +355,41 @@ export default function ResumeBuilderPage() {
       }
       
       // Fallback to client-side export if server export failed or no resume ID
-      // Note: This won't save to server, but allows export to work
+      const canvases = [canvasState.fabricCanvas].concat(canvasPageCount === 2 && canvas2State.fabricCanvas ? [canvas2State.fabricCanvas] : []);
       if (format === 'pdf') {
-        // Handle PDF export differently
         try {
-          // Convert canvas to high-quality image first
-          const dataURL = canvasState.fabricCanvas.toDataURL({
-            format: 'png',
-            quality: 1,
-            multiplier: 2
-          });
-          
-          // Create a new window with the image and print it as PDF
+          const dataURLs = canvases.map((c) =>
+            c.toDataURL({ format: 'png', quality: 1, multiplier: 2 })
+          );
           const printWindow = window.open('', '_blank');
           if (printWindow) {
+            const imgTags = dataURLs.map((url, i) =>
+              `<img src="${url}" alt="Page ${i + 1}" style="width:100%;height:auto;display:block;margin:0;padding:0;${i < dataURLs.length - 1 ? 'page-break-after:always;' : ''}" />`
+            ).join('');
             printWindow.document.write(`
               <html>
                 <head>
                   <title>Resume Export</title>
                   <style>
-                    body { 
-                      margin: 0; 
-                      padding: 0; 
-                      background: white;
-                    }
-                    img { 
-                      width: 100%; 
-                      height: auto; 
-                      display: block; 
-                      margin: 0;
-                      padding: 0;
-                    }
+                    body { margin: 0; padding: 0; background: white; }
+                    img { width: 100%; height: auto; display: block; margin: 0; padding: 0; }
                     @media print {
-                      body { 
-                        margin: 0; 
-                        padding: 0;
-                        background: white;
-                      }
-                      img { 
-                        width: 100%; 
-                        height: auto; 
-                        page-break-inside: avoid;
-                        margin: 0;
-                        padding: 0;
-                      }
-                      @page {
-                        margin: 0;
-                        padding: 0;
-                        size: auto;
-                      }
+                      body { margin: 0; padding: 0; background: white; }
+                      img { page-break-inside: avoid; }
+                      @page { margin: 0; padding: 0; size: auto; }
                     }
                   </style>
                 </head>
-                <body>
-                  <img src="${dataURL}" alt="Resume" />
+                <body>${imgTags}
                   <script>
                     window.onload = function() {
-                      // Remove headers and footers
-                      const style = document.createElement('style');
-                      style.textContent = \`
-                        @page {
-                          margin: 0 !important;
-                          padding: 0 !important;
-                          size: auto !important;
-                        }
-                        @media print {
-                          body { margin: 0 !important; padding: 0 !important; }
-                          img { margin: 0 !important; padding: 0 !important; }
-                        }
-                      \`;
-                      document.head.appendChild(style);
-                      
-                      // Print without headers/footers
+                      var s = document.createElement('style');
+                      s.textContent = '@page { margin: 0 !important; } @media print { body { margin: 0 !important; } }';
+                      document.head.appendChild(s);
                       window.print();
-                      window.onafterprint = function() {
-                        window.close();
-                      };
+                      window.onafterprint = function() { window.close(); };
                     };
-                  </script>
+                  <\/script>
                 </body>
               </html>
             `);
@@ -406,23 +400,49 @@ export default function ResumeBuilderPage() {
           alert('PDF export failed. Please try again or use PNG/JPEG export instead.');
         }
       } else {
-        // Handle image exports (PNG, JPG) - client-side fallback
-        const dataURL = canvasState.fabricCanvas.toDataURL({
-          format: format,
-          quality: format === 'jpg' ? 0.9 : 1,
-          multiplier: 2
-        });
-        
-        const link = document.createElement('a');
-        link.download = `resume.${format}`;
-        link.href = dataURL;
-        link.click();
+        // Handle image exports (PNG, JPG) - single or stacked when 2 pages
+        if (canvases.length === 2) {
+          const c1 = canvases[0];
+          const c2 = canvases[1];
+          const w = Math.max(c1.getWidth(), c2.getWidth());
+          const h = (c1.getHeight() || 0) + (c2.getHeight() || 0);
+          const off = document.createElement('canvas');
+          off.width = w * 2;
+          off.height = h * 2;
+          const ctx = off.getContext('2d');
+          if (ctx) {
+            ctx.scale(2, 2);
+            ctx.drawImage(c1.getElement(), 0, 0);
+            ctx.drawImage(c2.getElement(), 0, c1.getHeight());
+            const dataURL = off.toDataURL(format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? 0.9 : 1);
+            const link = document.createElement('a');
+            link.download = `resume.${format}`;
+            link.href = dataURL;
+            link.click();
+          } else {
+            const dataURL = c1.toDataURL({ format: format, quality: format === 'jpg' ? 0.9 : 1, multiplier: 2 });
+            const link = document.createElement('a');
+            link.download = `resume.${format}`;
+            link.href = dataURL;
+            link.click();
+          }
+        } else {
+          const dataURL = canvasState.fabricCanvas.toDataURL({
+            format: format,
+            quality: format === 'jpg' ? 0.9 : 1,
+            multiplier: 2
+          });
+          const link = document.createElement('a');
+          link.download = `resume.${format}`;
+          link.href = dataURL;
+          link.click();
+        }
       }
       
       // Note: Credit deduction is handled by the server export endpoint
       // No need to deduct credits here for client-side fallback
     }
-  }, [canvasState.fabricCanvas, exportState.exportFormat, router]);
+  }, [canvasState.fabricCanvas, canvas2State.fabricCanvas, canvasPageCount, exportState.exportFormat, router]);
 
   // Handle template selection
   const handleTemplateSelect = useCallback(async (templateId: string, isManual = false) => {
@@ -537,6 +557,14 @@ export default function ResumeBuilderPage() {
               evented: true,
               hoverCursor: 'move',
               moveCursor: 'move'
+            });
+          }
+          // Consistent selection: green dotted border + custom handles (no rotation)
+          if (obj.selectable !== false && obj.setControlsVisibility) {
+            obj.setControlsVisibility({
+              mt: false, mb: false, mtr: false,
+              ml: true, mr: true,
+              tl: true, tr: true, bl: true, br: true
             });
           }
         });
@@ -703,123 +731,90 @@ export default function ResumeBuilderPage() {
     }
   }, [canvasState.fabricCanvas, searchParams, handleTemplateSelect, canvasState.currentTemplateId, isLoading]);
 
-  // Handle zoom change - scales the entire canvas container (keeps content proportional)
+  // Handle zoom change - scales all canvas containers (both pages) proportionally
   const handleZoomChange = useCallback((zoom: number, immediate = false) => {
-    if (!canvasState.fabricCanvas) return;
+    const activeCanvas = activeCanvasIndex === 0 ? canvasState.fabricCanvas : canvas2State.fabricCanvas;
+    if (!activeCanvas) return;
     
     try {
       const zoomValue = zoom / 100;
+      const baseDimensions = getBaseDimensions();
+      const baseWidth = activeCanvas?.getWidth?.() ?? baseDimensions.width;
+      const baseHeight = activeCanvas?.getHeight?.() ?? baseDimensions.height;
+      const scaledDimensions = getScaledDimensions();
+      const responsiveScale = scaledDimensions.scale || 1;
+      const combinedScale = responsiveScale * zoomValue;
+      const newTransform = `scale3d(${combinedScale}, ${combinedScale}, 1)`;
+      const finalScaledWidth = baseWidth * combinedScale;
+      const finalScaledHeight = baseHeight * combinedScale;
       
-      // Find the canvas container (white div with shadow) and wrapper using class selectors
-      const containerElement = document.querySelector('.canvas-container') as HTMLElement;
-      const wrapperElement = document.querySelector('.canvas-zoom-wrapper') as HTMLElement;
+      const wrapperElements = document.querySelectorAll('.canvas-zoom-wrapper');
+      const containerElements = document.querySelectorAll('.canvas-container');
       
-      if (containerElement && wrapperElement) {
-        const baseDimensions = getBaseDimensions();
-        const baseWidth = canvasState.fabricCanvas?.getWidth?.() ?? baseDimensions.width;
-        const baseHeight = canvasState.fabricCanvas?.getHeight?.() ?? baseDimensions.height;
-        
-        // Get the current responsive scale from useCanvasDimensions
-        const scaledDimensions = getScaledDimensions();
-        const responsiveScale = scaledDimensions.scale || 1;
-        
-        // Calculate combined scale: responsive scale * user zoom
-        const combinedScale = responsiveScale * zoomValue;
-        
-        // Calculate what the scaled size would be after zoom (based on base canvas dimensions)
-        const scaledWidth = baseWidth * combinedScale;
-        const scaledHeight = baseHeight * combinedScale;
-        
-        // Use scale3d for better GPU acceleration - use the full combined scale
-        // Don't constrain - allow scrolling when zoomed beyond viewport
-        const newTransform = `scale3d(${combinedScale}, ${combinedScale}, 1)`;
-        
-        // Calculate final scaled dimensions (wrapper uses actual scaled size for proper scrolling)
-        const finalScaledWidth = baseWidth * combinedScale;
-        const finalScaledHeight = baseHeight * combinedScale;
-        
-        if (immediate) {
-          // During drag - direct synchronous updates
-          // Wrapper should be exactly the scaled size to allow proper scrolling
-          wrapperElement.style.transition = 'none';
-          // Set wrapper to EXACT scaled size - no constraints whatsoever
-          wrapperElement.style.width = `${finalScaledWidth}px`;
-          wrapperElement.style.height = `${finalScaledHeight}px`;
-          wrapperElement.style.minWidth = `${finalScaledWidth}px`;
-          wrapperElement.style.minHeight = `${finalScaledHeight}px`;
-          wrapperElement.style.maxWidth = 'none';
-          wrapperElement.style.maxHeight = 'none';
-          wrapperElement.style.margin = 'auto';
-          wrapperElement.style.flexShrink = '0';
-          wrapperElement.style.boxSizing = 'border-box';
-          wrapperElement.style.overflow = 'visible';
-          wrapperElement.style.display = 'flex';
-          wrapperElement.style.alignItems = 'center';
-          wrapperElement.style.justifyContent = 'center';
-          wrapperElement.style.position = 'relative';
-          
-          // Container is base size, scaled by transform
-          containerElement.style.transition = 'none';
-          containerElement.style.willChange = 'transform';
-          containerElement.style.backfaceVisibility = 'hidden';
-          containerElement.style.webkitBackfaceVisibility = 'hidden';
-          containerElement.style.transformOrigin = 'center center';
-          containerElement.style.width = `${baseWidth}px`;
-          containerElement.style.height = `${baseHeight}px`;
-          containerElement.style.overflow = 'visible';
-          containerElement.style.boxSizing = 'border-box';
-          containerElement.style.transform = newTransform;
-        } else {
-          // For button clicks - smooth animation
-          if (zoomUpdateFrame.current !== null) {
-            cancelAnimationFrame(zoomUpdateFrame.current);
-          }
-          
-          zoomUpdateFrame.current = requestAnimationFrame(() => {
-            zoomUpdateFrame.current = null;
-            
-            wrapperElement.style.transition = 'none';
-            wrapperElement.style.width = `${finalScaledWidth}px`;
-            wrapperElement.style.height = `${finalScaledHeight}px`;
-            wrapperElement.style.minWidth = `${finalScaledWidth}px`;
-            wrapperElement.style.minHeight = `${finalScaledHeight}px`;
-            wrapperElement.style.maxWidth = 'none';
-            wrapperElement.style.maxHeight = 'none';
-            
-            containerElement.style.transition = 'transform 0.2s ease-out';
-            containerElement.style.willChange = 'transform';
-            containerElement.style.backfaceVisibility = 'hidden';
-            containerElement.style.webkitBackfaceVisibility = 'hidden';
-            containerElement.style.transformOrigin = 'center center';
-            containerElement.style.width = `${baseWidth}px`;
-            containerElement.style.height = `${baseHeight}px`;
-            containerElement.style.overflow = 'visible';
-            containerElement.style.boxSizing = 'border-box';
-            containerElement.style.transform = newTransform;
-          });
+      const applyStyles = (wrapperEl: Element, containerEl: Element) => {
+        const w = wrapperEl as HTMLElement;
+        const c = containerEl as HTMLElement;
+        w.style.transition = 'none';
+        w.style.width = `${finalScaledWidth}px`;
+        w.style.height = `${finalScaledHeight}px`;
+        w.style.minWidth = `${finalScaledWidth}px`;
+        w.style.minHeight = `${finalScaledHeight}px`;
+        w.style.maxWidth = 'none';
+        w.style.maxHeight = 'none';
+        w.style.margin = 'auto';
+        w.style.flexShrink = '0';
+        w.style.boxSizing = 'border-box';
+        w.style.overflow = 'visible';
+        w.style.display = 'flex';
+        w.style.alignItems = 'center';
+        w.style.justifyContent = 'center';
+        w.style.position = 'relative';
+        c.style.transition = immediate ? 'none' : 'transform 0.2s ease-out';
+        c.style.willChange = 'transform';
+        c.style.backfaceVisibility = 'hidden';
+        c.style.webkitBackfaceVisibility = 'hidden';
+        c.style.transformOrigin = 'center center';
+        c.style.width = `${baseWidth}px`;
+        c.style.height = `${baseHeight}px`;
+        c.style.overflow = 'visible';
+        c.style.boxSizing = 'border-box';
+        c.style.transform = newTransform;
+      };
+      
+      if (immediate) {
+        wrapperElements.forEach((w, i) => {
+          const c = containerElements[i];
+          if (c) applyStyles(w, c);
+        });
+      } else {
+        if (zoomUpdateFrame.current !== null) {
+          cancelAnimationFrame(zoomUpdateFrame.current);
         }
-        
-        // Find the scrollable parent container and ensure it can scroll properly
-        // Only target the canvas scroll container, not any parent flex containers
-        const scrollContainer = containerElement.closest('.bg-gray-50.overflow-auto');
+        zoomUpdateFrame.current = requestAnimationFrame(() => {
+          zoomUpdateFrame.current = null;
+          wrapperElements.forEach((w, i) => {
+            const c = containerElements[i];
+            if (c) applyStyles(w, c);
+          });
+        });
+      }
+      
+      const firstContainer = containerElements[0];
+      if (firstContainer) {
+        const scrollContainer = firstContainer.closest('.bg-gray-50.overflow-auto');
         if (scrollContainer) {
           const scrollEl = scrollContainer as HTMLElement;
-          // Ensure overflow works
           scrollEl.style.overflow = 'auto';
           scrollEl.style.overflowX = 'auto';
           scrollEl.style.overflowY = 'auto';
         }
       }
       
-      // DO NOT call setZoom() - this would affect the canvas viewport independently
-      // We want the entire container to scale, keeping all content in proportion
-      // The canvas stays at 1:1 internally, only the wrapper scales
-      
       setZoomLevel(Math.round(zoom));
     } catch (error) {
       console.error('Error setting zoom:', error);
     }
-  }, [canvasState.fabricCanvas, getScaledDimensions]);
+  }, [canvasState.fabricCanvas, canvas2State.fabricCanvas, activeCanvasIndex, getBaseDimensions, getScaledDimensions]);
 
   // Helper function to clean up canvas edit listeners
   const cleanupCanvasListeners = useCallback((canvas: any) => {
@@ -913,8 +908,18 @@ export default function ResumeBuilderPage() {
           ml: true, mr: true,
           tl: true, tr: true, bl: true, br: true
         });
+        obj.set({
+          borderColor: '#10b981',
+          borderWidth: 3,
+          borderDashArray: [5, 5],
+          cornerColor: '#10b981',
+          cornerStrokeColor: '#10b981',
+          cornerStyle: 'circle',
+          cornerSize: 12,
+          hasRotatingPoint: false,
+        });
       } else {
-        // Configure other objects
+        // Configure other objects: same selection style (green dotted + custom handles)
         obj.set({
           selectable: true,
           evented: true,
@@ -926,7 +931,22 @@ export default function ResumeBuilderPage() {
           padding: 0,
           hoverCursor: 'move',
           moveCursor: 'move',
+          borderColor: '#10b981',
+          borderWidth: 3,
+          borderDashArray: [5, 5],
+          cornerColor: '#10b981',
+          cornerStrokeColor: '#10b981',
+          cornerStyle: 'circle',
+          cornerSize: 12,
+          hasRotatingPoint: false,
         });
+        if (obj.setControlsVisibility) {
+          obj.setControlsVisibility({
+            mt: false, mb: false, mtr: false,
+            ml: true, mr: true,
+            tl: true, tr: true, bl: true, br: true
+          });
+        }
       }
     });
   }, [isPageBorder]);
@@ -1268,7 +1288,7 @@ export default function ResumeBuilderPage() {
   }, [canvasState.fabricCanvas, hasLoadedImportedResume, searchParams, loadImportedResume]);
 
   // Check for openUpload query parameter - fallback if canvas is already ready
-  // Function to load resume by ID
+  // Function to load resume by ID (supports single page or array of pages)
   const loadResumeById = useCallback(async (resumeId: string) => {
     const canvas = canvasState.fabricCanvas;
     if (!canvas) return;
@@ -1293,16 +1313,37 @@ export default function ResumeBuilderPage() {
         const resume = await response.json();
         setCurrentResumeId(resume._id);
 
-        // Load canvas data if available
-        if (resume.canvasData) {
-          const fabric = await import('fabric').then(m => m.fabric);
-          canvas.loadFromJSON(resume.canvasData, () => {
-            canvas.renderAll();
-            toast.success('Resume loaded successfully!');
-          });
-        } else {
+        const data = resume.canvasData;
+        if (!data) {
           toast.info('Resume loaded, but no canvas data found. Starting fresh.');
+          setCanvasPageCount(1);
+          return;
         }
+
+        const isMultiPage = Array.isArray(data);
+        const page1Data = isMultiPage ? data[0] : data;
+        const page2Data = isMultiPage ? data[1] : null;
+
+        // Load page 1
+        canvas.loadFromJSON(page1Data, () => {
+          canvas.renderAll();
+        });
+
+        if (isMultiPage && page2Data && canvas2State.fabricCanvas) {
+          setCanvasPageCount(2);
+          canvas2State.fabricCanvas.loadFromJSON(page2Data, () => {
+            canvas2State.fabricCanvas?.renderAll();
+          });
+          updateCanvasState2({ canvasState: JSON.stringify(page2Data) });
+        } else if (isMultiPage && page2Data) {
+          // Second canvas not mounted yet; add page and load when ready
+          setCanvasPageCount(2);
+          // Store page2 data to load when canvas 2 is ready
+          (window as any).__pendingPage2Data = page2Data;
+        } else {
+          setCanvasPageCount(1);
+        }
+        toast.success('Resume loaded successfully!');
       } else if (response.status === 401) {
         toast.error('Not authorized to view this resume');
         router.push('/profile');
@@ -1315,7 +1356,7 @@ export default function ResumeBuilderPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [canvasState.fabricCanvas, router]);
+  }, [canvasState.fabricCanvas, canvas2State.fabricCanvas, router, updateCanvasState2]);
 
   // Load existing resume if resumeId is in URL
   useEffect(() => {
@@ -1324,6 +1365,253 @@ export default function ResumeBuilderPage() {
       loadResumeById(resumeId);
     }
   }, [searchParams, canvasState.fabricCanvas, currentResumeId, loadResumeById]);
+
+  // Cross-canvas drag and drop: show preview under cursor, on drop move object to other canvas
+  useEffect(() => {
+    if (canvasPageCount !== 2 || !canvasState.fabricCanvas || !canvas2State.fabricCanvas) {
+      return;
+    }
+    const c1 = canvasState.fabricCanvas;
+    const c2 = canvas2State.fabricCanvas;
+
+    const getOtherCanvas = (source: any) => (source === c1 ? c2 : c1);
+    const getOtherPage = (source: any) => (source === c1 ? '2' : '1');
+
+    const isPointerOverOtherCanvas = (sourceCanvas: any, clientX: number, clientY: number) => {
+      const otherPage = getOtherPage(sourceCanvas);
+      const el = document.querySelector(`.canvas-container[data-page="${otherPage}"]`) as HTMLElement;
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+    };
+
+    const createPreviewEl = (obj: any) => {
+      const rect = obj.getBoundingRect();
+      const getNum = (o: any, key: string, fallback: number) => {
+        const v = o.get ? o.get(key) : o[key];
+        return typeof v === 'number' && !Number.isNaN(v) ? v : fallback;
+      };
+      const scaleX = getNum(obj, 'scaleX', 1);
+      const scaleY = getNum(obj, 'scaleY', 1);
+      const objW = getNum(obj, 'width', rect.width);
+      const objH = getNum(obj, 'height', rect.height);
+      const contentW = Math.max(1, Math.ceil(objW * scaleX));
+      const contentH = Math.max(1, Math.ceil(objH * scaleY));
+      const borderW = 2;
+      const wrapperW = contentW + borderW * 2;
+      const wrapperH = contentH + borderW * 2;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cross-canvas-drag-preview';
+      wrapper.style.cssText = [
+        'position:fixed',
+        'z-index:9999',
+        'pointer-events:none',
+        'border:2px dashed #10b981',
+        'border-radius:2px',
+        'background:white',
+        'box-sizing:border-box',
+        'overflow:hidden',
+      ].join(';');
+      wrapper.style.width = `${wrapperW}px`;
+      wrapper.style.height = `${wrapperH}px`;
+      wrapper.setAttribute('data-content-w', String(contentW));
+      wrapper.setAttribute('data-content-h', String(contentH));
+
+      const img = document.createElement('img');
+      img.style.display = 'block';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.alt = '';
+      wrapper.appendChild(img);
+      document.body.appendChild(wrapper);
+
+      const fabric = (window as any).fabric;
+      if (fabric) {
+        const StaticCanvasClass = fabric.StaticCanvas ?? fabric.Canvas;
+        obj.clone((cloned: any) => {
+          if (!cloned || !img.parentNode) return;
+          try {
+            const tempEl = document.createElement('canvas');
+            tempEl.width = contentW;
+            tempEl.height = contentH;
+            const tempCanvas = new StaticCanvasClass(tempEl, {
+              width: contentW,
+              height: contentH,
+              backgroundColor: 'white',
+              renderOnAddRemove: false,
+            });
+            cloned.set({
+              left: 0,
+              top: 0,
+            });
+            if (cloned.setCoords) cloned.setCoords();
+            tempCanvas.add(cloned);
+            tempCanvas.renderAll();
+            const dataURL = tempEl.toDataURL('image/png');
+            img.src = dataURL;
+            if (tempCanvas.dispose) tempCanvas.dispose();
+          } catch (_) {
+            img.style.background = '#f3f4f6';
+            img.style.minWidth = '40px';
+            img.style.minHeight = '24px';
+          }
+        });
+      } else {
+        img.style.background = '#f3f4f6';
+        img.style.minWidth = '40px';
+        img.style.minHeight = '24px';
+      }
+
+      return wrapper;
+    };
+
+    const removePreview = () => {
+      const prev = crossCanvasDragRef.current.previewEl;
+      if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+      crossCanvasDragRef.current.previewEl = null;
+      crossCanvasDragRef.current.grabOffset = null;
+    };
+
+    const onMoving = (e: any) => {
+      const ev = e.e;
+      if (!ev || typeof ev.clientX !== 'number' || typeof ev.clientY !== 'number') return;
+      const sourceCanvas = e.target?.canvas ?? null;
+      crossCanvasDragRef.current.lastPointer = { clientX: ev.clientX, clientY: ev.clientY };
+      crossCanvasDragRef.current.sourceCanvas = sourceCanvas;
+
+      if (!sourceCanvas) return;
+      const active = sourceCanvas.getActiveObject();
+      if (!active) return;
+
+      const overOther = isPointerOverOtherCanvas(sourceCanvas, ev.clientX, ev.clientY);
+      let preview = crossCanvasDragRef.current.previewEl;
+
+      if (overOther) {
+        // Pointer reached the other canvas: show preview, hide actual object, clear selection so no ghost outline
+        if (!preview) {
+          crossCanvasDragRef.current.draggedObject = active;
+          active.set('visible', false);
+          sourceCanvas.discardActiveObject();
+          sourceCanvas.requestRenderAll();
+          preview = createPreviewEl(active);
+          crossCanvasDragRef.current.previewEl = preview;
+          const ptr = sourceCanvas.getPointer(ev);
+          const objLeft = active.get?.('left') ?? active.left ?? 0;
+          const objTop = active.get?.('top') ?? active.top ?? 0;
+          crossCanvasDragRef.current.grabOffset = {
+            x: ptr.x - objLeft,
+            y: ptr.y - objTop,
+          };
+        }
+        const otherCanvas = getOtherCanvas(sourceCanvas);
+        const otherPage = getOtherPage(sourceCanvas);
+        const otherContainer = document.querySelector(`.canvas-container[data-page="${otherPage}"]`) as HTMLElement;
+        const contentW = Number(preview.getAttribute('data-content-w')) || 1;
+        const contentH = Number(preview.getAttribute('data-content-h')) || 1;
+        const borderW = 2;
+        let scale = 1;
+        if (otherContainer && otherCanvas?.getWidth) {
+          const rect = otherContainer.getBoundingClientRect();
+          const fabricW = otherCanvas.getWidth();
+          const fabricH = otherCanvas.getHeight?.() ?? fabricW;
+          scale = Math.min(rect.width / fabricW, rect.height / fabricH) || 1;
+        }
+        preview.style.width = `${(contentW + borderW * 2) * scale}px`;
+        preview.style.height = `${(contentH + borderW * 2) * scale}px`;
+        const go = crossCanvasDragRef.current.grabOffset ?? { x: 0, y: 0 };
+        preview.style.left = `${ev.clientX - (borderW + go.x) * scale}px`;
+        preview.style.top = `${ev.clientY - (borderW + go.y) * scale}px`;
+      } else {
+        // Still on first canvas: show actual object (no preview), restore if we had preview
+        if (preview) {
+          const dragged = crossCanvasDragRef.current.draggedObject;
+          removePreview();
+          crossCanvasDragRef.current.grabOffset = null;
+          crossCanvasDragRef.current.draggedObject = null;
+          if (dragged) {
+            dragged.set('visible', true);
+            sourceCanvas.requestRenderAll();
+          }
+        }
+      }
+    };
+
+    const onModified = (e: any) => {
+      const { lastPointer, sourceCanvas, previewEl, grabOffset, draggedObject } = crossCanvasDragRef.current;
+      crossCanvasDragRef.current = { lastPointer: null, sourceCanvas: null, previewEl: null, grabOffset: null, draggedObject: null };
+      if (previewEl && previewEl.parentNode) previewEl.parentNode.removeChild(previewEl);
+
+      if (!sourceCanvas) return;
+      const active = sourceCanvas.getActiveObject() ?? draggedObject;
+      const restoreVisible = () => {
+        if (active) {
+          active.set('visible', true);
+          sourceCanvas.requestRenderAll();
+        }
+      };
+
+      if (!lastPointer) {
+        restoreVisible();
+        return;
+      }
+      if (!active) return;
+
+      const otherPage = getOtherPage(sourceCanvas);
+      const otherContainer = document.querySelector(`.canvas-container[data-page="${otherPage}"]`) as HTMLElement;
+      if (!otherContainer) {
+        restoreVisible();
+        return;
+      }
+      const rect = otherContainer.getBoundingClientRect();
+      const isInside =
+        lastPointer.clientX >= rect.left &&
+        lastPointer.clientX <= rect.right &&
+        lastPointer.clientY >= rect.top &&
+        lastPointer.clientY <= rect.bottom;
+      if (!isInside) {
+        restoreVisible();
+        return;
+      }
+
+      const targetCanvas = getOtherCanvas(sourceCanvas);
+      const fakeEv = { clientX: lastPointer.clientX, clientY: lastPointer.clientY };
+      let pointer: { x: number; y: number };
+      try {
+        pointer = targetCanvas.getPointer(fakeEv);
+      } catch {
+        pointer = { x: 100, y: 100 };
+      }
+
+      sourceCanvas.discardActiveObject();
+      const go = grabOffset ?? { x: 0, y: 0 };
+      const objectToDrop = active;
+      objectToDrop.clone((cloned: any) => {
+        if (!cloned) return;
+        cloned.set({ left: pointer.x - go.x, top: pointer.y - go.y, visible: true });
+        if (cloned.setCoords) cloned.setCoords();
+        targetCanvas.add(cloned);
+        targetCanvas.discardActiveObject();
+        targetCanvas.requestRenderAll();
+        sourceCanvas.remove(objectToDrop);
+        sourceCanvas.requestRenderAll();
+        toast.success('Moved to page ' + otherPage);
+      });
+    };
+
+    c1.on('object:moving', onMoving);
+    c1.on('object:modified', onModified);
+    c2.on('object:moving', onMoving);
+    c2.on('object:modified', onModified);
+
+    return () => {
+      removePreview();
+      c1.off('object:moving', onMoving);
+      c1.off('object:modified', onModified);
+      c2.off('object:moving', onMoving);
+      c2.off('object:modified', onModified);
+    };
+  }, [canvasPageCount, canvasState.fabricCanvas, canvas2State.fabricCanvas]);
 
   useEffect(() => {
     const shouldOpenUpload = searchParams.get('openUpload') === 'true';
@@ -1419,18 +1707,18 @@ export default function ResumeBuilderPage() {
 
           {/* Main Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top Bar */}
+            {/* Top Bar (undo/redo on active canvas) */}
             <div className="flex-shrink-0">
               <ResumeBuilderTopBar
-                fabricCanvas={canvasState.fabricCanvas}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                canUndo={canUndo()}
-                canRedo={canRedo()}
+                fabricCanvas={activeCanvasIndex === 0 ? canvasState.fabricCanvas : canvas2State.fabricCanvas}
+                onUndo={activeCanvasIndex === 0 ? handleUndo : handleUndo2}
+                onRedo={activeCanvasIndex === 0 ? handleRedo : handleRedo2}
+                canUndo={activeCanvasIndex === 0 ? canUndo() : canUndo2()}
+                canRedo={activeCanvasIndex === 0 ? canRedo() : canRedo2()}
               />
             </div>
             
-            {/* Canvas Area with Scroll */}
+            {/* Canvas Area – single scroll for both canvases */}
             <div className="flex-1 flex flex-col overflow-hidden relative">
               {isLoading && (
                 <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
@@ -1438,21 +1726,95 @@ export default function ResumeBuilderPage() {
                 </div>
               )}
               
-              <ResumeBuilderCanvas
-                onCanvasReady={handleCanvasReadyWithImport}
-                onStateChange={handleStateChange}
-              />
-              
-              {/* Canvas Edit Manager */}
-              {canvasState.fabricCanvas && canvasState.fabricCanvas.getElement && canvasState.fabricCanvas.getElement() && (
-                <CanvasEditManager
-                  key={`canvas-edit-${canvasEditKey}-${hasLoadedImportedResume ? 'imported' : 'default'}-${canvasState.currentTemplateId}`}
-                  canvas={canvasState.fabricCanvas}
-                  getFabricInstance={getFabricInstance}
-                  onEditToolbarUpdate={updateEditToolbarState}
-                  registerCleanup={registerCleanup}
+              <div className="flex-1 overflow-auto bg-gray-50" style={{ padding: '2rem' }}>
+                {/* Page 1 canvas */}
+                <ResumeBuilderCanvas
+                  key="canvas-page-1"
+                  pageIndex={1}
+                  noScrollWrapper
+                  onCanvasReady={handleCanvasReadyWithImport}
+                  onStateChange={handleStateChange}
                 />
-              )}
+                
+                {/* Canvas Edit Manager for page 1 */}
+                {canvasState.fabricCanvas && canvasState.fabricCanvas.getElement && canvasState.fabricCanvas.getElement() && (
+                  <CanvasEditManager
+                    key={`canvas-edit-1-${canvasEditKey}-${hasLoadedImportedResume ? 'imported' : 'default'}-${canvasState.currentTemplateId}`}
+                    canvas={canvasState.fabricCanvas}
+                    getFabricInstance={getFabricInstance}
+                    onEditToolbarUpdate={(updates) => {
+                      updateEditToolbarState(updates);
+                      setActiveCanvasIndex(0);
+                    }}
+                    registerCleanup={registerCleanup}
+                  />
+                )}
+
+                {/* Add/Remove page button – just below canvas, aligned to canvas right edge (not extreme right) */}
+                <div
+                  className="flex justify-end py-2"
+                  style={{
+                    width: `${getBaseDimensions().width * getScaledDimensions().scale}px`,
+                    margin: '0 auto',
+                    minHeight: '2.5rem'
+                  }}
+                >
+                  {canvasPageCount === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => setCanvasPageCount(2)}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-md transition-colors"
+                    >
+                      <FilePlus2 className="w-4 h-4" />
+                      Add page
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCanvasPageCount(1)}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-200 border border-gray-300 rounded-md transition-colors"
+                    >
+                      <FileMinus2 className="w-4 h-4" />
+                      Remove second page
+                    </button>
+                  )}
+                </div>
+
+                {/* Page 2 canvas (only when 2 pages) */}
+                {canvasPageCount === 2 && (
+                  <>
+                    <ResumeBuilderCanvas
+                      key="canvas-page-2"
+                      pageIndex={2}
+                      noScrollWrapper
+                      onCanvasReady={(canvas) => {
+                        handleCanvas2Ready(canvas);
+                        const pending = (window as any).__pendingPage2Data;
+                        if (pending) {
+                          canvas.loadFromJSON(pending, () => {
+                            canvas.renderAll();
+                            updateCanvasState2({ canvasState: JSON.stringify(pending) });
+                          });
+                          delete (window as any).__pendingPage2Data;
+                        }
+                      }}
+                      onStateChange={handleStateChange2}
+                    />
+                    {canvas2State.fabricCanvas && canvas2State.fabricCanvas.getElement && canvas2State.fabricCanvas.getElement() && (
+                      <CanvasEditManager
+                        key={`canvas-edit-2-${canvasEditKey}`}
+                        canvas={canvas2State.fabricCanvas}
+                        getFabricInstance={getFabricInstance2}
+                        onEditToolbarUpdate={(updates) => {
+                          updateEditToolbarState2(updates);
+                          setActiveCanvasIndex(1);
+                        }}
+                        registerCleanup={registerCleanup2}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
               
               
               {/* Fixed Footer with Controls */}
@@ -1579,12 +1941,12 @@ export default function ResumeBuilderPage() {
           </div>
         </div>
         
-        {/* Edit Toolbar */}
+        {/* Edit Toolbar (for active canvas) */}
         <CanvasEditToolbar
-          fabricCanvas={canvasState.fabricCanvas}
-          isVisible={editToolbarState.showEditToolbar}
-          position={editToolbarState.editToolbarPosition}
-          onClose={handleCloseEditToolbar}
+          fabricCanvas={activeCanvasIndex === 0 ? canvasState.fabricCanvas : canvas2State.fabricCanvas}
+          isVisible={activeCanvasIndex === 0 ? editToolbarState.showEditToolbar : editToolbar2State.showEditToolbar}
+          position={activeCanvasIndex === 0 ? editToolbarState.editToolbarPosition : editToolbar2State.editToolbarPosition}
+          onClose={activeCanvasIndex === 0 ? handleCloseEditToolbar : handleCloseEditToolbar2}
         />
       </div>
 

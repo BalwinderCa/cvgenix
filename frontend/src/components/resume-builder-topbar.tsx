@@ -116,10 +116,28 @@ const isTextObject = (obj: FabricObject): boolean =>
 const getTextObjects = (objects: FabricObject[]): FabricObject[] =>
   objects.filter(isTextObject);
 
+// Batched canvas render: only repaint once per frame during slider drag
+const useBatchedRender = (fabricCanvas: FabricCanvas | null) => {
+  const rafIdRef = useRef<number | null>(null);
+  const scheduleRender = useCallback(() => {
+    if (!fabricCanvas) return;
+    if (rafIdRef.current != null) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      try {
+        (fabricCanvas as any).requestRenderAll?.() || fabricCanvas.renderAll();
+      } finally {
+        rafIdRef.current = null;
+      }
+    });
+  }, [fabricCanvas]);
+  return scheduleRender;
+};
+
 // Custom hook for text operations with better error handling
 const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
   const [textProperties, setTextProperties] = useState<TextProperties>(DEFAULT_TEXT_PROPERTIES);
   const [isLoading, setIsLoading] = useState(false);
+  const scheduleRender = useBatchedRender(fabricCanvas);
 
   // Get active text objects with error handling
   const getActiveTextObjects = useCallback((): FabricObject[] => {
@@ -192,6 +210,24 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
     }
   }, [fabricCanvas]);
 
+  // Get active objects (single or multi-selection) - same logic as applyToActiveObjects
+  const getActiveObjectsList = useCallback((): FabricObject[] => {
+    if (!fabricCanvas) return [];
+    try {
+      const activeObject = fabricCanvas.getActiveObject();
+      if (!activeObject) return [];
+      if ((activeObject as any)._objects && Array.isArray((activeObject as any)._objects)) {
+        return (activeObject as any)._objects;
+      }
+      if (typeof fabricCanvas.getActiveObjects === 'function') {
+        return fabricCanvas.getActiveObjects();
+      }
+      return [activeObject];
+    } catch {
+      return [];
+    }
+  }, [fabricCanvas]);
+
   // Update text properties from canvas with error handling
   const updateTextProperties = useCallback(() => {
     if (!fabricCanvas) {
@@ -201,7 +237,8 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
 
     try {
       const textObjects = getActiveTextObjects();
-      
+      const activeObjects = getActiveObjectsList();
+
       if (textObjects.length > 0) {
         const firstTextObject = textObjects[0];
         setTextProperties({
@@ -214,8 +251,13 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
           textAlign: firstTextObject.textAlign || 'left',
           lineHeight: firstTextObject.lineHeight || DEFAULT_TEXT_PROPERTIES.lineHeight,
           charSpacing: firstTextObject.charSpacing || DEFAULT_TEXT_PROPERTIES.charSpacing,
-          strokeWidth: firstTextObject.strokeWidth || DEFAULT_TEXT_PROPERTIES.strokeWidth
+          strokeWidth: firstTextObject.strokeWidth ?? DEFAULT_TEXT_PROPERTIES.strokeWidth
         });
+      } else if (activeObjects.length > 0) {
+        // Line or other non-text selected: at least sync strokeWidth for line thickness slider
+        const first = activeObjects[0];
+        const strokeW = (first as any).strokeWidth ?? DEFAULT_TEXT_PROPERTIES.strokeWidth;
+        setTextProperties(prev => ({ ...DEFAULT_TEXT_PROPERTIES, ...prev, strokeWidth: strokeW }));
       } else {
         setTextProperties(DEFAULT_TEXT_PROPERTIES);
       }
@@ -223,7 +265,7 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       console.error('Error updating text properties:', error);
       setTextProperties(DEFAULT_TEXT_PROPERTIES);
     }
-  }, [fabricCanvas, getActiveTextObjects]);
+  }, [fabricCanvas, getActiveTextObjects, getActiveObjectsList]);
 
   // Text operations with better error handling and loading states
   const textOperations = useMemo(() => ({
@@ -512,12 +554,8 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       try {
         const textObjects = getActiveTextObjects();
         if (textObjects.length > 0) {
-          textObjects.forEach((obj: FabricObject) => {
-            obj.set({ lineHeight });
-          });
-          if (fabricCanvas) {
-            (fabricCanvas as any).requestRenderAll?.() || (fabricCanvas as any).renderAll?.();
-          }
+          textObjects.forEach((obj: FabricObject) => obj.set({ lineHeight }));
+          scheduleRender();
           setTextProperties(prev => ({ ...prev, lineHeight }));
         }
       } catch (error) {
@@ -550,12 +588,8 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
       try {
         const textObjects = getActiveTextObjects();
         if (textObjects.length > 0) {
-          textObjects.forEach((obj: FabricObject) => {
-            obj.set({ charSpacing });
-          });
-          if (fabricCanvas) {
-            (fabricCanvas as any).requestRenderAll?.() || (fabricCanvas as any).renderAll?.();
-          }
+          textObjects.forEach((obj: FabricObject) => obj.set({ charSpacing }));
+          scheduleRender();
           setTextProperties(prev => ({ ...prev, charSpacing }));
         }
       } catch (error) {
@@ -587,14 +621,11 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
     // Real-time stroke width updates (for slider dragging)
     updateStrokeWidthRealtime: (strokeWidth: number) => {
       if (!fabricCanvas) return;
-      
       try {
-        // Direct synchronous update without async operations
-        const activeObjects = fabricCanvas.getActiveObjects();
-        activeObjects.forEach((obj: FabricObject) => {
-          obj.set({ strokeWidth });
-        });
-        fabricCanvas.renderAll();
+        const activeObjects = getActiveObjectsList();
+        if (activeObjects.length === 0) return;
+        activeObjects.forEach((obj: FabricObject) => obj.set({ strokeWidth }));
+        scheduleRender();
         setTextProperties(prev => ({ ...prev, strokeWidth }));
       } catch (error) {
         console.error('Error updating stroke width in real-time:', error);
@@ -637,7 +668,7 @@ const useTextOperations = (fabricCanvas: FabricCanvas | null) => {
         setIsLoading(false);
       }
     }
-  }), [applyToTextObjects, applyToActiveObjects, getActiveTextObjects, fabricCanvas, isLoading]);
+  }), [applyToTextObjects, applyToActiveObjects, getActiveTextObjects, getActiveObjectsList, fabricCanvas, isLoading, scheduleRender]);
 
   return { textProperties, textOperations, updateTextProperties, isLoading };
 };
@@ -909,6 +940,139 @@ const FontFamilyDropdown = ({
   </select>
 );
 
+// Slider with local state for live dragging (onInput) and synced value
+const LineHeightSlider = ({
+  value,
+  onInput,
+  onChange,
+  disabled = false,
+}: {
+  value: number;
+  onInput: (v: number) => void;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const [isDragging, setIsDragging] = useState(false);
+  useEffect(() => {
+    if (!isDragging) setLocalValue(value);
+  }, [value, isDragging]);
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-700">Line Height</label>
+      <div className="flex items-center space-x-2">
+        <input
+          type="range"
+          min="0.8"
+          max="3.0"
+          step="0.1"
+          value={localValue}
+          onInput={(e) => {
+            const v = parseFloat((e.target as HTMLInputElement).value);
+            setLocalValue(v);
+            onInput(v);
+          }}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            setLocalValue(v);
+            onChange(v);
+            setIsDragging(false);
+          }}
+          onMouseDown={() => setIsDragging(true)}
+          onMouseUp={() => setIsDragging(false)}
+          disabled={disabled}
+          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+          title={`Line Height: ${localValue}`}
+        />
+        <input
+          type="number"
+          min="0.8"
+          max="3.0"
+          step="0.1"
+          value={localValue}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (v >= 0.8 && v <= 3.0) {
+              setLocalValue(v);
+              onInput(v);
+              onChange(v);
+            }
+          }}
+          disabled={disabled}
+          className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
+        />
+      </div>
+    </div>
+  );
+};
+
+const LetterSpacingSlider = ({
+  value,
+  onInput,
+  onChange,
+  disabled = false,
+}: {
+  value: number;
+  onInput: (v: number) => void;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const [isDragging, setIsDragging] = useState(false);
+  useEffect(() => {
+    if (!isDragging) setLocalValue(value);
+  }, [value, isDragging]);
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-700">Letter Spacing</label>
+      <div className="flex items-center space-x-2">
+        <input
+          type="range"
+          min="-20"
+          max="80"
+          step="0.5"
+          value={localValue}
+          onInput={(e) => {
+            const v = parseFloat((e.target as HTMLInputElement).value);
+            setLocalValue(v);
+            onInput(v);
+          }}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            setLocalValue(v);
+            onChange(v);
+            setIsDragging(false);
+          }}
+          onMouseDown={() => setIsDragging(true)}
+          onMouseUp={() => setIsDragging(false)}
+          disabled={disabled}
+          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+          title={`Letter Spacing: ${localValue}px`}
+        />
+        <input
+          type="number"
+          min="-10"
+          max="50"
+          step="0.5"
+          value={localValue}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (v >= -10 && v <= 50) {
+              setLocalValue(v);
+              onInput(v);
+              onChange(v);
+            }
+          }}
+          disabled={disabled}
+          className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
+        />
+      </div>
+    </div>
+  );
+};
+
 // Line thickness slider component with local state for smooth sliding
 const LineThicknessSlider = ({ 
   value, 
@@ -924,17 +1088,13 @@ const LineThicknessSlider = ({
   const [localValue, setLocalValue] = useState(value);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Update local value when prop value changes (but not while dragging)
   useEffect(() => {
-    if (!isDragging) {
-      setLocalValue(value);
-    }
+    if (!isDragging) setLocalValue(value);
   }, [value, isDragging]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseFloat(e.target.value);
     setLocalValue(newValue);
-    // Direct update without throttling for smooth slider movement
     onInput(newValue);
   };
 
@@ -942,14 +1102,6 @@ const LineThicknessSlider = ({
     const newValue = parseFloat(e.target.value);
     setLocalValue(newValue);
     onChange(newValue);
-    setIsDragging(false);
-  };
-
-  const handleMouseDown = () => {
-    setIsDragging(true);
-  };
-
-  const handleMouseUp = () => {
     setIsDragging(false);
   };
 
@@ -967,8 +1119,8 @@ const LineThicknessSlider = ({
           value={localValue}
           onChange={handleChange}
           onInput={handleInput}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
+          onMouseDown={() => setIsDragging(true)}
+          onMouseUp={() => setIsDragging(false)}
           disabled={disabled}
           className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
           title={`Line Thickness: ${localValue}px`}
@@ -995,14 +1147,15 @@ const LineThicknessSlider = ({
   );
 };
 
-// Advanced tools overlay component
+// Advanced tools overlay component (draggable)
 const AdvancedToolsOverlay = ({ 
   isOpen, 
   onClose, 
   textProperties, 
   textOperations, 
   isLoading = false,
-  hasLineSelected = false
+  hasLineSelected = false,
+  anchorRef
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -1011,115 +1164,110 @@ const AdvancedToolsOverlay = ({
   isLoading?: boolean;
   hasLineSelected?: boolean;
 }) => {
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) setPosition(null);
+  }, [isOpen]);
+
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = overlayRef.current || (e.target as HTMLElement).closest('[data-draggable-overlay]') as HTMLElement;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const currentX = position?.x ?? rect.left;
+    const currentY = position?.y ?? rect.top;
+    dragStartRef.current = { x: e.clientX, y: e.clientY, startX: currentX, startY: currentY };
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      setPosition({
+        x: dragStartRef.current.startX + dx,
+        y: dragStartRef.current.startY + dy
+      });
+    };
+    const onUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isDragging]);
+
   if (!isOpen) return null;
+
+  const overlayStyle: React.CSSProperties = position
+    ? { position: 'fixed', left: position.x, top: position.y, zIndex: 50 }
+    : {};
 
   return (
     <>
-      {/* Backdrop */}
       <div 
         className="fixed inset-0 z-40" 
         onClick={onClose}
         aria-hidden="true"
       />
-      
-      {/* Overlay */}
-      <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[280px]">
+      <div
+        ref={overlayRef}
+        data-draggable-overlay
+        style={{
+          ...overlayStyle,
+          ...(position ? {} : { position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: '0.5rem' })
+        }}
+        className="z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[280px]"
+      >
         <div className="space-y-4">
-          {/* Header */}
-          <div className="flex items-center justify-between">
+          {/* Draggable header */}
+          <div
+            role="button"
+            tabIndex={0}
+            onMouseDown={handleHeaderMouseDown}
+            className="flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
+          >
             <h3 className="text-sm font-semibold text-gray-900">Advanced Tools</h3>
             <button
+              type="button"
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
               aria-label="Close advanced tools"
             >
               ×
             </button>
           </div>
           
-          {/* Line Height Control */}
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-gray-700">
-              Line Height
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="range"
-                min="0.8"
-                max="3.0"
-                step="0.1"
-                value={textProperties.lineHeight}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  textOperations.updateLineHeightRealtime(value);
-                }}
-                disabled={isLoading}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                title={`Line Height: ${textProperties.lineHeight}`}
-              />
-              <input
-                type="number"
-                min="0.8"
-                max="3.0"
-                step="0.1"
-                value={textProperties.lineHeight}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value >= 0.8 && value <= 3.0) {
-                    textOperations.changeLineHeight(value);
-                  }
-                }}
-                disabled={isLoading}
-                className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
-                placeholder="1.2"
-              />
-            </div>
-          </div>
+          <LineHeightSlider
+            value={textProperties.lineHeight}
+            onInput={textOperations.updateLineHeightRealtime}
+            onChange={textOperations.updateLineHeightRealtime}
+            disabled={isLoading}
+          />
           
-          {/* Character Spacing Control */}
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-gray-700">
-              Letter Spacing
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="range"
-                min="-20"
-                max="80"
-                step="0.5"
-                value={textProperties.charSpacing}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  textOperations.updateCharSpacingRealtime(value);
-                }}
-                disabled={isLoading}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                title={`Letter Spacing: ${textProperties.charSpacing}px`}
-              />
-              <input
-                type="number"
-                min="-10"
-                max="50"
-                step="0.5"
-                value={textProperties.charSpacing}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (value >= -10 && value <= 50) {
-                    textOperations.changeCharSpacing(value);
-                  }
-                }}
-                disabled={isLoading}
-                className="w-16 text-xs text-center text-gray-700 bg-white border border-gray-300 px-2 py-1 rounded focus:ring-1 focus:ring-primary focus:border-primary"
-                placeholder="0"
-              />
-            </div>
-          </div>
+          <LetterSpacingSlider
+            value={textProperties.charSpacing}
+            onInput={textOperations.updateCharSpacingRealtime}
+            onChange={textOperations.updateCharSpacingRealtime}
+            disabled={isLoading}
+          />
           
-          {/* Line Thickness Control - Only show when line is selected */}
           {hasLineSelected && (
             <LineThicknessSlider 
               value={textProperties.strokeWidth}
-              onChange={textOperations.changeStrokeWidth}
+              onChange={textOperations.updateStrokeWidthRealtime}
               onInput={textOperations.updateStrokeWidthRealtime}
               disabled={isLoading}
             />
